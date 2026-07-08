@@ -1,4 +1,4 @@
-const twilio = require("twilio");
+const twilio = require('twilio');
 
 class SmsService {
   constructor() {
@@ -14,15 +14,15 @@ class SmsService {
         this.client = twilio(sid, token);
         this.isConfigured = true;
         console.log(
-          `[Twilio] Initialized with Verify Service: ${this.verifyServiceSid}`,
+          `[Twilio] Initialized with Verify Service: ${this.verifyServiceSid}`
         );
       } else {
         console.warn(
-          "[Twilio] Missing credentials or Verify Service SID in .env. SMS will not be sent.",
+          '[Twilio] Missing credentials or Verify Service SID in .env. SMS will not be sent.'
         );
       }
     } catch (err) {
-      console.error("[Twilio] Initialization failed:", err.message);
+      console.error('[Twilio] Initialization failed:', err.message);
     }
   }
 
@@ -36,23 +36,23 @@ class SmsService {
     }
 
     try {
-      const formattedPhone = phoneNumber.startsWith("+")
+      const formattedPhone = phoneNumber.startsWith('+')
         ? phoneNumber
         : `+91${phoneNumber}`;
 
       const verification = await this.client.verify.v2
         .services(this.verifyServiceSid)
-        .verifications.create({ to: formattedPhone, channel: "sms" });
+        .verifications.create({ to: formattedPhone, channel: 'sms' });
 
       console.log(
-        `[Twilio] Verify SMS sent successfully. Status: ${verification.status}`,
+        `[Twilio] Verify SMS sent successfully. Status: ${verification.status}`
       );
       return { success: true, status: verification.status };
     } catch (err) {
-      console.error("[Twilio] Failed to send Verify SMS:", err.message);
+      console.error('[Twilio] Failed to send Verify SMS:', err.message);
       throw new Error(
-        "Failed to send SMS via Twilio. Check your credentials and verify service.",
-        { cause: err },
+        'Failed to send SMS via Twilio. Check your credentials and verify service.',
+        { cause: err }
       );
     }
   }
@@ -64,19 +64,19 @@ class SmsService {
   async sendMessage(phoneNumber, body) {
     if (!this.isConfigured) {
       console.log(
-        `[Twilio Mock] 📲 Would send SMS to ${phoneNumber}: "${body}"`,
+        `[Twilio Mock] 📲 Would send SMS to ${phoneNumber}: "${body}"`
       );
       return { success: true, mocked: true };
     }
 
     try {
-      const formattedPhone = phoneNumber.startsWith("+")
+      const formattedPhone = phoneNumber.startsWith('+')
         ? phoneNumber
         : `+91${phoneNumber}`;
       const fromNumber = process.env.TWILIO_FROM_NUMBER;
       if (!fromNumber) {
-        console.warn("[Twilio] TWILIO_FROM_NUMBER not set. Skipping SMS.");
-        return { success: false, reason: "No sender number configured" };
+        console.warn('[Twilio] TWILIO_FROM_NUMBER not set. Skipping SMS.');
+        return { success: false, reason: 'No sender number configured' };
       }
 
       const message = await this.client.messages.create({
@@ -88,7 +88,7 @@ class SmsService {
       console.log(`[Twilio] SMS sent successfully. SID: ${message.sid}`);
       return { success: true, sid: message.sid };
     } catch (err) {
-      console.error("[Twilio] Failed to send SMS:", err.message);
+      console.error('[Twilio] Failed to send SMS:', err.message);
       // Non-critical — don't throw, just return failure
       return { success: false, reason: err.message };
     }
@@ -100,13 +100,13 @@ class SmsService {
   async checkVerification(phoneNumber, code) {
     if (!this.isConfigured) {
       console.log(
-        `[Twilio Mock] 📲 Would check verify SMS for ${phoneNumber} with code ${code}`,
+        `[Twilio Mock] 📲 Would check verify SMS for ${phoneNumber} with code ${code}`
       );
       return { valid: true, mocked: true };
     }
 
     try {
-      const formattedPhone = phoneNumber.startsWith("+")
+      const formattedPhone = phoneNumber.startsWith('+')
         ? phoneNumber
         : `+91${phoneNumber}`;
 
@@ -115,26 +115,26 @@ class SmsService {
         .verificationChecks.create({ to: formattedPhone, code });
 
       console.log(
-        `[Twilio] Verification check status: ${verificationCheck.status}`,
+        `[Twilio] Verification check status: ${verificationCheck.status}`
       );
 
-      if (verificationCheck.status === "approved") {
+      if (verificationCheck.status === 'approved') {
         return { valid: true };
       } else {
         return {
           valid: false,
-          reason: "Invalid OTP. Please check and try again.",
+          reason: 'Invalid OTP. Please check and try again.',
         };
       }
     } catch (err) {
-      console.error("[Twilio] Failed to check Verify SMS:", err.message);
+      console.error('[Twilio] Failed to check Verify SMS:', err.message);
       if (err.status === 404) {
         return {
           valid: false,
-          reason: "OTP expired or not found. Please request a new one.",
+          reason: 'OTP expired or not found. Please request a new one.',
         };
       }
-      throw new Error("Verification failed. Server error.", { cause: err });
+      throw new Error('Verification failed. Server error.', { cause: err });
     }
   }
 }

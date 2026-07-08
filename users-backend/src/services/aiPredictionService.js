@@ -1,12 +1,12 @@
-const axios = require("axios");
-const VitalLog = require("../models/VitalLog");
-const AIVitalPrediction = require("../models/AIVitalPrediction");
-const Notification = require("../models/Notification");
-const Patient = require("../models/Patient");
-const Caller = require("../models/Caller");
-const PushNotificationService = require("../utils/pushNotifications");
+const axios = require('axios');
+const VitalLog = require('../models/VitalLog');
+const AIVitalPrediction = require('../models/AIVitalPrediction');
+const Notification = require('../models/Notification');
+const Patient = require('../models/Patient');
+const Caller = require('../models/Caller');
+const PushNotificationService = require('../utils/pushNotifications');
 
-const AI_VITALS_URL = process.env.AI_VITALS_URL || "http://localhost:8000";
+const AI_VITALS_URL = process.env.AI_VITALS_URL || 'http://localhost:8000';
 const AI_REQUEST_TIMEOUT_MS = 30000; // 30s timeout for AI service calls
 
 class AIPredictionService {
@@ -29,7 +29,7 @@ class AIPredictionService {
 
       if (vitals.length < 7) {
         // Not enough data, skip silently
-        return { success: false, message: "Not enough historical data" };
+        return { success: false, message: 'Not enough historical data' };
       }
 
       // 2. Format payload
@@ -54,7 +54,7 @@ class AIPredictionService {
         },
         {
           timeout: AI_REQUEST_TIMEOUT_MS,
-        },
+        }
       );
 
       const { health_label, predictions } = response.data;
@@ -94,7 +94,7 @@ class AIPredictionService {
     } catch (error) {
       console.error(
         `AI Prediction Error for Patient ${patientId}:`,
-        error.message,
+        error.message
       );
       return { success: false, error: error.message };
     }
@@ -120,7 +120,7 @@ class AIPredictionService {
       }
     }
 
-    if (newLabel === "Critical") {
+    if (newLabel === 'Critical') {
       return previousStreak + 1;
     }
     return 0; // Reset streak on any non-critical label
@@ -145,7 +145,7 @@ class AIPredictionService {
    * @returns {boolean}
    */
   static shouldSendAlert(streak, healthLabel) {
-    if (healthLabel !== "Critical") return false;
+    if (healthLabel !== 'Critical') return false;
     if (streak < 1) return false;
 
     // Day 2: first alert
@@ -177,17 +177,17 @@ class AIPredictionService {
       // 1. Create persistent notification in DB for the patient
       await Notification.create({
         patient_id: patient._id,
-        title: "⚠️ Critical Vital Trend Detected",
+        title: '⚠️ Critical Vital Trend Detected',
         message: alertMessage,
-        type: "alert",
-        target_screen: "VitalsScreen",
+        type: 'alert',
+        target_screen: 'VitalsScreen',
         expo_push_token: patient.expo_push_token || undefined,
       });
 
       // 2. Send Expo push notification to the patient
       await PushNotificationService.sendCriticalVitalAlert(
         patient,
-        predictionDoc,
+        predictionDoc
       );
 
       // 3. Alert the assigned caller if one exists
@@ -198,19 +198,19 @@ class AIPredictionService {
             await PushNotificationService.sendCallerCriticalAlert(
               caller,
               patient,
-              predictionDoc,
+              predictionDoc
             );
           }
         } catch (callerErr) {
-          console.warn("⚠️ Could not notify caller:", callerErr.message);
+          console.warn('⚠️ Could not notify caller:', callerErr.message);
         }
       }
 
       console.log(
-        `🚨 Critical alert sent for patient ${patient.name} (streak: ${predictionDoc.consecutive_critical_days})`,
+        `🚨 Critical alert sent for patient ${patient.name} (streak: ${predictionDoc.consecutive_critical_days})`
       );
     } catch (error) {
-      console.error("❌ Error triggering critical push alert:", error.message);
+      console.error('❌ Error triggering critical push alert:', error.message);
     }
   }
 }

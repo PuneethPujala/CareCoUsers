@@ -1,6 +1,6 @@
-const moment = require("moment-timezone");
-const MedicineLog = require("../models/MedicineLog");
-const VitalLog = require("../models/VitalLog");
+const moment = require('moment-timezone');
+const MedicineLog = require('../models/MedicineLog');
+const VitalLog = require('../models/VitalLog');
 
 /**
  * Check if a medication was active on a given date string (YYYY-MM-DD) in patient's timezone.
@@ -9,7 +9,7 @@ function isMedicationActiveOnDate(med, dateStr, timezone) {
   // If the medication has a start date, parse it. Default to when it was created/created_at.
   const start = med.startDate || med.createdAt || med.created_at;
   const medStartStr = start
-    ? moment(start).tz(timezone).format("YYYY-MM-DD")
+    ? moment(start).tz(timezone).format('YYYY-MM-DD')
     : null;
   if (medStartStr && dateStr < medStartStr) {
     return false;
@@ -18,7 +18,7 @@ function isMedicationActiveOnDate(med, dateStr, timezone) {
   // Check end date or discontinued date
   const end = med.endDate || med.discontinuedAt;
   if (end) {
-    const medEndStr = moment(end).tz(timezone).format("YYYY-MM-DD");
+    const medEndStr = moment(end).tz(timezone).format('YYYY-MM-DD');
     if (dateStr > medEndStr) {
       return false;
     }
@@ -28,7 +28,7 @@ function isMedicationActiveOnDate(med, dateStr, timezone) {
   if ((med.isActive === false || med.is_active === false) && !end) {
     const updateTime = med.updatedAt || med.updated_at;
     if (updateTime) {
-      const medEndStr = moment(updateTime).tz(timezone).format("YYYY-MM-DD");
+      const medEndStr = moment(updateTime).tz(timezone).format('YYYY-MM-DD');
       if (dateStr > medEndStr) {
         return false;
       }
@@ -44,8 +44,8 @@ function isMedicationActiveOnDate(med, dateStr, timezone) {
  * Today is NOT backfilled and remains pending.
  */
 async function buildDailyAdherenceTimeline(patient, startDateStr, endDateStr) {
-  const timezone = patient.timezone || "Asia/Kolkata";
-  const { buildMergedMeds } = require("../routes/users/medicines");
+  const timezone = patient.timezone || 'Asia/Kolkata';
+  const { buildMergedMeds } = require('../routes/users/medicines');
 
   const startDate = new Date(`${startDateStr}T00:00:00.000Z`);
   const endDate = new Date(`${endDateStr}T23:59:59.999Z`);
@@ -77,11 +77,11 @@ async function buildDailyAdherenceTimeline(patient, startDateStr, endDateStr) {
     const taken = activeMeds.filter((m) => m.taken).length;
     const rate = total > 0 ? Math.round((taken / total) * 100) : 0;
 
-    let status = "no_medications";
+    let status = 'no_medications';
     if (total > 0) {
-      if (rate === 100) status = "complete";
-      else if (rate > 0) status = "partial";
-      else status = "missed";
+      if (rate === 100) status = 'complete';
+      else if (rate > 0) status = 'partial';
+      else status = 'missed';
     }
     return {
       date: dateStr,
@@ -116,21 +116,21 @@ async function buildDailyAdherenceTimeline(patient, startDateStr, endDateStr) {
 
   // Determine boundaries for backfilling
   const createdDate = patient.created_at || patient.createdAt || new Date();
-  const createdDateStr = moment(createdDate).tz(timezone).format("YYYY-MM-DD");
+  const createdDateStr = moment(createdDate).tz(timezone).format('YYYY-MM-DD');
 
   // Gap fill only up to yesterday
-  const todayStr = moment().tz(timezone).format("YYYY-MM-DD");
+  const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
   const yesterdayStr = moment()
     .tz(timezone)
-    .subtract(1, "days")
-    .format("YYYY-MM-DD");
+    .subtract(1, 'days')
+    .format('YYYY-MM-DD');
 
   // Iterate through the requested date range
-  const cursor = moment(startDateStr, "YYYY-MM-DD");
-  const limit = moment(endDateStr, "YYYY-MM-DD");
+  const cursor = moment(startDateStr, 'YYYY-MM-DD');
+  const limit = moment(endDateStr, 'YYYY-MM-DD');
 
   while (!cursor.isAfter(limit)) {
-    const dateStr = cursor.format("YYYY-MM-DD");
+    const dateStr = cursor.format('YYYY-MM-DD');
 
     if (!dailyLogMap.has(dateStr)) {
       // We only backfill if:
@@ -139,7 +139,7 @@ async function buildDailyAdherenceTimeline(patient, startDateStr, endDateStr) {
       if (dateStr <= yesterdayStr && dateStr >= createdDateStr) {
         // Determine active medications scheduled on this specific date
         const activeMedsOnDate = allMedsRaw.filter((med) =>
-          isMedicationActiveOnDate(med, dateStr, timezone),
+          isMedicationActiveOnDate(med, dateStr, timezone)
         );
 
         const simulatedMedicines = [];
@@ -157,9 +157,9 @@ async function buildDailyAdherenceTimeline(patient, startDateStr, endDateStr) {
         }
 
         const total = simulatedMedicines.length;
-        let status = "no_medications";
+        let status = 'no_medications';
         if (total > 0) {
-          status = "missed";
+          status = 'missed';
         }
 
         dailyLogMap.set(dateStr, {
@@ -186,7 +186,7 @@ async function buildDailyAdherenceTimeline(patient, startDateStr, endDateStr) {
           taken: 0,
           total: 0,
           rate: 0,
-          status: "no_medications",
+          status: 'no_medications',
           medicines: [],
           vitals: vitalsMap[dateStr]
             ? {
@@ -201,12 +201,12 @@ async function buildDailyAdherenceTimeline(patient, startDateStr, endDateStr) {
       }
     }
 
-    cursor.add(1, "day");
+    cursor.add(1, 'day');
   }
 
   // Return the sorted final timeline
   return Array.from(dailyLogMap.values()).sort((a, b) =>
-    a.date.localeCompare(b.date),
+    a.date.localeCompare(b.date)
   );
 }
 

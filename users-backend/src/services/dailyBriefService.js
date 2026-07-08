@@ -1,10 +1,10 @@
-const moment = require("moment-timezone");
-const Patient = require("../models/Patient");
-const PatientHealthStateHistory = require("../models/PatientHealthStateHistory");
-const { getOrGenerateInsights } = require("./companionAiService");
-const { generateInterventions } = require("./interventionEngineService");
-const { getOrGenerateCarePlan } = require("./carePlanService");
-const logger = require("../utils/logger");
+const moment = require('moment-timezone');
+const Patient = require('../models/Patient');
+const PatientHealthStateHistory = require('../models/PatientHealthStateHistory');
+const { getOrGenerateInsights } = require('./companionAiService');
+const { generateInterventions } = require('./interventionEngineService');
+const { getOrGenerateCarePlan } = require('./carePlanService');
+const logger = require('../utils/logger');
 
 /**
  * Generates the Morning Health Brief for a patient.
@@ -16,7 +16,7 @@ async function generateMorningBrief(patientId) {
     const patient = await Patient.findById(patientId);
     if (!patient) return null;
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const insights = await getOrGenerateInsights(patientId);
     const plan = await getOrGenerateCarePlan(patientId);
 
@@ -37,33 +37,33 @@ async function generateMorningBrief(patientId) {
     const scoreChangeStr = scoreDelta >= 0 ? `+${scoreDelta}` : `${scoreDelta}`;
 
     const trajectory =
-      insights?.predictive_health?.forecast?.trajectory || "stable";
+      insights?.predictive_health?.forecast?.trajectory || 'stable';
     const trajectoryLabel =
-      trajectory === "positive" || trajectory === "improving"
-        ? "Improving"
-        : trajectory === "negative" || trajectory === "declining"
-          ? "Declining"
-          : "Stable";
+      trajectory === 'positive' || trajectory === 'improving'
+        ? 'Improving'
+        : trajectory === 'negative' || trajectory === 'declining'
+          ? 'Declining'
+          : 'Stable';
 
     const focusChecklist = [];
 
     // 1. Add meds task if meds scheduled today
     const schedule = plan?.medication_tasks || [];
     if (schedule.length > 0) {
-      const nextSlot = schedule[0]?.time_slot || "morning";
+      const nextSlot = schedule[0]?.time_slot || 'morning';
       focusChecklist.push(`Take your ${nextSlot} medication`);
     } else {
-      focusChecklist.push("Maintain your wellness habits");
+      focusChecklist.push('Maintain your wellness habits');
     }
 
     // 2. Add vital logging suggestion if not synced recently
     const recentVitalsText = insights?.risk_factors?.find(
       (f) =>
-        f.toLowerCase().includes("blood pressure") ||
-        f.toLowerCase().includes("reading"),
+        f.toLowerCase().includes('blood pressure') ||
+        f.toLowerCase().includes('reading')
     );
     if (recentVitalsText) {
-      focusChecklist.push("Log your Blood Pressure reading");
+      focusChecklist.push('Log your Blood Pressure reading');
     } else {
       focusChecklist.push("Log today's BP reading");
     }
@@ -73,7 +73,7 @@ async function generateMorningBrief(patientId) {
     if (streakCount > 0) {
       focusChecklist.push(`Continue your ${streakCount}-day streak`);
     } else {
-      focusChecklist.push("Start a new medication logging streak");
+      focusChecklist.push('Start a new medication logging streak');
     }
 
     return {
@@ -84,7 +84,7 @@ async function generateMorningBrief(patientId) {
       focus_items: focusChecklist,
     };
   } catch (err) {
-    logger.error("[DailyBriefService] Error generating morning brief", {
+    logger.error('[DailyBriefService] Error generating morning brief', {
       error: err.message,
       patientId,
     });
@@ -105,33 +105,33 @@ async function generateCompanionBrief(patientId) {
     const insights = await getOrGenerateInsights(patientId);
     const activeInterventions = await generateInterventions(patientId);
 
-    const riskLevel = insights?.risk_level || "low";
+    const riskLevel = insights?.risk_level || 'low';
     const riskLabel = riskLevel.toUpperCase();
 
     const statusLabel =
-      riskLevel === "high"
-        ? "Needs Attention"
-        : riskLevel === "medium"
-          ? "Monitor Closely"
-          : "Stable";
+      riskLevel === 'high'
+        ? 'Needs Attention'
+        : riskLevel === 'medium'
+          ? 'Monitor Closely'
+          : 'Stable';
 
     const recommendedActions = [];
     if (activeInterventions.length > 0) {
       activeInterventions.slice(0, 2).forEach((item) => {
-        if (item.type === "medication_reminder")
-          recommendedActions.push("Send medication reminder nudge");
-        if (item.type === "bp_request")
-          recommendedActions.push("Request BP log sync");
-        if (item.type === "checkin_call")
-          recommendedActions.push("Schedule check-in call");
-        if (item.type === "escalation_contact")
-          recommendedActions.push("Urgent: recommend coordinator escalation");
+        if (item.type === 'medication_reminder')
+          recommendedActions.push('Send medication reminder nudge');
+        if (item.type === 'bp_request')
+          recommendedActions.push('Request BP log sync');
+        if (item.type === 'checkin_call')
+          recommendedActions.push('Schedule check-in call');
+        if (item.type === 'escalation_contact')
+          recommendedActions.push('Urgent: recommend coordinator escalation');
       });
     }
 
     if (recommendedActions.length === 0) {
-      recommendedActions.push("No immediate interventions needed");
-      recommendedActions.push("Encourage hydration & stable vitals");
+      recommendedActions.push('No immediate interventions needed');
+      recommendedActions.push('Encourage hydration & stable vitals');
     }
 
     return {
@@ -141,7 +141,7 @@ async function generateCompanionBrief(patientId) {
       recommended_actions: recommendedActions,
     };
   } catch (err) {
-    logger.error("[DailyBriefService] Error generating companion brief", {
+    logger.error('[DailyBriefService] Error generating companion brief', {
       error: err.message,
       patientId,
     });

@@ -1,10 +1,10 @@
-const moment = require("moment-timezone");
-const Patient = require("../models/Patient");
-const VitalLog = require("../models/VitalLog");
-const Intervention = require("../models/Intervention");
-const CompanionAiInsight = require("../models/CompanionAiInsight");
-const { getOrGenerateInsights } = require("./companionAiService");
-const logger = require("../utils/logger");
+const moment = require('moment-timezone');
+const Patient = require('../models/Patient');
+const VitalLog = require('../models/VitalLog');
+const Intervention = require('../models/Intervention');
+const CompanionAiInsight = require('../models/CompanionAiInsight');
+const { getOrGenerateInsights } = require('./companionAiService');
+const logger = require('../utils/logger');
 
 const COOLDOWN_MS = {
   medication_reminder: 12 * 60 * 60 * 1000, // 12h
@@ -34,7 +34,7 @@ async function isInterventionOnCooldown(patientId, type) {
   const latest = await Intervention.findOne({
     patient_id: patientId,
     type,
-    status: { $in: ["completed", "generated"] },
+    status: { $in: ['completed', 'generated'] },
   }).sort({ created_at: -1 });
 
   if (!latest) return false;
@@ -58,7 +58,7 @@ async function generateInterventions(patientId) {
     const insights = await getOrGenerateInsights(patientId);
     if (!insights) return [];
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const nowLocal = moment().tz(timezone);
 
     // Extract metrics needed for decisions
@@ -66,31 +66,31 @@ async function generateInterventions(patientId) {
       patient.adherence_rate !== null ? patient.adherence_rate : 100;
     const moodTrend =
       insights.risk_breakdown?.mood > 10 ||
-      insights.risk_factors?.some((f) => f.toLowerCase().includes("mood"))
-        ? "declining"
-        : "stable";
+      insights.risk_factors?.some((f) => f.toLowerCase().includes('mood'))
+        ? 'declining'
+        : 'stable';
 
     // Vitals log status
     const threeDaysAgo = nowLocal
       .clone()
-      .subtract(3, "days")
-      .startOf("day")
+      .subtract(3, 'days')
+      .startOf('day')
       .toDate();
     const recentVitals3dExist = await VitalLog.exists({
       patient_id: patientId,
       date: { $gte: threeDaysAgo },
     });
 
-    const riskLevel = insights.risk_level || "low";
+    const riskLevel = insights.risk_level || 'low';
     const trajectory =
-      insights.predictive_health?.forecast?.trajectory || "stable";
+      insights.predictive_health?.forecast?.trajectory || 'stable';
 
     const potentialInterventions = [];
 
     // Rule 1: Medication Adherence Nudge
     if (weeklyAdherence < 75) {
       potentialInterventions.push({
-        type: "medication_reminder",
+        type: 'medication_reminder',
         priority_score: PRIORITY_SCORES.medication_reminder,
         reason: `Weekly adherence rate is below target at ${weeklyAdherence}%`,
       });
@@ -99,32 +99,32 @@ async function generateInterventions(patientId) {
     // Rule 2: Vitals BP request
     if (!recentVitals3dExist) {
       potentialInterventions.push({
-        type: "bp_request",
+        type: 'bp_request',
         priority_score: PRIORITY_SCORES.bp_request,
         reason:
-          "No blood pressure or heart rate reading logged in the last 3 days",
+          'No blood pressure or heart rate reading logged in the last 3 days',
       });
     }
 
     // Rule 3: Wellness check-in
-    if (moodTrend === "declining") {
+    if (moodTrend === 'declining') {
       potentialInterventions.push({
-        type: "checkin_call",
+        type: 'checkin_call',
         priority_score: PRIORITY_SCORES.checkin_call,
-        reason: "Declining emotional mood patterns detected from wellness logs",
+        reason: 'Declining emotional mood patterns detected from wellness logs',
       });
     }
 
     // Rule 4: Escalation contact
     if (
-      riskLevel === "high" &&
-      (trajectory === "negative" || trajectory === "declining")
+      riskLevel === 'high' &&
+      (trajectory === 'negative' || trajectory === 'declining')
     ) {
       potentialInterventions.push({
-        type: "escalation_contact",
+        type: 'escalation_contact',
         priority_score: PRIORITY_SCORES.escalation_contact,
         reason:
-          "Critical: Patient is flagged as High Risk with a negative health score trajectory",
+          'Critical: Patient is flagged as High Risk with a negative health score trajectory',
       });
     }
 
@@ -136,26 +136,26 @@ async function generateInterventions(patientId) {
         const existing = await Intervention.findOne({
           patient_id: patientId,
           type: item.type,
-          status: "generated",
+          status: 'generated',
         });
 
         if (!existing) {
           await Intervention.create({
             patient_id: patientId,
             type: item.type,
-            source: "system",
-            status: "generated",
+            source: 'system',
+            status: 'generated',
             priority_score: item.priority_score,
             reason: item.reason,
             cooldown_until: new Date(Date.now() + COOLDOWN_MS[item.type]),
           });
           logger.info(
-            `[InterventionEngine] Generated new intervention suggestion: ${item.type} for patient ${patientId}`,
+            `[InterventionEngine] Generated new intervention suggestion: ${item.type} for patient ${patientId}`
           );
         }
       } else {
         logger.debug(
-          `[InterventionEngine] Intervention ${item.type} is currently on cooldown for patient ${patientId}`,
+          `[InterventionEngine] Intervention ${item.type} is currently on cooldown for patient ${patientId}`
         );
       }
     }
@@ -163,10 +163,10 @@ async function generateInterventions(patientId) {
     // Retrieve and return all active 'generated' interventions for this patient, sorted by priority score descending
     return await Intervention.find({
       patient_id: patientId,
-      status: "generated",
+      status: 'generated',
     }).sort({ priority_score: -1 });
   } catch (err) {
-    logger.error("[InterventionEngine] Error generating interventions", {
+    logger.error('[InterventionEngine] Error generating interventions', {
       error: err.message,
       patientId,
     });
@@ -185,7 +185,7 @@ async function completeIntervention(interventionId, companionId) {
     const intervention = await Intervention.findById(interventionId);
     if (!intervention) return null;
 
-    intervention.status = "completed";
+    intervention.status = 'completed';
     intervention.completed_at = new Date();
     intervention.companion_id = companionId;
     await intervention.save();
@@ -195,19 +195,19 @@ async function completeIntervention(interventionId, companionId) {
       patient_id: intervention.patient_id,
       companion_id: companionId,
       type: intervention.type,
-      source: "companion",
-      status: "completed",
+      source: 'companion',
+      status: 'completed',
       priority_score: intervention.priority_score,
       reason: `Companion completed recommendation: ${intervention.reason}`,
       completed_at: new Date(),
     });
 
     logger.info(
-      `[InterventionEngine] Marked intervention ${interventionId} completed by companion ${companionId}`,
+      `[InterventionEngine] Marked intervention ${interventionId} completed by companion ${companionId}`
     );
     return intervention;
   } catch (err) {
-    logger.error("[InterventionEngine] Error completing intervention", {
+    logger.error('[InterventionEngine] Error completing intervention', {
       error: err.message,
       interventionId,
     });

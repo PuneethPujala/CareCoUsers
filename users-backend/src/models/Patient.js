@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const PatientSchema = new mongoose.Schema(
   {
@@ -16,12 +16,12 @@ const PatientSchema = new mongoose.Schema(
     },
     profile_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
       index: true,
     },
     role: {
       type: String,
-      default: "patient",
+      default: 'patient',
     },
     name: {
       type: String,
@@ -57,7 +57,7 @@ const PatientSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["male", "female", "other", "prefer_not_to_say"],
+      enum: ['male', 'female', 'other', 'prefer_not_to_say'],
     },
     avatar_url: {
       type: String,
@@ -112,7 +112,7 @@ const PatientSchema = new mongoose.Schema(
     },
     lastWorkspace: {
       type: String,
-      enum: ["patient", "companion"],
+      enum: ['patient', 'companion'],
     },
 
     // ── Notifications ─────────────────────────────
@@ -124,7 +124,7 @@ const PatientSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    device_platform: { type: String, enum: ["ios", "android", "web"] },
+    device_platform: { type: String, enum: ['ios', 'android', 'web'] },
     device_name: { type: String, trim: true },
     app_version: { type: String, trim: true },
     last_token_update: { type: Date },
@@ -139,8 +139,8 @@ const PatientSchema = new mongoose.Schema(
     },
     notification_limits: {
       max_daily: { type: Number, default: 3 },
-      quiet_hours_start: { type: String, default: "21:00" },
-      quiet_hours_end: { type: String, default: "08:00" },
+      quiet_hours_start: { type: String, default: '21:00' },
+      quiet_hours_end: { type: String, default: '08:00' },
     },
     daily_notifications_sent: {
       type: Number,
@@ -160,14 +160,14 @@ const PatientSchema = new mongoose.Schema(
       street: { type: String, trim: true },
       state: { type: String, trim: true },
       postcode: { type: String, trim: true },
-      country: { type: String, trim: true, default: "India" },
+      country: { type: String, trim: true, default: 'India' },
     },
     saved_addresses: [
       {
         label: {
           type: String,
-          enum: ["Home", "Office", "Family", "Other"],
-          default: "Other",
+          enum: ['Home', 'Office', 'Family', 'Other'],
+          default: 'Other',
         },
         title: String,
         address_line: String, // Full formatted address string
@@ -185,17 +185,17 @@ const PatientSchema = new mongoose.Schema(
     // ── Relationships ─────────────────────────────
     organization_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
+      ref: 'Organization',
       index: true,
     },
     assigned_caller_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Caller",
+      ref: 'Caller',
       index: true,
     },
     assigned_manager_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
       index: true,
     },
     assigned_at: {
@@ -205,26 +205,26 @@ const PatientSchema = new mongoose.Schema(
     // ── Scheduling / Time Slots ───────────────────
     timezone: {
       type: String,
-      default: "Asia/Kolkata",
+      default: 'Asia/Kolkata',
     },
     medication_call_preferences: {
-      morning: { type: String, default: "09:00" },
-      afternoon: { type: String, default: "14:00" },
-      evening: { type: String, default: "17:00" },
-      night: { type: String, default: "20:00" },
+      morning: { type: String, default: '09:00' },
+      afternoon: { type: String, default: '14:00' },
+      evening: { type: String, default: '17:00' },
+      night: { type: String, default: '20:00' },
     },
     preferred_call_times: [
       {
         day_of_week: {
           type: String,
           enum: [
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
+            'monday',
+            'tuesday',
+            'wednesday',
+            'thursday',
+            'friday',
+            'saturday',
+            'sunday',
           ],
           required: true,
         },
@@ -232,8 +232,8 @@ const PatientSchema = new mongoose.Schema(
         end_time: { type: String, required: true },
         slot_type: {
           type: String,
-          enum: ["call", "visit", "checkin"],
-          default: "call",
+          enum: ['call', 'visit', 'checkin'],
+          default: 'call',
         },
         is_active: { type: Boolean, default: true },
         notes: { type: String },
@@ -247,23 +247,23 @@ const PatientSchema = new mongoose.Schema(
     subscription: {
       status: {
         type: String,
-        enum: ["active", "pending_payment", "cancelled", "expired"],
-        default: "pending_payment",
+        enum: ['active', 'pending_payment', 'cancelled', 'expired'],
+        default: 'pending_payment',
       },
       plan: {
         type: String,
         enum: [
-          "free",
-          "basic",
-          "premium",
-          "premium_monthly",
-          "premium_yearly",
-          "explore",
+          'free',
+          'basic',
+          'premium',
+          'premium_monthly',
+          'premium_yearly',
+          'explore',
         ],
-        default: "basic",
+        default: 'basic',
       },
       amount: { type: Number, default: 0 },
-      currency: { type: String, default: "INR" },
+      currency: { type: String, default: 'INR' },
       payment_date: Date,
       started_at: Date,
       expires_at: Date,
@@ -293,12 +293,12 @@ const PatientSchema = new mongoose.Schema(
         diagnosed_on: Date,
         status: {
           type: String,
-          enum: ["active", "managed", "resolved"],
-          default: "active",
+          enum: ['active', 'managed', 'resolved'],
+          default: 'active',
         },
         severity: {
           type: String,
-          enum: ["mild", "moderate", "severe"],
+          enum: ['mild', 'moderate', 'severe'],
         },
         notes: { type: String },
       },
@@ -315,8 +315,8 @@ const PatientSchema = new mongoose.Schema(
         name: { type: String, required: true },
         severity: {
           type: String,
-          enum: ["mild", "moderate", "severe"],
-          default: "moderate",
+          enum: ['mild', 'moderate', 'severe'],
+          default: 'moderate',
         },
         reaction: { type: String }, // e.g. "Rash", "Anaphylaxis"
       },
@@ -328,7 +328,7 @@ const PatientSchema = new mongoose.Schema(
         times: [
           {
             type: String,
-            enum: ["morning", "afternoon", "evening", "night", "as_needed"],
+            enum: ['morning', 'afternoon', 'evening', 'night', 'as_needed'],
           },
         ],
         scheduledTimes: [String], // NEW - Array of HH:MM strings
@@ -338,13 +338,13 @@ const PatientSchema = new mongoose.Schema(
             timestamp: { type: Date, default: Date.now },
             status: {
               type: String,
-              enum: ["taken", "missed", "refused"],
-              default: "taken",
+              enum: ['taken', 'missed', 'refused'],
+              default: 'taken',
             },
             markedBy: {
               type: String,
-              enum: ["patient", "caller", "system"],
-              default: "patient",
+              enum: ['patient', 'caller', 'system'],
+              default: 'patient',
             },
             notes: String,
           },
@@ -372,8 +372,8 @@ const PatientSchema = new mongoose.Schema(
         file_name: String,
         status: {
           type: String,
-          enum: ["pending", "reviewed", "rejected"],
-          default: "pending",
+          enum: ['pending', 'reviewed', 'rejected'],
+          default: 'pending',
         },
         uploaded_at: { type: Date, default: Date.now },
         reviewed_by: String,
@@ -414,7 +414,7 @@ const PatientSchema = new mongoose.Schema(
       {
         profile_id: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Profile",
+          ref: 'Profile',
           required: true,
         },
         joined_at: {
@@ -443,42 +443,42 @@ const PatientSchema = new mongoose.Schema(
     gp_email: { type: String, trim: true },
     blood_type: {
       type: String,
-      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"],
-      default: "unknown",
+      enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown'],
+      default: 'unknown',
     },
     language: {
       type: String,
-      default: "en_IN",
+      default: 'en_IN',
     },
     lifestyle: {
       height_cm: { type: Number },
       weight_kg: { type: Number },
       smoking_status: {
         type: String,
-        enum: ["never", "former", "current"],
-        default: "never",
+        enum: ['never', 'former', 'current'],
+        default: 'never',
       },
       alcohol_use: {
         type: String,
-        enum: ["none", "occasional", "heavy"],
-        default: "none",
+        enum: ['none', 'occasional', 'heavy'],
+        default: 'none',
       },
       exercise_frequency: {
         type: String,
-        enum: ["none", "light", "moderate", "active"],
-        default: "none",
+        enum: ['none', 'light', 'moderate', 'active'],
+        default: 'none',
       },
       mobility_level: {
         type: String,
-        enum: ["full", "limited", "wheelchair", "bedridden"],
-        default: "full",
+        enum: ['full', 'limited', 'wheelchair', 'bedridden'],
+        default: 'full',
       },
       mobility_aids: { type: [String], default: [] }, // e.g. ['Cane', 'Walker']
       dietary_restrictions: { type: [String], default: [] }, // e.g. ['Low Sodium', 'Diabetic']
       device_sync_status: {
         type: String,
-        enum: ["disconnected", "apple_health", "google_fit"],
-        default: "disconnected",
+        enum: ['disconnected', 'apple_health', 'google_fit'],
+        default: 'disconnected',
       },
     },
 
@@ -486,8 +486,8 @@ const PatientSchema = new mongoose.Schema(
     notes: { type: String },
     risk_level: {
       type: String,
-      enum: ["low", "medium", "high"],
-      default: "low",
+      enum: ['low', 'medium', 'high'],
+      default: 'low',
       index: true,
     },
     is_active: {
@@ -503,18 +503,18 @@ const PatientSchema = new mongoose.Schema(
     weight_kg: { type: Number },
     smoking_status: {
       type: String,
-      enum: ["never", "former", "current"],
-      default: "never",
+      enum: ['never', 'former', 'current'],
+      default: 'never',
     },
     alcohol_use: {
       type: String,
-      enum: ["none", "occasional", "moderate", "heavy"],
-      default: "none",
+      enum: ['none', 'occasional', 'moderate', 'heavy'],
+      default: 'none',
     },
     exercise_frequency: {
       type: String,
-      enum: ["none", "light", "moderate", "active"],
-      default: "none",
+      enum: ['none', 'light', 'moderate', 'active'],
+      default: 'none',
     },
     vaccinations: [
       {
@@ -533,8 +533,8 @@ const PatientSchema = new mongoose.Schema(
         notes: { type: String },
         status: {
           type: String,
-          enum: ["upcoming", "completed", "cancelled"],
-          default: "upcoming",
+          enum: ['upcoming', 'completed', 'cancelled'],
+          default: 'upcoming',
         },
       },
     ],
@@ -570,9 +570,9 @@ const PatientSchema = new mongoose.Schema(
     moodHistory: [
       {
         date: { type: Date, default: Date.now },
-        value: { type: String, enum: ["sad", "okay", "good", "great"] },
-        mood: { type: String, enum: ["sad", "okay", "good", "great"] },
-        source: { type: String, default: "patient" },
+        value: { type: String, enum: ['sad', 'okay', 'good', 'great'] },
+        mood: { type: String, enum: ['sad', 'okay', 'good', 'great'] },
+        source: { type: String, default: 'patient' },
       },
     ],
     // ── Unified Health State Cache ─────────────────
@@ -582,7 +582,7 @@ const PatientSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {
       virtuals: true,
       transform: function (doc, ret) {
@@ -593,7 +593,7 @@ const PatientSchema = new mongoose.Schema(
       },
     },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // ── Indexes ───────────────────────────────────────
@@ -603,8 +603,8 @@ PatientSchema.index({ organization_id: 1, assigned_caller_id: 1 });
 PatientSchema.index({ assigned_caller_id: 1, next_call_scheduled: 1 });
 PatientSchema.index({ city: 1, assigned_caller_id: 1 });
 PatientSchema.index({ risk_level: 1, is_active: 1 });
-PatientSchema.index({ "subscription.status": 1 });
-PatientSchema.index({ "subscription.status": 1, "subscription.expires_at": 1 });
+PatientSchema.index({ 'subscription.status': 1 });
+PatientSchema.index({ 'subscription.status': 1, 'subscription.expires_at': 1 });
 
 // Observability Indexes
 PatientSchema.index({ expo_push_token: 1, last_token_update: 1 });
@@ -617,14 +617,14 @@ PatientSchema.index({ device_platform: 1 });
 //  - active subscription
 //  - has a passwordHash (set via signup or Set Password)
 //  - email verified (completed OTP during signup)
-PatientSchema.pre("save", function (next) {
-  if (this.isModified("expo_push_token")) {
+PatientSchema.pre('save', function (next) {
+  if (this.isModified('expo_push_token')) {
     this.expo_push_token_failures = 0;
   }
 
   const isLegitimate =
     (this.paid === 1 && this.profile_complete) ||
-    this.subscription?.status === "active" ||
+    this.subscription?.status === 'active' ||
     this.passwordHash ||
     this.emailVerified === true;
   if (isLegitimate && this.expireAt) {
@@ -633,7 +633,7 @@ PatientSchema.pre("save", function (next) {
   next();
 });
 
-PatientSchema.pre("findOneAndUpdate", function (next) {
+PatientSchema.pre('findOneAndUpdate', function (next) {
   const update = this.getUpdate();
   if (update) {
     const hasTokenUpdate =
@@ -648,17 +648,17 @@ PatientSchema.pre("findOneAndUpdate", function (next) {
 });
 
 // ── Virtuals ──────────────────────────────────────
-PatientSchema.virtual("isLocked").get(function () {
+PatientSchema.virtual('isLocked').get(function () {
   return !!(this.accountLockedUntil && this.accountLockedUntil > Date.now());
 });
 
-PatientSchema.virtual("age").get(function () {
+PatientSchema.virtual('age').get(function () {
   if (!this.date_of_birth) return null;
   const diff = Date.now() - this.date_of_birth.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 });
 
-PatientSchema.virtual("active_medications").get(function () {
+PatientSchema.virtual('active_medications').get(function () {
   return this.medications.filter((m) => m.is_active);
 });
 
@@ -678,4 +678,4 @@ PatientSchema.methods.resetFailedLogin = function () {
   return this.save();
 };
 
-module.exports = mongoose.model("Patient", PatientSchema);
+module.exports = mongoose.model('Patient', PatientSchema);

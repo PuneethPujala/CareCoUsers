@@ -1,24 +1,24 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const NotificationSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
     type: {
       type: String,
       enum: [
-        "health_tips",
-        "mental_wellness",
-        "activity",
-        "reminders",
-        "critical_alerts",
-        "system",
+        'health_tips',
+        'mental_wellness',
+        'activity',
+        'reminders',
+        'critical_alerts',
+        'system',
       ],
-      default: "system",
+      default: 'system',
     },
     title: {
       type: String,
@@ -36,7 +36,7 @@ const NotificationSchema = new mongoose.Schema(
     },
     target_screen: {
       type: String,
-      default: "HomeScreen",
+      default: 'HomeScreen',
     },
     is_pinned: {
       type: Boolean,
@@ -52,8 +52,8 @@ const NotificationSchema = new mongoose.Schema(
     },
     expo_receipt_status: {
       type: String,
-      enum: ["pending", "ok", "error"],
-      default: "pending",
+      enum: ['pending', 'ok', 'error'],
+      default: 'pending',
       index: true,
     },
     expo_receipt_error: {
@@ -76,10 +76,10 @@ const NotificationSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // Compound indexes for common query patterns
@@ -92,7 +92,7 @@ NotificationSchema.index({ dedupe_key: 1 }, { unique: true, sparse: true });
 // Auto-delete backend notifications after 30 days to save space
 NotificationSchema.index(
   { created_at: 1 },
-  { expireAfterSeconds: 30 * 24 * 60 * 60 },
+  { expireAfterSeconds: 30 * 24 * 60 * 60 }
 );
 
-module.exports = mongoose.model("Notification", NotificationSchema);
+module.exports = mongoose.model('Notification', NotificationSchema);

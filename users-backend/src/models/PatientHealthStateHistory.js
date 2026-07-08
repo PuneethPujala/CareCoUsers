@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const patientHealthStateHistorySchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
@@ -31,7 +31,7 @@ const patientHealthStateHistorySchema = new mongoose.Schema(
     },
     mood: {
       type: String,
-      enum: ["sad", "okay", "good", "great", null],
+      enum: ['sad', 'okay', 'good', 'great', null],
       default: null,
     },
     sleepHours: {
@@ -44,8 +44,8 @@ const patientHealthStateHistorySchema = new mongoose.Schema(
     },
     risk: {
       type: String,
-      enum: ["low", "medium", "high", "unknown"],
-      default: "low",
+      enum: ['low', 'medium', 'high', 'unknown'],
+      default: 'low',
     },
     schema_version: {
       type: Number,
@@ -65,23 +65,23 @@ const patientHealthStateHistorySchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
 // Compound index for unique daily states per patient
 patientHealthStateHistorySchema.index(
   { patient_id: 1, date: 1 },
-  { unique: true },
+  { unique: true }
 );
 
 // TTL index to automatically purge entries after 60 days
 patientHealthStateHistorySchema.index(
   { expires_at: 1 },
-  { expireAfterSeconds: 0 },
+  { expireAfterSeconds: 0 }
 );
 
 module.exports = mongoose.model(
-  "PatientHealthStateHistory",
-  patientHealthStateHistorySchema,
+  'PatientHealthStateHistory',
+  patientHealthStateHistorySchema
 );

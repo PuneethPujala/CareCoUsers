@@ -1,4 +1,4 @@
-process.env.NODE_ENV = "test";
+process.env.NODE_ENV = 'test';
 
 /**
  * reports.test.js — rewritten against actual route
@@ -37,23 +37,23 @@ function fakeId(val) {
 }
 
 // Valid 24-char hex ObjectId strings for use with new mongoose.Types.ObjectId()
-const VALID_ORG_ID = "507f1f77bcf86cd799439011";
+const VALID_ORG_ID = '507f1f77bcf86cd799439011';
 
 // ─── Shared mutable auth state ────────────────────────────────────────────────
 
 const mockAuthState = {
-  user: { id: "super-admin", supabaseUid: "super-admin" },
+  user: { id: 'super-admin', supabaseUid: 'super-admin' },
   profile: {
-    _id: "super-profile",
-    supabaseUid: "super-admin",
-    role: "super_admin",
+    _id: 'super-profile',
+    supabaseUid: 'super-admin',
+    role: 'super_admin',
     organizationId: null,
   },
 };
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock("../src/middleware/authenticate", () => ({
+jest.mock('../src/middleware/authenticate', () => ({
   authenticate: (req, res, next) => {
     req.user = mockAuthState.user;
     req.profile = mockAuthState.profile;
@@ -69,21 +69,21 @@ jest.mock("../src/middleware/authenticate", () => ({
     (req, res, next) => {
       if (!allowed.includes(req.profile.role))
         return res.status(403).json({
-          error: "Insufficient role permissions",
-          code: "INSUFFICIENT_ROLE",
+          error: 'Insufficient role permissions',
+          code: 'INSUFFICIENT_ROLE',
         });
       next();
     },
 }));
 
-jest.mock("../src/middleware/authorize", () => ({
+jest.mock('../src/middleware/authorize', () => ({
   authorize: () => (req, res, next) => next(),
   authorizeResource: () => (req, res, next) => next(),
   authorizeAny: () => (req, res, next) => next(),
   authorizeAll: () => (req, res, next) => next(),
 }));
 
-jest.mock("../src/services/auditService", () => ({
+jest.mock('../src/services/auditService', () => ({
   logEvent: jest.fn().mockResolvedValue(undefined),
   logSecurityEvent: jest.fn().mockResolvedValue(undefined),
   autoLogAccess: jest.fn(() => (req, res, next) => next()),
@@ -91,9 +91,9 @@ jest.mock("../src/services/auditService", () => ({
   getSecurityIncidents: jest.fn(),
 }));
 
-jest.mock("../src/models/Profile");
-jest.mock("../src/models/Organization");
-jest.mock("../src/models/AuditLog", () => ({
+jest.mock('../src/models/Profile');
+jest.mock('../src/models/Organization');
+jest.mock('../src/models/AuditLog', () => ({
   aggregate: jest.fn(),
   createLog: jest.fn().mockResolvedValue(undefined),
   find: jest.fn(),
@@ -101,127 +101,127 @@ jest.mock("../src/models/AuditLog", () => ({
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
-const request = require("supertest");
-const app = require("../src/server");
-const Profile = require("../src/models/Profile");
-const Organization = require("../src/models/Organization");
-const AuditLog = require("../src/models/AuditLog");
+const request = require('supertest');
+const app = require('../src/server');
+const Profile = require('../src/models/Profile');
+const Organization = require('../src/models/Organization');
+const AuditLog = require('../src/models/AuditLog');
 const {
   getUserActivitySummary,
   getSecurityIncidents,
-} = require("../src/services/auditService");
-const { mockProfile, mockOrganization } = require("./helpers/mockModels");
+} = require('../src/services/auditService');
+const { mockProfile, mockOrganization } = require('./helpers/mockModels');
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("Reports Routes", () => {
+describe('Reports Routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAuthState.user = { id: "super-admin", supabaseUid: "super-admin" };
+    mockAuthState.user = { id: 'super-admin', supabaseUid: 'super-admin' };
     mockAuthState.profile = {
-      _id: "super-profile",
-      supabaseUid: "super-admin",
-      role: "super_admin",
+      _id: 'super-profile',
+      supabaseUid: 'super-admin',
+      role: 'super_admin',
       organizationId: null,
     };
   });
 
   // ── GET /api/reports/user-activity ────────────────────────────────────────
 
-  describe("GET /api/reports/user-activity", () => {
-    it("returns 400 when super_admin omits userId", async () => {
-      const res = await request(app).get("/api/reports/user-activity");
+  describe('GET /api/reports/user-activity', () => {
+    it('returns 400 when super_admin omits userId', async () => {
+      const res = await request(app).get('/api/reports/user-activity');
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(/userId is required for super admin/i);
     });
 
-    it("returns activity for super_admin with valid userId", async () => {
+    it('returns activity for super_admin with valid userId', async () => {
       // super_admin path: no Profile.findOne call, just getUserActivitySummary
       const summary = { totalLogins: 15, totalActions: 45 };
       getUserActivitySummary.mockResolvedValue(summary);
 
       const res = await request(app)
-        .get("/api/reports/user-activity")
-        .query({ userId: "target-user-123", days: 30 });
+        .get('/api/reports/user-activity')
+        .query({ userId: 'target-user-123', days: 30 });
 
       expect(res.status).toBe(200);
-      expect(res.body.userId).toBe("target-user-123");
+      expect(res.body.userId).toBe('target-user-123');
       expect(getUserActivitySummary).toHaveBeenCalledWith(
-        "target-user-123",
-        30,
+        'target-user-123',
+        30
       );
     });
 
-    it("returns activity for org_admin defaulting to own supabaseUid", async () => {
+    it('returns activity for org_admin defaulting to own supabaseUid', async () => {
       mockAuthState.profile = {
-        _id: "admin-profile",
-        supabaseUid: "admin-123",
-        role: "org_admin",
+        _id: 'admin-profile',
+        supabaseUid: 'admin-123',
+        role: 'org_admin',
         organizationId: fakeId(VALID_ORG_ID),
       };
       const summary = { totalLogins: 8 };
       getUserActivitySummary.mockResolvedValue(summary);
 
       const res = await request(app)
-        .get("/api/reports/user-activity")
+        .get('/api/reports/user-activity')
         .query({ days: 30 });
 
       expect(res.status).toBe(200);
-      expect(res.body.userId).toBe("admin-123");
-      expect(getUserActivitySummary).toHaveBeenCalledWith("admin-123", 30);
+      expect(res.body.userId).toBe('admin-123');
+      expect(getUserActivitySummary).toHaveBeenCalledWith('admin-123', 30);
     });
 
-    it("returns 403 when org_admin requests a user from a different org", async () => {
+    it('returns 403 when org_admin requests a user from a different org', async () => {
       mockAuthState.profile = {
-        _id: "admin-profile",
-        supabaseUid: "admin-123",
-        role: "org_admin",
+        _id: 'admin-profile',
+        supabaseUid: 'admin-123',
+        role: 'org_admin',
         organizationId: fakeId(VALID_ORG_ID),
       };
 
       // Route: Profile.findOne({ supabaseUid: userId }) — plain, no populate
       // user.organizationId.equals(req.profile.organizationId) must return false
       const targetUser = {
-        supabaseUid: "target-user-123",
-        organizationId: fakeId("aaaaaaaaaaaaaaaaaaaaaaaa"), // different org
+        supabaseUid: 'target-user-123',
+        organizationId: fakeId('aaaaaaaaaaaaaaaaaaaaaaaa'), // different org
       };
       Profile.findOne = jest.fn().mockResolvedValue(targetUser);
 
       const res = await request(app)
-        .get("/api/reports/user-activity")
-        .query({ userId: "target-user-123" });
+        .get('/api/reports/user-activity')
+        .query({ userId: 'target-user-123' });
 
       expect(res.status).toBe(403);
       expect(res.body.error).toMatch(/access denied/i);
     });
 
-    it("returns activity for caller requesting own userId", async () => {
+    it('returns activity for caller requesting own userId', async () => {
       mockAuthState.profile = {
-        _id: "caller-profile",
-        supabaseUid: "caller-123",
-        role: "caller",
-        organizationId: "org123",
+        _id: 'caller-profile',
+        supabaseUid: 'caller-123',
+        role: 'caller',
+        organizationId: 'org123',
       };
       getUserActivitySummary.mockResolvedValue({ totalLogins: 5 });
 
       const res = await request(app)
-        .get("/api/reports/user-activity")
-        .query({ userId: "caller-123" });
+        .get('/api/reports/user-activity')
+        .query({ userId: 'caller-123' });
 
       expect(res.status).toBe(200);
     });
 
-    it("returns 403 when caller requests another user", async () => {
+    it('returns 403 when caller requests another user', async () => {
       mockAuthState.profile = {
-        _id: "caller-profile",
-        supabaseUid: "caller-123",
-        role: "caller",
-        organizationId: "org123",
+        _id: 'caller-profile',
+        supabaseUid: 'caller-123',
+        role: 'caller',
+        organizationId: 'org123',
       };
 
       const res = await request(app)
-        .get("/api/reports/user-activity")
-        .query({ userId: "other-user-456" });
+        .get('/api/reports/user-activity')
+        .query({ userId: 'other-user-456' });
 
       expect(res.status).toBe(403);
     });
@@ -229,33 +229,33 @@ describe("Reports Routes", () => {
 
   // ── GET /api/reports/organization-stats ───────────────────────────────────
 
-  describe("GET /api/reports/organization-stats", () => {
-    it("returns 400 when super_admin omits organizationId", async () => {
-      const res = await request(app).get("/api/reports/organization-stats");
+  describe('GET /api/reports/organization-stats', () => {
+    it('returns 400 when super_admin omits organizationId', async () => {
+      const res = await request(app).get('/api/reports/organization-stats');
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(
-        /organizationId is required for super admin/i,
+        /organizationId is required for super admin/i
       );
     });
 
-    it("returns stats for super_admin with valid organizationId", async () => {
+    it('returns stats for super_admin with valid organizationId', async () => {
       // orgId MUST be a valid 24-char hex for new mongoose.Types.ObjectId()
       const org = mockOrganization({
         _id: VALID_ORG_ID,
-        name: "Test Org",
-        city: "Hyderabad",
+        name: 'Test Org',
+        city: 'Hyderabad',
       });
       Organization.findById = jest.fn().mockResolvedValue(org);
 
       // Profile.aggregate returns array; route reduces to { role: count }
       Profile.aggregate = jest.fn().mockResolvedValue([
-        { _id: "org_admin", count: 2 },
-        { _id: "caller", count: 8 },
+        { _id: 'org_admin', count: 2 },
+        { _id: 'caller', count: 8 },
       ]);
       AuditLog.aggregate = jest.fn().mockResolvedValue([]);
 
       const res = await request(app)
-        .get("/api/reports/organization-stats")
+        .get('/api/reports/organization-stats')
         .query({ organizationId: VALID_ORG_ID });
 
       expect(res.status).toBe(200);
@@ -265,14 +265,14 @@ describe("Reports Routes", () => {
       expect(res.body.userStats).toMatchObject({ org_admin: 2, caller: 8 });
     });
 
-    it("returns stats for org_admin defaulting to own org", async () => {
+    it('returns stats for org_admin defaulting to own org', async () => {
       // IMPORTANT: route does targetOrgId = req.profile.organizationId then passes
       // it directly to new mongoose.Types.ObjectId(targetOrgId).
       // A fakeId object is not a valid ObjectId argument — must be a plain hex string.
       mockAuthState.profile = {
-        _id: "admin-profile",
-        supabaseUid: "admin-123",
-        role: "org_admin",
+        _id: 'admin-profile',
+        supabaseUid: 'admin-123',
+        role: 'org_admin',
         organizationId: VALID_ORG_ID, // plain string, not fakeId()
       };
 
@@ -280,128 +280,128 @@ describe("Reports Routes", () => {
       Organization.findById = jest.fn().mockResolvedValue(org);
       Profile.aggregate = jest
         .fn()
-        .mockResolvedValue([{ _id: "caller", count: 5 }]);
+        .mockResolvedValue([{ _id: 'caller', count: 5 }]);
       AuditLog.aggregate = jest.fn().mockResolvedValue([]);
 
-      const res = await request(app).get("/api/reports/organization-stats");
+      const res = await request(app).get('/api/reports/organization-stats');
 
       expect(res.status).toBe(200);
       expect(Profile.aggregate).toHaveBeenCalled();
     });
 
-    it("returns 403 when org_admin requests a different org", async () => {
+    it('returns 403 when org_admin requests a different org', async () => {
       mockAuthState.profile = {
-        _id: "admin-profile",
-        supabaseUid: "admin-123",
-        role: "org_admin",
+        _id: 'admin-profile',
+        supabaseUid: 'admin-123',
+        role: 'org_admin',
         organizationId: fakeId(VALID_ORG_ID),
       };
 
       const res = await request(app)
-        .get("/api/reports/organization-stats")
-        .query({ organizationId: "bbbbbbbbbbbbbbbbbbbbbbbb" }); // different org
+        .get('/api/reports/organization-stats')
+        .query({ organizationId: 'bbbbbbbbbbbbbbbbbbbbbbbb' }); // different org
 
       expect(res.status).toBe(403);
     });
 
-    it("returns 404 when organization does not exist", async () => {
+    it('returns 404 when organization does not exist', async () => {
       Organization.findById = jest.fn().mockResolvedValue(null);
       const res = await request(app)
-        .get("/api/reports/organization-stats")
+        .get('/api/reports/organization-stats')
         .query({ organizationId: VALID_ORG_ID });
       expect(res.status).toBe(404);
     });
 
-    it("returns 403 for caller role", async () => {
+    it('returns 403 for caller role', async () => {
       mockAuthState.profile = {
-        _id: "caller",
-        supabaseUid: "caller",
-        role: "caller",
-        organizationId: "org123",
+        _id: 'caller',
+        supabaseUid: 'caller',
+        role: 'caller',
+        organizationId: 'org123',
       };
-      const res = await request(app).get("/api/reports/organization-stats");
+      const res = await request(app).get('/api/reports/organization-stats');
       expect(res.status).toBe(403);
     });
   });
 
   // ── GET /api/reports/security-incidents ───────────────────────────────────
 
-  describe("GET /api/reports/security-incidents", () => {
-    it("returns incidents for super_admin with single filters arg", async () => {
+  describe('GET /api/reports/security-incidents', () => {
+    it('returns incidents for super_admin with single filters arg', async () => {
       const incidents = [
-        { action: "login_failed" },
-        { action: "unauthorized_access" },
+        { action: 'login_failed' },
+        { action: 'unauthorized_access' },
       ];
       getSecurityIncidents.mockResolvedValue(incidents);
 
-      const res = await request(app).get("/api/reports/security-incidents");
+      const res = await request(app).get('/api/reports/security-incidents');
 
       expect(res.status).toBe(200);
       expect(res.body.incidents).toHaveLength(2);
       // Route calls getSecurityIncidents(filters) — ONE arg, a plain object
       // super_admin: no userIds key in filters
       expect(getSecurityIncidents).toHaveBeenCalledWith(
-        expect.not.objectContaining({ userIds: expect.anything() }),
+        expect.not.objectContaining({ userIds: expect.anything() })
       );
     });
 
-    it("returns incidents for org_admin scoped via Profile.find().select()", async () => {
+    it('returns incidents for org_admin scoped via Profile.find().select()', async () => {
       mockAuthState.profile = {
-        _id: "admin-profile",
-        supabaseUid: "admin-123",
-        role: "org_admin",
+        _id: 'admin-profile',
+        supabaseUid: 'admin-123',
+        role: 'org_admin',
         organizationId: fakeId(VALID_ORG_ID),
       };
 
       // org_admin path: Profile.find({organizationId}).select('supabaseUid')
-      const orgUsers = [{ supabaseUid: "u1" }, { supabaseUid: "u2" }];
+      const orgUsers = [{ supabaseUid: 'u1' }, { supabaseUid: 'u2' }];
       Profile.find = jest.fn().mockReturnValue({
         select: jest.fn().mockResolvedValue(orgUsers),
       });
 
-      const incidents = [{ action: "login_failed" }];
+      const incidents = [{ action: 'login_failed' }];
       getSecurityIncidents.mockResolvedValue(incidents);
 
-      const res = await request(app).get("/api/reports/security-incidents");
+      const res = await request(app).get('/api/reports/security-incidents');
 
       expect(res.status).toBe(200);
       expect(res.body.incidents).toHaveLength(1);
       // filters object should include userIds from org users
       expect(getSecurityIncidents).toHaveBeenCalledWith(
-        expect.objectContaining({ userIds: ["u1", "u2"] }),
+        expect.objectContaining({ userIds: ['u1', 'u2'] })
       );
     });
 
-    it("returns 403 for caller role", async () => {
+    it('returns 403 for caller role', async () => {
       mockAuthState.profile = {
-        _id: "c",
-        supabaseUid: "c",
-        role: "caller",
-        organizationId: "org123",
+        _id: 'c',
+        supabaseUid: 'c',
+        role: 'caller',
+        organizationId: 'org123',
       };
-      const res = await request(app).get("/api/reports/security-incidents");
+      const res = await request(app).get('/api/reports/security-incidents');
       expect(res.status).toBe(403);
     });
 
-    it("returns 403 for care_manager role", async () => {
+    it('returns 403 for care_manager role', async () => {
       mockAuthState.profile = {
-        _id: "c",
-        supabaseUid: "c",
-        role: "care_manager",
-        organizationId: "org123",
+        _id: 'c',
+        supabaseUid: 'c',
+        role: 'care_manager',
+        organizationId: 'org123',
       };
-      const res = await request(app).get("/api/reports/security-incidents");
+      const res = await request(app).get('/api/reports/security-incidents');
       expect(res.status).toBe(403);
     });
 
-    it("returns 403 for patient role", async () => {
+    it('returns 403 for patient role', async () => {
       mockAuthState.profile = {
-        _id: "p",
-        supabaseUid: "p",
-        role: "patient",
-        organizationId: "org123",
+        _id: 'p',
+        supabaseUid: 'p',
+        role: 'patient',
+        organizationId: 'org123',
       };
-      const res = await request(app).get("/api/reports/security-incidents");
+      const res = await request(app).get('/api/reports/security-incidents');
       expect(res.status).toBe(403);
     });
   });

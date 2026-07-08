@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const RolePermissionSchema = new mongoose.Schema(
   {
@@ -6,33 +6,33 @@ const RolePermissionSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: [
-        "super_admin",
-        "org_admin",
-        "care_manager",
-        "caretaker",
-        "patient_mentor",
-        "patient",
+        'super_admin',
+        'org_admin',
+        'care_manager',
+        'caretaker',
+        'patient_mentor',
+        'patient',
       ],
     },
     resource: {
       type: String,
       required: true,
-      description: "e.g., patients, reports, medications, call_logs",
+      description: 'e.g., patients, reports, medications, call_logs',
     },
     action: {
       type: String,
       required: true,
       enum: [
-        "create",
-        "read",
-        "update",
-        "delete",
-        "assign",
-        "authorize",
-        "revoke",
-        "*",
+        'create',
+        'read',
+        'update',
+        'delete',
+        'assign',
+        'authorize',
+        'revoke',
+        '*',
       ],
-      description: "Action that can be performed on the resource",
+      description: 'Action that can be performed on the resource',
     },
 
     // Additional context for the permission
@@ -55,13 +55,13 @@ const RolePermissionSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 // Compound unique index for role, resource, and action
 RolePermissionSchema.index(
   { role: 1, resource: 1, action: 1 },
-  { unique: true },
+  { unique: true }
 );
 
 // Indexes for common queries
@@ -73,7 +73,7 @@ RolePermissionSchema.statics.getRolePermissions = function (role) {
   return this.find({
     $or: [
       { role, isActive: true },
-      { role: "super_admin", isActive: true }, // Super admin permissions apply to all
+      { role: 'super_admin', isActive: true }, // Super admin permissions apply to all
     ],
   }).sort({ priority: -1 });
 };
@@ -82,10 +82,10 @@ RolePermissionSchema.statics.getRolePermissions = function (role) {
 RolePermissionSchema.statics.hasPermission = async function (
   role,
   resource,
-  action,
+  action
 ) {
   // Super admin has all permissions
-  if (role === "super_admin") {
+  if (role === 'super_admin') {
     return true;
   }
 
@@ -104,7 +104,7 @@ RolePermissionSchema.statics.hasPermission = async function (
   // Check for wildcard resource permission
   const wildcardResourcePermission = await this.findOne({
     role,
-    resource: "*",
+    resource: '*',
     action,
     isActive: true,
   });
@@ -117,7 +117,7 @@ RolePermissionSchema.statics.hasPermission = async function (
   const wildcardActionPermission = await this.findOne({
     role,
     resource,
-    action: "*",
+    action: '*',
     isActive: true,
   });
 
@@ -128,8 +128,8 @@ RolePermissionSchema.statics.hasPermission = async function (
   // Check for global wildcard permission
   const globalWildcardPermission = await this.findOne({
     role,
-    resource: "*",
-    action: "*",
+    resource: '*',
+    action: '*',
     isActive: true,
   });
 
@@ -138,28 +138,28 @@ RolePermissionSchema.statics.hasPermission = async function (
 
 // Static method to get all resources a role can access
 RolePermissionSchema.statics.getAccessibleResources = function (role) {
-  return this.distinct("resource", {
+  return this.distinct('resource', {
     $or: [
       { role, isActive: true },
-      { role: "super_admin", isActive: true },
+      { role: 'super_admin', isActive: true },
     ],
   });
 };
 
 // Static method to get all actions a role can perform on a resource
 RolePermissionSchema.statics.getAllowedActions = function (role, resource) {
-  return this.distinct("action", {
+  return this.distinct('action', {
     $or: [
       { role, resource, isActive: true },
-      { role, resource: "*", isActive: true },
+      { role, resource: '*', isActive: true },
     ],
   });
 };
 
 // Pre-save middleware to validate permission combinations
-RolePermissionSchema.pre("save", function (next) {
+RolePermissionSchema.pre('save', function (next) {
   // If this is a wildcard permission, ensure it doesn't conflict with specific permissions
-  if ((this.resource === "*" || this.action === "*") && this.priority === 0) {
+  if ((this.resource === '*' || this.action === '*') && this.priority === 0) {
     this.priority = 100; // Give wildcard permissions higher priority by default
   }
   next();
@@ -167,9 +167,9 @@ RolePermissionSchema.pre("save", function (next) {
 
 // Instance method to check if this permission applies to a given resource/action
 RolePermissionSchema.methods.appliesTo = function (resource, action) {
-  const resourceMatch = this.resource === "*" || this.resource === resource;
-  const actionMatch = this.action === "*" || this.action === action;
+  const resourceMatch = this.resource === '*' || this.resource === resource;
+  const actionMatch = this.action === '*' || this.action === action;
   return resourceMatch && actionMatch && this.isActive;
 };
 
-module.exports = mongoose.model("RolePermission", RolePermissionSchema);
+module.exports = mongoose.model('RolePermission', RolePermissionSchema);

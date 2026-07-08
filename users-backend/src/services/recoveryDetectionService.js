@@ -16,12 +16,12 @@ function detectRecovery(
   history = [],
   currentRiskScore = 0,
   recentAlerts = [],
-  careVisibility = 100,
+  careVisibility = 100
 ) {
   const mapRiskToScore = (level) => {
-    if (level === "high") return 80;
-    if (level === "medium") return 50;
-    if (level === "low") return 20;
+    if (level === 'high') return 80;
+    if (level === 'medium') return 50;
+    if (level === 'low') return 20;
     return 50;
   };
 
@@ -54,7 +54,7 @@ function detectRecovery(
       new Date(alert.created_at) >
       new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const isCritical =
-      alert.severity === "critical" || alert.type === "critical_vital";
+      alert.severity === 'critical' || alert.type === 'critical_vital';
     return isRecent && isCritical;
   });
 
@@ -62,7 +62,7 @@ function detectRecovery(
   const recentHistory = history.slice(-7);
   const adherenceSum = recentHistory.reduce(
     (acc, h) => acc + (h.adherence?.today ?? 0),
-    0,
+    0
   );
   const adherenceAvg =
     recentHistory.length > 0 ? adherenceSum / recentHistory.length : 100;

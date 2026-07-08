@@ -1,10 +1,10 @@
-const rateLimit = require("express-rate-limit");
+const rateLimit = require('express-rate-limit');
 
 // General strict rate limiter for OTP endpoints (IP-based)
 const otpRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
   max: 5, // Limit each IP to 5 OTP requests per `windowMs`
-  message: { error: "Too many requests. Please try again later." },
+  message: { error: 'Too many requests. Please try again later.' },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
@@ -20,7 +20,7 @@ const aiChatIpKeyGenerator = (req) => {
 
 const aiChatPatientKeyGenerator = (req) => {
   let targetId = req.auth?.userId || req.ip;
-  if (req.auth?.userType === "Companion") {
+  if (req.auth?.userType === 'Companion') {
     const companionSelectedPatientId =
       req.body?.patientId || req.query?.patientId;
     if (companionSelectedPatientId) {
@@ -41,7 +41,7 @@ const aiChatRateLimiter = rateLimit({
   keyGenerator: aiChatKeyGenerator,
   message: {
     error:
-      "Too many chat requests. Please take a break and try again in a few minutes.",
+      'Too many chat requests. Please take a break and try again in a few minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -54,7 +54,7 @@ const aiChatIpRateLimiter = rateLimit({
   keyGenerator: aiChatIpKeyGenerator,
   message: {
     error:
-      "Too many chat requests from this network. Please try again in a few minutes.",
+      'Too many chat requests from this network. Please try again in a few minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -67,7 +67,7 @@ const aiChatPatientRateLimiter = rateLimit({
   keyGenerator: aiChatPatientKeyGenerator,
   message: {
     error:
-      "Too many chat requests for this patient. Please wait a few minutes.",
+      'Too many chat requests for this patient. Please wait a few minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -79,7 +79,7 @@ const aiChatSessionRateLimiter = rateLimit({
   max: 15, // Limit session operations to 15 per 10 minutes
   keyGenerator: aiChatSessionKeyGenerator,
   message: {
-    error: "Too many chat session operations. Please wait a few minutes.",
+    error: 'Too many chat session operations. Please wait a few minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,

@@ -4,7 +4,7 @@
  * Handles CRUD for In-App Notification Center.
  */
 
-const Notification = require("../models/Notification");
+const Notification = require('../models/Notification');
 
 async function getNotifications(req, res) {
   try {
@@ -34,8 +34,8 @@ async function getNotifications(req, res) {
       },
     });
   } catch (err) {
-    console.error("getNotifications error:", err);
-    res.status(500).json({ error: "Failed to fetch notifications" });
+    console.error('getNotifications error:', err);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 }
 
@@ -48,8 +48,8 @@ async function getUnreadCount(req, res) {
     });
     res.json({ count });
   } catch (err) {
-    console.error("getUnreadCount error:", err);
-    res.status(500).json({ error: "Failed to fetch unread count" });
+    console.error('getUnreadCount error:', err);
+    res.status(500).json({ error: 'Failed to fetch unread count' });
   }
 }
 
@@ -61,17 +61,17 @@ async function markAsRead(req, res) {
     const notification = await Notification.findOneAndUpdate(
       { _id: id, patient_id: patientId },
       { is_read: true },
-      { new: true },
+      { new: true }
     );
 
     if (!notification) {
-      return res.status(404).json({ error: "Notification not found" });
+      return res.status(404).json({ error: 'Notification not found' });
     }
 
-    res.json({ message: "Marked as read", notification });
+    res.json({ message: 'Marked as read', notification });
   } catch (err) {
-    console.error("markAsRead error:", err);
-    res.status(500).json({ error: "Failed to mark as read" });
+    console.error('markAsRead error:', err);
+    res.status(500).json({ error: 'Failed to mark as read' });
   }
 }
 
@@ -81,13 +81,13 @@ async function markAllAsRead(req, res) {
 
     await Notification.updateMany(
       { patient_id: patientId, is_read: false },
-      { is_read: true },
+      { is_read: true }
     );
 
-    res.json({ message: "All notifications marked as read" });
+    res.json({ message: 'All notifications marked as read' });
   } catch (err) {
-    console.error("markAllAsRead error:", err);
-    res.status(500).json({ error: "Failed to mark all as read" });
+    console.error('markAllAsRead error:', err);
+    res.status(500).json({ error: 'Failed to mark all as read' });
   }
 }
 

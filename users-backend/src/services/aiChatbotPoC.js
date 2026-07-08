@@ -6,57 +6,57 @@
  * Streams Ollama responses token-by-token via structured SSE events.
  */
 
-const axios = require("axios");
-const { ChromaClient } = require("chromadb");
-const { buildPatientContext } = require("./aiContextService");
-const AIChatLog = require("../models/AIChatLog");
-const { performance } = require("perf_hooks");
-const fs = require("fs");
-const path = require("path");
+const axios = require('axios');
+const { ChromaClient } = require('chromadb');
+const { buildPatientContext } = require('./aiContextService');
+const AIChatLog = require('../models/AIChatLog');
+const { performance } = require('perf_hooks');
+const fs = require('fs');
+const path = require('path');
 const {
   classifyIntent: classifyDeterministicIntent,
   resolveDeterministicIntent,
-} = require("./intentClassifier");
+} = require('./intentClassifier');
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3:8b";
-const EMBED_MODEL = "nomic-embed-text";
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3:8b';
+const EMBED_MODEL = 'nomic-embed-text';
 const SIMILARITY_THRESHOLD = 0.75; // Strict threshold to prevent hallucination
 
 function getFallbackReason(error) {
-  if (!error) return "unknown";
-  if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
-    return "timeout";
+  if (!error) return 'unknown';
+  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+    return 'timeout';
   }
   if (error.response) {
     if (error.response.status === 429) {
-      return "rate_limit";
+      return 'rate_limit';
     }
     if (error.response.status >= 500) {
-      return "provider_unavailable";
+      return 'provider_unavailable';
     }
     return `status_${error.response.status}`;
   }
   if (error.request) {
-    return "network_error";
+    return 'network_error';
   }
-  return error.message || "unknown";
+  return error.message || 'unknown';
 }
 
 const EMERGENCY_RULESET_V1 = [
-  "chest pain",
-  "chest tightness",
-  "shortness of breath",
-  "difficulty breathing",
-  "severe bleeding",
-  "suicidal thoughts",
-  "stroke symptoms",
-  "face drooping",
-  "slurred speech",
-  "fainting",
-  "passed out",
-  "numbness",
-  "paralysis",
+  'chest pain',
+  'chest tightness',
+  'shortness of breath',
+  'difficulty breathing',
+  'severe bleeding',
+  'suicidal thoughts',
+  'stroke symptoms',
+  'face drooping',
+  'slurred speech',
+  'fainting',
+  'passed out',
+  'numbness',
+  'paralysis',
 ];
 
 /**
@@ -72,14 +72,14 @@ function detectEmergency(query) {
  * Localized emergency messaging
  */
 function getEmergencyMessage(targetLanguage) {
-  const lang = (targetLanguage || "en").toLowerCase();
-  if (lang.startsWith("es")) {
-    return "He detectado síntomas que pueden requerir atención médica urgente. Por favor, llame inmediatamente a los servicios de emergencia (como el 911 o 112) o diríjase a la sala de emergencias más cercana. No espere una respuesta.";
+  const lang = (targetLanguage || 'en').toLowerCase();
+  if (lang.startsWith('es')) {
+    return 'He detectado síntomas que pueden requerir atención médica urgente. Por favor, llame inmediatamente a los servicios de emergencia (como el 911 o 112) o diríjase a la sala de emergencias más cercana. No espere una respuesta.';
   }
-  if (lang.startsWith("hi")) {
-    return "मैंने ऐसे लक्षणों का पता लगाया है जिनके लिए तत्काल चिकित्सा सहायता की आवश्यकता हो सकती है। कृपया तुरंत आपातकालीन सेवाओं (जैसे 911 या 112) को कॉल करें या निकटतम आपातकालीन कक्ष में जाएं। प्रतिक्रिया की प्रतीक्षा न करें।";
+  if (lang.startsWith('hi')) {
+    return 'मैंने ऐसे लक्षणों का पता लगाया है जिनके लिए तत्काल चिकित्सा सहायता की आवश्यकता हो सकती है। कृपया तुरंत आपातकालीन सेवाओं (जैसे 911 या 112) को कॉल करें या निकटतम आपातकालीन कक्ष में जाएं। प्रतिक्रिया की प्रतीक्षा न करें।';
   }
-  return "I have detected symptoms that may require urgent medical attention. Please immediately call emergency services (like 911 or 112) or go to the nearest emergency room. Do not wait for a response.";
+  return 'I have detected symptoms that may require urgent medical attention. Please immediately call emergency services (like 911 or 112) or go to the nearest emergency room. Do not wait for a response.';
 }
 
 /**
@@ -100,37 +100,37 @@ function getLocalGuidelinesMap() {
 
   localGuidelinesMap = new Map();
   try {
-    const docPath = path.join(__dirname, "../../medical_guidelines.md");
+    const docPath = path.join(__dirname, '../../medical_guidelines.md');
     if (fs.existsSync(docPath)) {
-      const content = fs.readFileSync(docPath, "utf8");
+      const content = fs.readFileSync(docPath, 'utf8');
       const sections = content
         .split(/^## /m)
         .filter(Boolean)
-        .map((c) => "## " + c.trim());
+        .map((c) => '## ' + c.trim());
       for (const chunkTextRaw of sections) {
         let chunkText = chunkTextRaw;
-        if (chunkText.includes("*End of CareMyMed RAG Corpus")) {
-          chunkText = chunkText.split("*End of CareMyMed")[0].trim();
+        if (chunkText.includes('*End of CareMyMed RAG Corpus')) {
+          chunkText = chunkText.split('*End of CareMyMed')[0].trim();
         }
-        const firstLine = chunkText.split("\n")[0].trim();
-        const chunkId = firstLine.replace(/[^a-zA-Z0-9-]/g, "_").toLowerCase();
+        const firstLine = chunkText.split('\n')[0].trim();
+        const chunkId = firstLine.replace(/[^a-zA-Z0-9-]/g, '_').toLowerCase();
 
         if (
-          firstLine.includes("Drug:") ||
-          firstLine.includes("Vitals:") ||
-          firstLine.includes("General Drug Interaction Principles")
+          firstLine.includes('Drug:') ||
+          firstLine.includes('Vitals:') ||
+          firstLine.includes('General Drug Interaction Principles')
         ) {
           localGuidelinesMap.set(chunkId, chunkText);
         }
       }
       console.log(
-        `[PoC] Loaded ${localGuidelinesMap.size} guidelines from local medical_guidelines.md for offline/Render fallback.`,
+        `[PoC] Loaded ${localGuidelinesMap.size} guidelines from local medical_guidelines.md for offline/Render fallback.`
       );
     } else {
-      console.warn("[PoC] medical_guidelines.md not found at:", docPath);
+      console.warn('[PoC] medical_guidelines.md not found at:', docPath);
     }
   } catch (err) {
-    console.error("[PoC] Failed to load local guidelines map:", err.message);
+    console.error('[PoC] Failed to load local guidelines map:', err.message);
   }
   return localGuidelinesMap;
 }
@@ -140,69 +140,69 @@ function classifyIntent(query) {
   const q = query.toLowerCase();
 
   if (
-    q.includes("what should i do") ||
-    q.includes("do today") ||
+    q.includes('what should i do') ||
+    q.includes('do today') ||
     q.includes("today's focus") ||
-    q.includes("today focus") ||
-    q.includes("schedule today") ||
-    q.includes("plan for today") ||
-    q.includes("todo today") ||
-    q.includes("what to do today")
+    q.includes('today focus') ||
+    q.includes('schedule today') ||
+    q.includes('plan for today') ||
+    q.includes('todo today') ||
+    q.includes('what to do today')
   ) {
-    return "action_plan";
+    return 'action_plan';
   }
 
   if (
-    q.includes("weekly") ||
-    q.includes("summary") ||
-    q.includes("how have i been doing") ||
-    q.includes("timeline") ||
-    q.includes("this week") ||
-    q.includes("monthly") ||
-    q.includes("progress report") ||
-    q.includes("briefing")
+    q.includes('weekly') ||
+    q.includes('summary') ||
+    q.includes('how have i been doing') ||
+    q.includes('timeline') ||
+    q.includes('this week') ||
+    q.includes('monthly') ||
+    q.includes('progress report') ||
+    q.includes('briefing')
   ) {
-    return "summary";
+    return 'summary';
   }
 
   if (
-    q.includes("adherence") ||
-    q.includes("streak") ||
-    q.includes("missed") ||
-    q.includes("progress") ||
-    q.includes("taken") ||
-    q.includes("log rate")
+    q.includes('adherence') ||
+    q.includes('streak') ||
+    q.includes('missed') ||
+    q.includes('progress') ||
+    q.includes('taken') ||
+    q.includes('log rate')
   ) {
-    return "adherence";
+    return 'adherence';
   }
 
   if (
-    q.includes("medicine") ||
-    q.includes("meds") ||
-    q.includes("pills") ||
-    q.includes("tablets") ||
-    q.includes("dosage") ||
-    q.includes("metformin") ||
-    q.includes("atorvastatin") ||
-    q.includes("amlodipine") ||
-    q.includes("dose")
+    q.includes('medicine') ||
+    q.includes('meds') ||
+    q.includes('pills') ||
+    q.includes('tablets') ||
+    q.includes('dosage') ||
+    q.includes('metformin') ||
+    q.includes('atorvastatin') ||
+    q.includes('amlodipine') ||
+    q.includes('dose')
   ) {
-    return "medications";
+    return 'medications';
   }
 
   if (
-    q.includes("bp") ||
-    q.includes("blood pressure") ||
-    q.includes("pressure") ||
-    q.includes("heart rate") ||
-    q.includes("pulse") ||
-    q.includes("spo2") ||
-    q.includes("oxygen") ||
-    q.includes("sugar") ||
-    q.includes("glucose") ||
-    q.includes("vitals")
+    q.includes('bp') ||
+    q.includes('blood pressure') ||
+    q.includes('pressure') ||
+    q.includes('heart rate') ||
+    q.includes('pulse') ||
+    q.includes('spo2') ||
+    q.includes('oxygen') ||
+    q.includes('sugar') ||
+    q.includes('glucose') ||
+    q.includes('vitals')
   ) {
-    return "vitals";
+    return 'vitals';
   }
 
   return null;
@@ -213,7 +213,7 @@ function generateStructuredCards(intent, patientContext) {
 
   const cards = [];
 
-  if (intent === "action_plan") {
+  if (intent === 'action_plan') {
     const remaining = (patientContext.today_status?.medicines || [])
       .filter((m) => !m.taken)
       .map((m) => `${m.name} (${m.time_slot})`);
@@ -222,28 +222,28 @@ function generateStructuredCards(intent, patientContext) {
       .map((m) => m.name);
 
     cards.push({
-      type: "medications",
+      type: 'medications',
       taken: taken,
       remaining: remaining,
     });
   }
 
-  if (intent === "adherence") {
+  if (intent === 'adherence') {
     const rate = parseInt(patientContext.recent_adherence?.rate) || 0;
     const streak = patientContext.streak?.current || 0;
-    let level = "Good";
-    if (rate >= 90) level = "Excellent";
-    else if (rate < 60) level = "Needs Focus";
+    let level = 'Good';
+    if (rate >= 90) level = 'Excellent';
+    else if (rate < 60) level = 'Needs Focus';
 
     cards.push({
-      type: "adherence",
+      type: 'adherence',
       rate: rate,
       streak: streak,
       level: level,
     });
   }
 
-  if (intent === "medications") {
+  if (intent === 'medications') {
     const remaining = (patientContext.today_status?.medicines || [])
       .filter((m) => !m.taken)
       .map((m) => `${m.name} (${m.time_slot})`);
@@ -252,13 +252,13 @@ function generateStructuredCards(intent, patientContext) {
       .map((m) => m.name);
 
     cards.push({
-      type: "medications",
+      type: 'medications',
       taken: taken,
       remaining: remaining,
     });
   }
 
-  if (intent === "vitals") {
+  if (intent === 'vitals') {
     const rv = patientContext.recent_vitals;
     const systolic = rv?.blood_pressure?.sys_avg || 120;
     const diastolic = rv?.blood_pressure?.dia_avg || 80;
@@ -266,7 +266,7 @@ function generateStructuredCards(intent, patientContext) {
     const spo2 = rv?.spo2_avg || 98;
 
     cards.push({
-      type: "vitals",
+      type: 'vitals',
       systolic,
       diastolic,
       heartRate,
@@ -274,14 +274,14 @@ function generateStructuredCards(intent, patientContext) {
     });
   }
 
-  if (intent === "summary") {
+  if (intent === 'summary') {
     const rate = parseInt(patientContext.recent_adherence?.rate) || 0;
     const daysLogged = patientContext.recent_vitals?.days_logged || 0;
     const missedDoses = patientContext.recent_adherence?.missed || 0;
     const currentStreak = patientContext.streak?.current || 0;
 
     cards.push({
-      type: "summary",
+      type: 'summary',
       adherenceRate: rate,
       vitalsLoggedDays: daysLogged,
       missedDoses: missedDoses,
@@ -301,7 +301,7 @@ async function buildRAGContext(
   patientId,
   userQuery,
   targetLanguage,
-  historyMessages = [],
+  historyMessages = []
 ) {
   console.log(`[PoC] Fetching context for patient ${patientId}...`);
 
@@ -309,7 +309,7 @@ async function buildRAGContext(
   const patientContext = await buildPatientContext(patientId);
 
   if (!patientContext) {
-    throw new Error("Patient context could not be built. Verify patient ID.");
+    throw new Error('Patient context could not be built. Verify patient ID.');
   }
 
   console.log(`[PoC] Searching ChromaDB for guidelines...`);
@@ -322,11 +322,11 @@ async function buildRAGContext(
 
   try {
     const chroma = new ChromaClient({
-      path: process.env.CHROMA_URL || "http://localhost:8001",
+      path: process.env.CHROMA_URL || 'http://localhost:8001',
     });
     // Provide a dummy embedding function since we pass embeddings manually to silence the warning
     collection = await chroma.getCollection({
-      name: "medical_guidelines",
+      name: 'medical_guidelines',
       embeddingFunction: { generate: () => [] },
     });
 
@@ -340,65 +340,65 @@ async function buildRAGContext(
       }
     } catch (embedErr) {
       console.warn(
-        "[PoC] Embedding or ChromaDB query failed, proceeding with keyword-only or empty guidelines:",
-        embedErr.message,
+        '[PoC] Embedding or ChromaDB query failed, proceeding with keyword-only or empty guidelines:',
+        embedErr.message
       );
     }
   } catch (chromaErr) {
     console.warn(
-      "[PoC] ChromaDB collection fetch failed, proceeding with keyword-only or empty guidelines:",
-      chromaErr.message,
+      '[PoC] ChromaDB collection fetch failed, proceeding with keyword-only or empty guidelines:',
+      chromaErr.message
     );
   }
 
   // 3. Hybrid Search: Extract entities/keywords to bypass semantic distance limits
   const lowerQuery = userQuery.toLowerCase();
   const keywordDocIds = {
-    paracetamol: "___drug__paracetamol",
-    crocin: "___drug__paracetamol",
-    calpol: "___drug__paracetamol",
-    cetirizine: "___drug__cetirizine",
-    metformin: "___drug__metformin",
-    glycomet: "___drug__metformin",
-    pantoprazole: "___drug__pantoprazole",
-    "pan-d": "___drug__pantoprazole",
-    amlodipine: "___drug__amlodipine",
-    amoxicillin: "___drug__amoxicillin",
-    telmisartan: "___drug__telmisartan",
-    levothyroxine: "___drug__levothyroxine__thyroxine___t4_",
-    thyroxine: "___drug__levothyroxine__thyroxine___t4_",
-    thyronorm: "___drug__levothyroxine__thyroxine___t4_",
-    eltroxin: "___drug__levothyroxine__thyroxine___t4_",
-    atorvastatin: "___drug__atorvastatin",
-    lipitor: "___drug__atorvastatin",
-    rabeprazole: "___drug__rabeprazole",
-    azithromycin: "___drug__azithromycin",
-    diclofenac: "___drug__diclofenac",
-    voveran: "___drug__diclofenac",
-    losartan: "___drug__losartan",
-    levocetirizine: "___drug__levocetirizine",
-    glimepiride: "___drug__glimepiride",
-    "blood pressure": "___vitals__blood_pressure",
-    bp: "___vitals__blood_pressure",
-    hypertension: "___vitals__blood_pressure",
-    hypotension: "___vitals__blood_pressure",
-    "heart rate": "___vitals__heart_rate__pulse_",
-    pulse: "___vitals__heart_rate__pulse_",
-    bradycardia: "___vitals__heart_rate__pulse_",
-    tachycardia: "___vitals__heart_rate__pulse_",
-    spo2: "___vitals__spo2__oxygen_saturation___pulse_oximetry_",
-    oxygen: "___vitals__spo2__oxygen_saturation___pulse_oximetry_",
-    saturation: "___vitals__spo2__oxygen_saturation___pulse_oximetry_",
-    glucose: "___vitals__blood_glucose",
-    sugar: "___vitals__blood_glucose",
-    diabetes: "___vitals__blood_glucose",
-    temperature: "___vitals__body_temperature",
-    fever: "___vitals__body_temperature",
-    temp: "___vitals__body_temperature",
-    respiratory: "___vitals__respiratory_rate",
-    breathing: "___vitals__respiratory_rate",
+    paracetamol: '___drug__paracetamol',
+    crocin: '___drug__paracetamol',
+    calpol: '___drug__paracetamol',
+    cetirizine: '___drug__cetirizine',
+    metformin: '___drug__metformin',
+    glycomet: '___drug__metformin',
+    pantoprazole: '___drug__pantoprazole',
+    'pan-d': '___drug__pantoprazole',
+    amlodipine: '___drug__amlodipine',
+    amoxicillin: '___drug__amoxicillin',
+    telmisartan: '___drug__telmisartan',
+    levothyroxine: '___drug__levothyroxine__thyroxine___t4_',
+    thyroxine: '___drug__levothyroxine__thyroxine___t4_',
+    thyronorm: '___drug__levothyroxine__thyroxine___t4_',
+    eltroxin: '___drug__levothyroxine__thyroxine___t4_',
+    atorvastatin: '___drug__atorvastatin',
+    lipitor: '___drug__atorvastatin',
+    rabeprazole: '___drug__rabeprazole',
+    azithromycin: '___drug__azithromycin',
+    diclofenac: '___drug__diclofenac',
+    voveran: '___drug__diclofenac',
+    losartan: '___drug__losartan',
+    levocetirizine: '___drug__levocetirizine',
+    glimepiride: '___drug__glimepiride',
+    'blood pressure': '___vitals__blood_pressure',
+    bp: '___vitals__blood_pressure',
+    hypertension: '___vitals__blood_pressure',
+    hypotension: '___vitals__blood_pressure',
+    'heart rate': '___vitals__heart_rate__pulse_',
+    pulse: '___vitals__heart_rate__pulse_',
+    bradycardia: '___vitals__heart_rate__pulse_',
+    tachycardia: '___vitals__heart_rate__pulse_',
+    spo2: '___vitals__spo2__oxygen_saturation___pulse_oximetry_',
+    oxygen: '___vitals__spo2__oxygen_saturation___pulse_oximetry_',
+    saturation: '___vitals__spo2__oxygen_saturation___pulse_oximetry_',
+    glucose: '___vitals__blood_glucose',
+    sugar: '___vitals__blood_glucose',
+    diabetes: '___vitals__blood_glucose',
+    temperature: '___vitals__body_temperature',
+    fever: '___vitals__body_temperature',
+    temp: '___vitals__body_temperature',
+    respiratory: '___vitals__respiratory_rate',
+    breathing: '___vitals__respiratory_rate',
     interaction:
-      "___general_drug_interaction_principles__indian_clinical_context_",
+      '___general_drug_interaction_principles__indian_clinical_context_',
   };
 
   const matchedIds = new Set();
@@ -409,7 +409,7 @@ async function buildRAGContext(
   // Run keyword matching
   const keywordIdsToFetch = [];
   for (const [key, docId] of Object.entries(keywordDocIds)) {
-    const regex = new RegExp(`\\b${key}\\b`, "i");
+    const regex = new RegExp(`\\b${key}\\b`, 'i');
     if (regex.test(lowerQuery)) {
       if (!matchedIds.has(docId)) {
         keywordIdsToFetch.push(docId);
@@ -426,14 +426,14 @@ async function buildRAGContext(
           for (let i = 0; i < keywordDocs.documents.length; i++) {
             matchedGuidelines.push(keywordDocs.documents[i]);
             console.log(
-              `[PoC] Matched Keyword Chunk (ChromaDB): ${keywordDocs.metadatas[i].title}`,
+              `[PoC] Matched Keyword Chunk (ChromaDB): ${keywordDocs.metadatas[i].title}`
             );
           }
         }
       } catch (err) {
         console.error(
-          "[PoC] Error fetching keyword matching documents from ChromaDB:",
-          err,
+          '[PoC] Error fetching keyword matching documents from ChromaDB:',
+          err
         );
       }
     }
@@ -445,7 +445,7 @@ async function buildRAGContext(
         if (localMap.has(docId)) {
           matchedGuidelines.push(localMap.get(docId));
           console.log(
-            `[PoC] Matched Keyword Chunk (Local markdown file): ${docId}`,
+            `[PoC] Matched Keyword Chunk (Local markdown file): ${docId}`
           );
         }
       }
@@ -466,11 +466,11 @@ async function buildRAGContext(
         similaritySum += similarity;
         matchedCount++;
         console.log(
-          `[PoC] Matched Semantic Chunk: ${results.metadatas[0][i].title} (Score: ${similarity.toFixed(2)})`,
+          `[PoC] Matched Semantic Chunk: ${results.metadatas[0][i].title} (Score: ${similarity.toFixed(2)})`
         );
       } else {
         console.log(
-          `[PoC] Discarded Semantic Chunk: ${results.metadatas[0][i].title} (Score: ${similarity.toFixed(2)} - Below Threshold)`,
+          `[PoC] Discarded Semantic Chunk: ${results.metadatas[0][i].title} (Score: ${similarity.toFixed(2)} - Below Threshold)`
         );
       }
     }
@@ -482,16 +482,16 @@ async function buildRAGContext(
   // 4. Fallback Guardrail (Relaxed)
   if (matchedGuidelines.length === 0) {
     console.log(
-      `[PoC] No guidelines met the ${SIMILARITY_THRESHOLD} threshold. Relying purely on PATIENT_LIVE_DATA.`,
+      `[PoC] No guidelines met the ${SIMILARITY_THRESHOLD} threshold. Relying purely on PATIENT_LIVE_DATA.`
     );
     matchedGuidelines.push(
-      "No specific medical guidelines retrieved from the knowledge base for this query.",
+      'No specific medical guidelines retrieved from the knowledge base for this query.'
     );
   }
 
   // 5. Build the Augmented System Prompt
   const languageInstruction =
-    targetLanguage && !targetLanguage.toLowerCase().startsWith("en")
+    targetLanguage && !targetLanguage.toLowerCase().startsWith('en')
       ? `\nCRITICAL: You MUST write your entire response, including follow-up questions, in ${targetLanguage}. Do not use English.`
       : ``;
 
@@ -527,16 +527,16 @@ Format them on separate lines starting with ">>" like:
 >> What should I discuss with my care coordinator?
 
 [MEDICAL_GUIDELINES]
-${matchedGuidelines.join("\n\n")}
+${matchedGuidelines.join('\n\n')}
 
 [PATIENT_LIVE_DATA]
 ${JSON.stringify(patientContext, null, 2)}
 `;
 
   const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: 'system', content: SYSTEM_PROMPT },
     ...historyMessages,
-    { role: "user", content: userQuery },
+    { role: 'user', content: userQuery },
   ];
 
   return {
@@ -561,7 +561,7 @@ async function streamPoCResponse(
   res,
   transcribedText = null,
   sessionId = null,
-  historyMessages = [],
+  historyMessages = []
 ) {
   const requestStart = performance.now();
   const sendEvent = (type, payload) => {
@@ -577,11 +577,11 @@ async function streamPoCResponse(
   if (isEmergency) {
     const emergencyMsg = getEmergencyMessage(targetLanguage);
     if (transcribedText) {
-      sendEvent("meta", { transcribedText });
+      sendEvent('meta', { transcribedText });
     }
-    sendEvent("chunk", { text: emergencyMsg });
-    sendEvent("suggestions", { items: ["Call 911", "Call 112"] });
-    sendEvent("done", {});
+    sendEvent('chunk', { text: emergencyMsg });
+    sendEvent('suggestions', { items: ['Call 911', 'Call 112'] });
+    sendEvent('done', {});
 
     try {
       await AIChatLog.create({
@@ -591,10 +591,10 @@ async function streamPoCResponse(
         retrieved_chunks: [],
         response: emergencyMsg,
         emergency_escalation_triggered: true,
-        emergency_ruleset: "EMERGENCY_RULESET_V1",
-        translated_language: targetLanguage || "en",
-        provider: "esc-emergency",
-        model: "none",
+        emergency_ruleset: 'EMERGENCY_RULESET_V1',
+        translated_language: targetLanguage || 'en',
+        provider: 'esc-emergency',
+        model: 'none',
         llm_latency_ms: 0,
         retrieval_latency_ms: 0,
         end_to_end_latency_ms: Math.round(performance.now() - requestStart),
@@ -606,28 +606,28 @@ async function streamPoCResponse(
         retrieval_similarity_avg: 0,
       });
     } catch (logErr) {
-      console.error("[PoC] Emergency chat log error:", logErr.message);
+      console.error('[PoC] Emergency chat log error:', logErr.message);
     }
 
     if (sessionId) {
       try {
-        const AIChatSession = require("../models/AIChatSession");
+        const AIChatSession = require('../models/AIChatSession');
         await AIChatSession.updateOne(
           { _id: sessionId, patient_id: patientId },
           {
             $push: {
               messages: {
-                role: "assistant",
+                role: 'assistant',
                 text: emergencyMsg,
-                suggestions: ["Call 911", "Call 112"],
+                suggestions: ['Call 911', 'Call 112'],
                 timestamp: new Date(),
               },
             },
             $inc: { message_count: 1 },
-          },
+          }
         );
       } catch (dbErr) {
-        console.error("[PoC] Emergency session update failed:", dbErr.message);
+        console.error('[PoC] Emergency session update failed:', dbErr.message);
       }
     }
     return;
@@ -638,14 +638,14 @@ async function streamPoCResponse(
   if (detIntent) {
     const resolved = await resolveDeterministicIntent(patientId, detIntent);
     if (transcribedText) {
-      sendEvent("meta", { transcribedText });
+      sendEvent('meta', { transcribedText });
     }
     if (resolved.cards && resolved.cards.length > 0) {
-      sendEvent("cards", { items: resolved.cards });
+      sendEvent('cards', { items: resolved.cards });
     }
-    sendEvent("chunk", { text: resolved.text });
-    sendEvent("suggestions", { items: resolved.suggestions });
-    sendEvent("done", {});
+    sendEvent('chunk', { text: resolved.text });
+    sendEvent('suggestions', { items: resolved.suggestions });
+    sendEvent('done', {});
 
     try {
       await AIChatLog.create({
@@ -655,8 +655,8 @@ async function streamPoCResponse(
         retrieved_chunks: [],
         response: resolved.text,
         emergency_escalation_triggered: false,
-        translated_language: targetLanguage || "en",
-        provider: "deterministic-classifier",
+        translated_language: targetLanguage || 'en',
+        provider: 'deterministic-classifier',
         model: detIntent,
         llm_latency_ms: 0,
         retrieval_latency_ms: 0,
@@ -669,30 +669,30 @@ async function streamPoCResponse(
         retrieval_similarity_avg: 0,
       });
     } catch (logErr) {
-      console.error("[PoC] Deterministic chat log error:", logErr.message);
+      console.error('[PoC] Deterministic chat log error:', logErr.message);
     }
 
     if (sessionId) {
       try {
-        const AIChatSession = require("../models/AIChatSession");
+        const AIChatSession = require('../models/AIChatSession');
         await AIChatSession.updateOne(
           { _id: sessionId, patient_id: patientId },
           {
             $push: {
               messages: {
-                role: "assistant",
+                role: 'assistant',
                 text: resolved.text,
                 suggestions: resolved.suggestions,
                 timestamp: new Date(),
               },
             },
             $inc: { message_count: 1 },
-          },
+          }
         );
       } catch (dbErr) {
         console.error(
-          "[PoC] Deterministic session update failed:",
-          dbErr.message,
+          '[PoC] Deterministic session update failed:',
+          dbErr.message
         );
       }
     }
@@ -706,8 +706,8 @@ async function streamPoCResponse(
 
   let isFallback = false;
   let fallbackReason = null;
-  let providerUsed = "groq";
-  let modelUsed = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  let providerUsed = 'groq';
+  let modelUsed = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
   let promptTokens = 0;
   let completionTokens = 0;
@@ -715,28 +715,28 @@ async function streamPoCResponse(
   let llmStart = 0;
   let llmLatency = 0;
   let firstTokenLatency = 0;
-  let fullText = "";
-  let cleanedResponse = "";
+  let fullText = '';
+  let cleanedResponse = '';
   let suggestions = [];
 
   const abortController = new AbortController();
-  res.on("close", () => {
+  res.on('close', () => {
     console.log(
-      "[PoC Stream] Client close connection detected. Aborting active calls.",
+      '[PoC Stream] Client close connection detected. Aborting active calls.'
     );
     abortController.abort();
   });
 
   try {
     if (transcribedText) {
-      sendEvent("meta", { transcribedText });
+      sendEvent('meta', { transcribedText });
     }
 
     const context = await buildRAGContext(
       patientId,
       userQuery,
       targetLanguage,
-      historyMessages,
+      historyMessages
     );
     const { messages } = context;
     matchedGuidelines = context.matchedGuidelines || [];
@@ -747,19 +747,19 @@ async function streamPoCResponse(
     const intent = classifyIntent(userQuery);
     const cards = generateStructuredCards(intent, context.patientContext);
     if (cards && cards.length > 0) {
-      sendEvent("cards", { items: cards });
+      sendEvent('cards', { items: cards });
     }
 
     llmStart = performance.now();
     const groqKey = process.env.GROQ_API_KEY;
 
     if (!groqKey) {
-      throw new Error("GROQ_API_KEY is not configured");
+      throw new Error('GROQ_API_KEY is not configured');
     }
 
     console.log(`[PoC] Querying Groq API (${modelUsed})...`);
     const groqResponse = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
+      'https://api.groq.com/openai/v1/chat/completions',
       {
         model: modelUsed,
         messages: messages,
@@ -769,49 +769,49 @@ async function streamPoCResponse(
       {
         headers: {
           Authorization: `Bearer ${groqKey}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        responseType: "stream",
+        responseType: 'stream',
         timeout: 15000,
         signal: abortController.signal,
-      },
+      }
     );
 
     await new Promise((resolve, reject) => {
-      let buffer = "";
+      let buffer = '';
       const onAbort = () => {
-        reject(new Error("Request aborted"));
+        reject(new Error('Request aborted'));
       };
       if (abortController.signal.aborted) {
         return onAbort();
       }
-      abortController.signal.addEventListener("abort", onAbort);
+      abortController.signal.addEventListener('abort', onAbort);
 
-      groqResponse.data.on("data", (chunk) => {
+      groqResponse.data.on('data', (chunk) => {
         buffer += chunk.toString();
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
           const trimmedLine = line.trim();
           if (!trimmedLine) continue;
-          if (trimmedLine === "data: [DONE]") continue;
-          if (trimmedLine.startsWith("data: ")) {
+          if (trimmedLine === 'data: [DONE]') continue;
+          if (trimmedLine.startsWith('data: ')) {
             const jsonStr = trimmedLine.substring(6).trim();
             if (!jsonStr) continue;
             try {
               const parsed = JSON.parse(jsonStr);
-              const token = parsed.choices?.[0]?.delta?.content || "";
+              const token = parsed.choices?.[0]?.delta?.content || '';
               if (token) {
                 if (!firstTokenLatency) {
                   firstTokenLatency = Math.round(
-                    performance.now() - requestStart,
+                    performance.now() - requestStart
                   );
                 }
                 fullText += token;
-                const suggestionStart = fullText.indexOf("\n>>");
+                const suggestionStart = fullText.indexOf('\n>>');
                 if (suggestionStart === -1) {
-                  sendEvent("chunk", { text: token });
+                  sendEvent('chunk', { text: token });
                 }
               }
               if (parsed.usage) {
@@ -826,13 +826,13 @@ async function streamPoCResponse(
         }
       });
 
-      groqResponse.data.on("end", () => {
-        abortController.signal.removeEventListener("abort", onAbort);
+      groqResponse.data.on('end', () => {
+        abortController.signal.removeEventListener('abort', onAbort);
         resolve();
       });
 
-      groqResponse.data.on("error", (err) => {
-        abortController.signal.removeEventListener("abort", onAbort);
+      groqResponse.data.on('error', (err) => {
+        abortController.signal.removeEventListener('abort', onAbort);
         reject(err);
       });
     });
@@ -840,15 +840,15 @@ async function streamPoCResponse(
     llmLatency = Math.round(performance.now() - llmStart);
   } catch (err) {
     if (abortController.signal.aborted) {
-      console.log("[PoC Stream] Aborted request. Skip fallback.");
+      console.log('[PoC Stream] Aborted request. Skip fallback.');
       return;
     }
     isFallback = true;
     fallbackReason = getFallbackReason(err);
-    providerUsed = "ollama";
+    providerUsed = 'ollama';
     modelUsed = OLLAMA_MODEL;
     console.warn(
-      `[PoC] Groq failed (Reason: ${fallbackReason}). Falling back to local Ollama...`,
+      `[PoC] Groq failed (Reason: ${fallbackReason}). Falling back to local Ollama...`
     );
 
     try {
@@ -856,7 +856,7 @@ async function streamPoCResponse(
         patientId,
         userQuery,
         targetLanguage,
-        historyMessages,
+        historyMessages
       );
       const { messages } = context;
       matchedGuidelines = context.matchedGuidelines || [];
@@ -873,45 +873,45 @@ async function streamPoCResponse(
           stream: true,
         },
         {
-          responseType: "stream",
+          responseType: 'stream',
           timeout: 30000,
           signal: abortController.signal,
-        },
+        }
       );
 
-      fullText = "";
+      fullText = '';
       firstTokenLatency = 0;
 
       await new Promise((resolve, reject) => {
-        let buffer = "";
+        let buffer = '';
         const onAbort = () => {
-          reject(new Error("Request aborted"));
+          reject(new Error('Request aborted'));
         };
         if (abortController.signal.aborted) {
           return onAbort();
         }
-        abortController.signal.addEventListener("abort", onAbort);
+        abortController.signal.addEventListener('abort', onAbort);
 
-        ollamaResponse.data.on("data", (chunk) => {
+        ollamaResponse.data.on('data', (chunk) => {
           buffer += chunk.toString();
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
             if (!line.trim()) continue;
             try {
               const parsed = JSON.parse(line);
-              const token = parsed.message?.content || "";
+              const token = parsed.message?.content || '';
               if (token) {
                 if (!firstTokenLatency) {
                   firstTokenLatency = Math.round(
-                    performance.now() - requestStart,
+                    performance.now() - requestStart
                   );
                 }
                 fullText += token;
-                const suggestionStart = fullText.indexOf("\n>>");
+                const suggestionStart = fullText.indexOf('\n>>');
                 if (suggestionStart === -1) {
-                  sendEvent("chunk", { text: token });
+                  sendEvent('chunk', { text: token });
                 }
               }
               if (parsed.done) {
@@ -923,13 +923,13 @@ async function streamPoCResponse(
           }
         });
 
-        ollamaResponse.data.on("end", () => {
-          abortController.signal.removeEventListener("abort", onAbort);
+        ollamaResponse.data.on('end', () => {
+          abortController.signal.removeEventListener('abort', onAbort);
           resolve();
         });
 
-        ollamaResponse.data.on("error", (err) => {
-          abortController.signal.removeEventListener("abort", onAbort);
+        ollamaResponse.data.on('error', (err) => {
+          abortController.signal.removeEventListener('abort', onAbort);
           reject(err);
         });
       });
@@ -940,17 +940,17 @@ async function streamPoCResponse(
       totalTokens = promptTokens + completionTokens;
     } catch (ollamaErr) {
       if (abortController.signal.aborted) {
-        console.log("[PoC Stream] Aborted request during fallback.");
+        console.log('[PoC Stream] Aborted request during fallback.');
         return;
       }
-      console.error("[PoC] Ollama fallback failed:", ollamaErr.message);
+      console.error('[PoC] Ollama fallback failed:', ollamaErr.message);
       const fallbackMessage =
         "I'm having a little trouble connecting to my charts right now. Could you try asking me again in a moment?";
-      sendEvent("chunk", { text: fallbackMessage });
-      sendEvent("suggestions", {
-        items: ["Try again", "Call Care Coordinator"],
+      sendEvent('chunk', { text: fallbackMessage });
+      sendEvent('suggestions', {
+        items: ['Try again', 'Call Care Coordinator'],
       });
-      sendEvent("done", {});
+      sendEvent('done', {});
 
       try {
         await AIChatLog.create({
@@ -960,8 +960,8 @@ async function streamPoCResponse(
           retrieved_chunks: matchedGuidelines,
           response: fallbackMessage,
           emergency_escalation_triggered: false,
-          translated_language: targetLanguage || "en",
-          provider: "ollama",
+          translated_language: targetLanguage || 'en',
+          provider: 'ollama',
           model: OLLAMA_MODEL,
           is_fallback: true,
           fallback_reason: `${fallbackReason}_then_${getFallbackReason(ollamaErr)}`,
@@ -976,30 +976,30 @@ async function streamPoCResponse(
           retrieval_similarity_avg: retrievalSimilarityAvg,
         });
       } catch (logErr) {
-        console.error("[PoC] Chat log error on total failure:", logErr.message);
+        console.error('[PoC] Chat log error on total failure:', logErr.message);
       }
 
       if (sessionId) {
         try {
-          const AIChatSession = require("../models/AIChatSession");
+          const AIChatSession = require('../models/AIChatSession');
           await AIChatSession.updateOne(
             { _id: sessionId, patient_id: patientId },
             {
               $push: {
                 messages: {
-                  role: "assistant",
+                  role: 'assistant',
                   text: fallbackMessage,
-                  suggestions: ["Try again", "Call Care Coordinator"],
+                  suggestions: ['Try again', 'Call Care Coordinator'],
                   timestamp: new Date(),
                 },
               },
               $inc: { message_count: 1 },
-            },
+            }
           );
         } catch (dbErr) {
           console.error(
-            "[PoC] Fallback failure session update failed:",
-            dbErr.message,
+            '[PoC] Fallback failure session update failed:',
+            dbErr.message
           );
         }
       }
@@ -1007,21 +1007,21 @@ async function streamPoCResponse(
     }
   }
 
-  const lines = fullText.split("\n");
+  const lines = fullText.split('\n');
   for (const line of lines) {
-    if (line.trim().startsWith(">>")) {
-      suggestions.push(line.trim().replace(/^>>\s*/, ""));
+    if (line.trim().startsWith('>>')) {
+      suggestions.push(line.trim().replace(/^>>\s*/, ''));
     } else {
-      cleanedResponse += line + "\n";
+      cleanedResponse += line + '\n';
     }
   }
   cleanedResponse = cleanedResponse.trim();
   suggestions = suggestions.slice(0, 3);
 
   if (suggestions.length > 0) {
-    sendEvent("suggestions", { items: suggestions });
+    sendEvent('suggestions', { items: suggestions });
   }
-  sendEvent("done", {});
+  sendEvent('done', {});
 
   try {
     await AIChatLog.create({
@@ -1031,7 +1031,7 @@ async function streamPoCResponse(
       retrieved_chunks: matchedGuidelines,
       response: cleanedResponse || fullText,
       emergency_escalation_triggered: false,
-      translated_language: targetLanguage || "en",
+      translated_language: targetLanguage || 'en',
       provider: providerUsed,
       model: modelUsed,
       is_fallback: isFallback,
@@ -1047,30 +1047,30 @@ async function streamPoCResponse(
       retrieval_similarity_avg: retrievalSimilarityAvg,
     });
   } catch (logErr) {
-    console.error("[PoC] Successful chat log error:", logErr.message);
+    console.error('[PoC] Successful chat log error:', logErr.message);
   }
 
   if (sessionId) {
     try {
-      const AIChatSession = require("../models/AIChatSession");
+      const AIChatSession = require('../models/AIChatSession');
       await AIChatSession.updateOne(
         { _id: sessionId, patient_id: patientId },
         {
           $push: {
             messages: {
-              role: "assistant",
+              role: 'assistant',
               text: cleanedResponse || fullText,
               suggestions: suggestions,
               timestamp: new Date(),
             },
           },
           $inc: { message_count: 1 },
-        },
+        }
       );
     } catch (dbErr) {
       console.error(
-        "[PoC] Failed to update session with assistant response:",
-        dbErr.message,
+        '[PoC] Failed to update session with assistant response:',
+        dbErr.message
       );
     }
   }
@@ -1092,10 +1092,10 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
         retrieved_chunks: [],
         response: emergencyMsg,
         emergency_escalation_triggered: true,
-        emergency_ruleset: "EMERGENCY_RULESET_V1",
-        translated_language: targetLanguage || "en",
-        provider: "esc-emergency",
-        model: "none",
+        emergency_ruleset: 'EMERGENCY_RULESET_V1',
+        translated_language: targetLanguage || 'en',
+        provider: 'esc-emergency',
+        model: 'none',
         llm_latency_ms: 0,
         retrieval_latency_ms: 0,
         end_to_end_latency_ms: Math.round(performance.now() - requestStart),
@@ -1107,13 +1107,13 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
         retrieval_similarity_avg: 0,
       });
     } catch (logErr) {
-      console.error("[PoC] Emergency chat log error:", logErr.message);
+      console.error('[PoC] Emergency chat log error:', logErr.message);
     }
     return {
       success: true,
-      model: "esc-emergency",
+      model: 'esc-emergency',
       response: emergencyMsg,
-      suggestions: ["Call 911", "Call 112"],
+      suggestions: ['Call 911', 'Call 112'],
       contextTokensEstimate: 0,
     };
   }
@@ -1129,8 +1129,8 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
         retrieved_chunks: [],
         response: resolved.text,
         emergency_escalation_triggered: false,
-        translated_language: targetLanguage || "en",
-        provider: "deterministic-classifier",
+        translated_language: targetLanguage || 'en',
+        provider: 'deterministic-classifier',
         model: detIntent,
         llm_latency_ms: 0,
         retrieval_latency_ms: 0,
@@ -1143,7 +1143,7 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
         retrieval_similarity_avg: 0,
       });
     } catch (logErr) {
-      console.error("[PoC] Deterministic chat log error:", logErr.message);
+      console.error('[PoC] Deterministic chat log error:', logErr.message);
     }
     return {
       success: true,
@@ -1162,15 +1162,15 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
 
   let isFallback = false;
   let fallbackReason = null;
-  let providerUsed = "groq";
-  let modelUsed = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  let providerUsed = 'groq';
+  let modelUsed = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
   let promptTokens = 0;
   let completionTokens = 0;
   let totalTokens = 0;
   let llmStart = 0;
   let llmLatency = 0;
-  let reply = "";
+  let reply = '';
   let suggestions = [];
   let patientContext = null;
 
@@ -1187,12 +1187,12 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
     const groqKey = process.env.GROQ_API_KEY;
 
     if (!groqKey) {
-      throw new Error("GROQ_API_KEY is not configured");
+      throw new Error('GROQ_API_KEY is not configured');
     }
 
     console.log(`[PoC] Executing query against Groq (${modelUsed})...`);
     const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
+      'https://api.groq.com/openai/v1/chat/completions',
       {
         model: modelUsed,
         messages: messages,
@@ -1201,13 +1201,13 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
       {
         headers: {
           Authorization: `Bearer ${groqKey}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         timeout: 15000,
-      },
+      }
     );
 
-    reply = response.data.choices[0].message?.content || "";
+    reply = response.data.choices[0].message?.content || '';
     promptTokens = response.data.usage?.prompt_tokens || 0;
     completionTokens = response.data.usage?.completion_tokens || 0;
     totalTokens = response.data.usage?.total_tokens || 0;
@@ -1215,17 +1215,17 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
   } catch (err) {
     isFallback = true;
     fallbackReason = getFallbackReason(err);
-    providerUsed = "ollama";
+    providerUsed = 'ollama';
     modelUsed = OLLAMA_MODEL;
     console.warn(
-      `[PoC] Groq failed (Reason: ${fallbackReason}). Falling back to local Ollama...`,
+      `[PoC] Groq failed (Reason: ${fallbackReason}). Falling back to local Ollama...`
     );
 
     try {
       const context = await buildRAGContext(
         patientId,
         userQuery,
-        targetLanguage,
+        targetLanguage
       );
       const { messages } = context;
       patientContext = context.patientContext;
@@ -1242,17 +1242,17 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
           messages: messages,
           stream: false,
         },
-        { timeout: 30000 },
+        { timeout: 30000 }
       );
 
-      reply = response.data.message?.content || "";
+      reply = response.data.message?.content || '';
       llmLatency = Math.round(performance.now() - llmStart);
 
       promptTokens = Math.ceil(userQuery.length / 4);
       completionTokens = Math.ceil(reply.length / 4);
       totalTokens = promptTokens + completionTokens;
     } catch (ollamaErr) {
-      console.error("[PoC] Ollama fallback failed:", ollamaErr.message);
+      console.error('[PoC] Ollama fallback failed:', ollamaErr.message);
       const fallbackMessage =
         "I'm having a little trouble connecting to my charts right now. Could you try asking me again in a moment?";
 
@@ -1263,8 +1263,8 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
           retrieved_chunks: matchedGuidelines,
           response: fallbackMessage,
           emergency_escalation_triggered: false,
-          translated_language: targetLanguage || "en",
-          provider: "ollama",
+          translated_language: targetLanguage || 'en',
+          provider: 'ollama',
           model: OLLAMA_MODEL,
           is_fallback: true,
           fallback_reason: `${fallbackReason}_then_${getFallbackReason(ollamaErr)}`,
@@ -1279,28 +1279,28 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
           retrieval_similarity_avg: retrievalSimilarityAvg,
         });
       } catch (logErr) {
-        console.error("[PoC] Chat log error on total failure:", logErr.message);
+        console.error('[PoC] Chat log error on total failure:', logErr.message);
       }
 
       return {
         success: false,
         error: ollamaErr.message,
         response: fallbackMessage,
-        suggestions: ["Try again", "Call Care Coordinator"],
+        suggestions: ['Try again', 'Call Care Coordinator'],
       };
     }
   }
 
-  const lines = reply.split("\n");
+  const lines = reply.split('\n');
   const mainLines = [];
   for (const line of lines) {
-    if (line.trim().startsWith(">>")) {
-      suggestions.push(line.trim().replace(/^>>\s*/, ""));
+    if (line.trim().startsWith('>>')) {
+      suggestions.push(line.trim().replace(/^>>\s*/, ''));
     } else {
       mainLines.push(line);
     }
   }
-  reply = mainLines.join("\n").trim();
+  reply = mainLines.join('\n').trim();
   suggestions = suggestions.slice(0, 3);
 
   try {
@@ -1310,7 +1310,7 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
       retrieved_chunks: matchedGuidelines,
       response: reply,
       emergency_escalation_triggered: false,
-      translated_language: targetLanguage || "en",
+      translated_language: targetLanguage || 'en',
       provider: providerUsed,
       model: modelUsed,
       is_fallback: isFallback,
@@ -1326,7 +1326,7 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
       retrieval_similarity_avg: retrievalSimilarityAvg,
     });
   } catch (logErr) {
-    console.error("[PoC] Successful chat log error:", logErr.message);
+    console.error('[PoC] Successful chat log error:', logErr.message);
   }
 
   const intent = classifyIntent(userQuery);

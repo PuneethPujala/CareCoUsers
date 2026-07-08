@@ -1,7 +1,7 @@
-const axios = require("axios");
-const Patient = require("../models/Patient");
+const axios = require('axios');
+const Patient = require('../models/Patient');
 
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 // Retry config: up to 3 attempts with exponential backoff (1s, 2s, 4s)
 const MAX_RETRIES = 3;
@@ -35,32 +35,32 @@ class NotificationService {
   static async sendPush(patientId, { title, body, data = {} }) {
     try {
       const patient = await Patient.findById(patientId).select(
-        "expo_push_token push_notifications_enabled",
+        'expo_push_token push_notifications_enabled'
       );
 
       if (!patient?.expo_push_token || !patient.push_notifications_enabled) {
-        return { success: false, reason: "disabled_or_no_token" };
+        return { success: false, reason: 'disabled_or_no_token' };
       }
 
       // Expo tokens: ExponentPushToken[...] or ExpoPushToken[...]
       if (!/^Expo(nent)?PushToken\[.+\]$/.test(patient.expo_push_token)) {
         console.warn(
-          `[NotificationService] Invalid token for ${patientId}: ${patient.expo_push_token}`,
+          `[NotificationService] Invalid token for ${patientId}: ${patient.expo_push_token}`
         );
-        return { success: false, reason: "invalid_token" };
+        return { success: false, reason: 'invalid_token' };
       }
 
       const message = {
         to: patient.expo_push_token,
-        sound: "default",
+        sound: 'default',
         title,
         body,
         data: {
           ...data,
           patientId: patientId.toString(),
         },
-        priority: "high",
-        channelId: "meds",
+        priority: 'high',
+        channelId: 'meds',
       };
 
       // Retry loop with exponential backoff
@@ -69,9 +69,9 @@ class NotificationService {
         try {
           const response = await axios.post(EXPO_PUSH_URL, message, {
             headers: {
-              Accept: "application/json",
-              "Accept-encoding": "gzip, deflate",
-              "Content-Type": "application/json",
+              Accept: 'application/json',
+              'Accept-encoding': 'gzip, deflate',
+              'Content-Type': 'application/json',
             },
             timeout: 8000, // 8s — Expo is fast
           });
@@ -79,10 +79,10 @@ class NotificationService {
           const rawResult = response.data?.data;
           const ticket = Array.isArray(rawResult) ? rawResult[0] : rawResult;
 
-          if (ticket?.status === "error") {
+          if (ticket?.status === 'error') {
             console.error(`❌ Push rejected for ${patientId}:`, ticket.message);
 
-            if (ticket.details?.error === "DeviceNotRegistered") {
+            if (ticket.details?.error === 'DeviceNotRegistered') {
               // Token is permanently invalid — clear it so we stop wasting quota
               await Patient.findByIdAndUpdate(patientId, {
                 $set: { expo_push_token: null },
@@ -91,12 +91,12 @@ class NotificationService {
 
             const notificationId = data.notification_id || data.notificationId;
             if (notificationId) {
-              const Notification = require("../models/Notification");
+              const Notification = require('../models/Notification');
               await Notification.findByIdAndUpdate(notificationId, {
                 $set: {
                   expo_push_token: patient.expo_push_token,
                   push_delivered: false,
-                  expo_receipt_status: "error",
+                  expo_receipt_status: 'error',
                   expo_receipt_error: ticket.message,
                 },
               });
@@ -115,7 +115,7 @@ class NotificationService {
           // Update corresponding Notification document with ticket info if it exists
           const notificationId = data.notification_id || data.notificationId;
           if (notificationId && ticketId) {
-            const Notification = require("../models/Notification");
+            const Notification = require('../models/Notification');
             await Notification.findByIdAndUpdate(notificationId, {
               $set: {
                 expo_ticket_id: ticketId,
@@ -131,15 +131,15 @@ class NotificationService {
           const isRetryable =
             err.response?.status === 429 || // rate limited
             err.response?.status >= 500 || // Expo server error
-            err.code === "ECONNRESET" ||
-            err.code === "ETIMEDOUT" ||
-            err.code === "ECONNABORTED";
+            err.code === 'ECONNRESET' ||
+            err.code === 'ETIMEDOUT' ||
+            err.code === 'ECONNABORTED';
 
           if (!isRetryable || attempt === MAX_RETRIES) break;
 
           const backoffMs = RETRY_BASE_MS * Math.pow(2, attempt - 1);
           console.warn(
-            `[NotificationService] Attempt ${attempt} failed (${err.message}), retrying in ${backoffMs}ms…`,
+            `[NotificationService] Attempt ${attempt} failed (${err.message}), retrying in ${backoffMs}ms…`
           );
           await sleep(backoffMs);
         }
@@ -147,40 +147,40 @@ class NotificationService {
 
       console.error(
         `❌ Push network error for ${patientId} after ${MAX_RETRIES} attempts:`,
-        lastError?.message,
+        lastError?.message
       );
 
       const notificationId = data.notification_id || data.notificationId;
       if (notificationId) {
-        const Notification = require("../models/Notification");
+        const Notification = require('../models/Notification');
         await Notification.findByIdAndUpdate(notificationId, {
           $set: {
             expo_push_token: patient.expo_push_token,
             push_delivered: false,
-            expo_receipt_status: "error",
-            expo_receipt_error: lastError?.message || "max_retries_exceeded",
+            expo_receipt_status: 'error',
+            expo_receipt_error: lastError?.message || 'max_retries_exceeded',
           },
         });
       }
       return {
         success: false,
-        reason: "network_error",
+        reason: 'network_error',
         error: lastError?.message,
       };
     } catch (error) {
       // Outer catch: DB lookup failure or unexpected throw
       console.error(
         `❌ Unexpected error in sendPush for ${patientId}:`,
-        error.message,
+        error.message
       );
       const notificationId = data.notification_id || data.notificationId;
       if (notificationId) {
         try {
-          const Notification = require("../models/Notification");
+          const Notification = require('../models/Notification');
           await Notification.findByIdAndUpdate(notificationId, {
             $set: {
               push_delivered: false,
-              expo_receipt_status: "error",
+              expo_receipt_status: 'error',
               expo_receipt_error: error.message,
             },
           });
@@ -188,7 +188,7 @@ class NotificationService {
       }
       return {
         success: false,
-        reason: "unexpected_error",
+        reason: 'unexpected_error',
         error: error.message,
       };
     }
@@ -205,14 +205,14 @@ class NotificationService {
    */
   static async broadcast(patientIds, payload) {
     const results = await Promise.allSettled(
-      patientIds.map((id) => this.sendPush(id, payload)),
+      patientIds.map((id) => this.sendPush(id, payload))
     );
 
     let sent = 0;
     let failed = 0;
     for (const r of results) {
       if (
-        r.status === "fulfilled" &&
+        r.status === 'fulfilled' &&
         (r.value === true || r.value?.success === true)
       )
         sent++;
@@ -220,7 +220,7 @@ class NotificationService {
     }
 
     console.log(
-      `[NotificationService] Broadcast: ${sent} sent, ${failed} failed of ${patientIds.length}`,
+      `[NotificationService] Broadcast: ${sent} sent, ${failed} failed of ${patientIds.length}`
     );
     return { sent, failed };
   }

@@ -1,14 +1,14 @@
-const logger = require("../utils/logger");
-const Profile = require("../models/Profile");
-const Companion = require("../models/Companion");
-const SystemMigration = require("../models/SystemMigration");
+const logger = require('../utils/logger');
+const Profile = require('../models/Profile');
+const Companion = require('../models/Companion');
+const SystemMigration = require('../models/SystemMigration');
 
 const runSeparateProfilesMigration = async () => {
-  const MIGRATION_KEY = "separate_companion_profiles_into_dedicated_collection";
+  const MIGRATION_KEY = 'separate_companion_profiles_into_dedicated_collection';
 
   try {
     // 1. Fetch all profiles with role: 'companion' (Safety check on every boot)
-    const companionProfiles = await Profile.find({ role: "companion" });
+    const companionProfiles = await Profile.find({ role: 'companion' });
 
     if (companionProfiles.length === 0) {
       // Check if we need to set the migration key just for bookkeeping
@@ -18,7 +18,7 @@ const runSeparateProfilesMigration = async () => {
       if (!existingMigration) {
         await SystemMigration.create({
           key: MIGRATION_KEY,
-          version: "1.0.0",
+          version: '1.0.0',
           executed_at: new Date(),
         });
       }
@@ -26,7 +26,7 @@ const runSeparateProfilesMigration = async () => {
     }
 
     logger.info(
-      `[Migration] Leaked companion profiles found! Starting Companion profile separation migration for ${companionProfiles.length} user(s)...`,
+      `[Migration] Leaked companion profiles found! Starting Companion profile separation migration for ${companionProfiles.length} user(s)...`
     );
 
     let migrateCount = 0;
@@ -42,7 +42,7 @@ const runSeparateProfilesMigration = async () => {
           passwordHash: profile.passwordHash,
           fullName: profile.fullName,
           phone: profile.phone,
-          role: "companion",
+          role: 'companion',
           isActive: profile.isActive !== undefined ? profile.isActive : true,
           emailVerified:
             profile.emailVerified !== undefined ? profile.emailVerified : false,
@@ -62,17 +62,17 @@ const runSeparateProfilesMigration = async () => {
     // 3. Mark the migration as executed successfully with lock key
     await SystemMigration.create({
       key: MIGRATION_KEY,
-      version: "1.0.0",
+      version: '1.0.0',
       executed_at: new Date(),
     });
 
     logger.info(
-      `[Migration] Success! Successfully migrated and separated ${migrateCount} companion profiles into their own collection.`,
+      `[Migration] Success! Successfully migrated and separated ${migrateCount} companion profiles into their own collection.`
     );
   } catch (err) {
     logger.error(
-      "[Migration] Failed during Companion profile separation migration:",
-      err,
+      '[Migration] Failed during Companion profile separation migration:',
+      err
     );
     throw err;
   }

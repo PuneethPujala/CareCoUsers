@@ -12,11 +12,11 @@
 
 const {
   checkPasswordChange,
-} = require("../../src/middleware/checkPasswordChange");
+} = require('../../src/middleware/checkPasswordChange');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeReq({ originalUrl = "/api/profile/me", profile = null } = {}) {
+function makeReq({ originalUrl = '/api/profile/me', profile = null } = {}) {
   return { originalUrl, profile };
 }
 
@@ -38,16 +38,16 @@ function makeRes() {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("checkPasswordChange middleware", () => {
+describe('checkPasswordChange middleware', () => {
   let next;
   beforeEach(() => {
     next = jest.fn();
   });
 
-  it("calls next when mustChangePassword is false", () => {
+  it('calls next when mustChangePassword is false', () => {
     const req = makeReq({
-      originalUrl: "/api/profile/me",
-      profile: { mustChangePassword: false, role: "care_manager" },
+      originalUrl: '/api/profile/me',
+      profile: { mustChangePassword: false, role: 'care_manager' },
     });
     const res = makeRes();
 
@@ -57,9 +57,9 @@ describe("checkPasswordChange middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("calls next when no profile exists (unauthenticated route)", () => {
+  it('calls next when no profile exists (unauthenticated route)', () => {
     // req.profile is null/undefined — public route, middleware should pass through
-    const req = makeReq({ originalUrl: "/api/auth/login", profile: null });
+    const req = makeReq({ originalUrl: '/api/auth/login', profile: null });
     const res = makeRes();
 
     checkPasswordChange(req, res, next);
@@ -68,10 +68,10 @@ describe("checkPasswordChange middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("blocks non-password-change routes when mustChangePassword is true", () => {
+  it('blocks non-password-change routes when mustChangePassword is true', () => {
     const req = makeReq({
-      originalUrl: "/api/patients",
-      profile: { mustChangePassword: true, role: "care_manager" },
+      originalUrl: '/api/patients',
+      profile: { mustChangePassword: true, role: 'care_manager' },
     });
     const res = makeRes();
 
@@ -79,13 +79,13 @@ describe("checkPasswordChange middleware", () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res._body).toMatchObject({ code: "MUST_CHANGE_PASSWORD" });
+    expect(res._body).toMatchObject({ code: 'MUST_CHANGE_PASSWORD' });
   });
 
-  it("allows the change-password endpoint even when mustChangePassword is true", () => {
+  it('allows the change-password endpoint even when mustChangePassword is true', () => {
     const req = makeReq({
-      originalUrl: "/api/auth/change-password",
-      profile: { mustChangePassword: true, role: "care_manager" },
+      originalUrl: '/api/auth/change-password',
+      profile: { mustChangePassword: true, role: 'care_manager' },
     });
     const res = makeRes();
 
@@ -95,11 +95,11 @@ describe("checkPasswordChange middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("strips query params before comparing path", () => {
+  it('strips query params before comparing path', () => {
     // e.g. /api/auth/change-password?token=abc should still be allowed
     const req = makeReq({
-      originalUrl: "/api/auth/change-password?token=abc123",
-      profile: { mustChangePassword: true, role: "care_manager" },
+      originalUrl: '/api/auth/change-password?token=abc123',
+      profile: { mustChangePassword: true, role: 'care_manager' },
     });
     const res = makeRes();
 
@@ -109,11 +109,11 @@ describe("checkPasswordChange middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("also allows /api/auth/logout when mustChangePassword is true", () => {
+  it('also allows /api/auth/logout when mustChangePassword is true', () => {
     // Logout should always be reachable so users can sign out of locked accounts
     const req = makeReq({
-      originalUrl: "/api/auth/logout",
-      profile: { mustChangePassword: true, role: "caller" },
+      originalUrl: '/api/auth/logout',
+      profile: { mustChangePassword: true, role: 'caller' },
     });
     const res = makeRes();
 

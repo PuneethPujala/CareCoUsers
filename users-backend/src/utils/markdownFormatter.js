@@ -10,27 +10,27 @@ function shouldNegotiateMarkdown(req) {
   if (!accept) return false;
 
   // Split by comma to get individual media types
-  const types = accept.split(",").map((part) => part.trim().toLowerCase());
+  const types = accept.split(',').map((part) => part.trim().toLowerCase());
 
   let markdownWeight = -1;
   let jsonWeight = -1;
 
   for (const type of types) {
     // Parse media type and parameters (like q=0.8)
-    const [mediaType, ...params] = type.split(";").map((p) => p.trim());
+    const [mediaType, ...params] = type.split(';').map((p) => p.trim());
 
     let q = 1.0; // default weight is 1.0
     for (const param of params) {
-      if (param.startsWith("q=")) {
+      if (param.startsWith('q=')) {
         q = parseFloat(param.substring(2)) || 0;
       }
     }
 
-    if (mediaType === "text/markdown" || mediaType === "text/x-markdown") {
+    if (mediaType === 'text/markdown' || mediaType === 'text/x-markdown') {
       markdownWeight = q;
-    } else if (mediaType === "application/json") {
+    } else if (mediaType === 'application/json') {
       jsonWeight = q;
-    } else if (mediaType === "*/*") {
+    } else if (mediaType === '*/*') {
       // Wildcard sets the baseline jsonWeight
       if (jsonWeight === -1) {
         jsonWeight = q;
@@ -60,7 +60,7 @@ function shouldNegotiateMarkdown(req) {
  * @returns {string} Fully formatted Markdown string.
  */
 function formatTodayMedicationsMarkdown(log, preferences) {
-  let dateStr = "Today";
+  let dateStr = 'Today';
   if (log && log.date) {
     try {
       dateStr = new Date(log.date).toISOString().slice(0, 10);
@@ -76,36 +76,36 @@ function formatTodayMedicationsMarkdown(log, preferences) {
   const medicines = (log && log.medicines) || [];
 
   medicines.forEach((m) => {
-    const time = m.scheduled_time || "morning";
+    const time = m.scheduled_time || 'morning';
     if (buckets[time]) {
       buckets[time].push(m);
     } else {
       // fallback for safety
-      buckets["morning"].push(m);
+      buckets['morning'].push(m);
     }
   });
 
-  const orderedBuckets = ["morning", "afternoon", "evening", "night"];
+  const orderedBuckets = ['morning', 'afternoon', 'evening', 'night'];
   orderedBuckets.forEach((bucket) => {
     const list = buckets[bucket];
     const bucketName = bucket.charAt(0).toUpperCase() + bucket.slice(1);
     const prefTime =
       preferences && preferences[bucket]
         ? ` (Preferred Time: ${preferences[bucket]})`
-        : "";
+        : '';
 
     markdown += `## ${bucketName}${prefTime}\n`;
     if (list.length === 0) {
       markdown += `No medications scheduled.\n\n`;
     } else {
       list.forEach((m) => {
-        const status = m.taken ? "✅ Taken" : "❌ Pending";
-        const dosageStr = m.dosage ? ` - Dose: ${m.dosage}` : "";
-        const instructionsStr = m.instructions ? ` (${m.instructions})` : "";
+        const status = m.taken ? '✅ Taken' : '❌ Pending';
+        const dosageStr = m.dosage ? ` - Dose: ${m.dosage}` : '';
+        const instructionsStr = m.instructions ? ` (${m.instructions})` : '';
         const refillStr =
-          m.refillInfo && typeof m.refillInfo.remainingDoses === "number"
+          m.refillInfo && typeof m.refillInfo.remainingDoses === 'number'
             ? ` [Supply: ${m.refillInfo.remainingDoses}/${m.refillInfo.totalDoses || 30} left]`
-            : "";
+            : '';
         markdown += `- **${m.medicine_name}**: ${status}${dosageStr}${instructionsStr}${refillStr}\n`;
       });
       markdown += `\n`;
@@ -133,16 +133,16 @@ function formatAdherenceDetailsMarkdown(details) {
   const score = details.score || { weekly: 0, monthly: 0 };
   const levelLabel = details.level
     ? `${details.level.label} ${details.level.emoji}`
-    : "N/A";
+    : 'N/A';
   const streak = details.streak || 0;
   const vitalsAdherence = details.vitals_adherence || 0;
-  const momentum = details.momentum || "steady";
+  const momentum = details.momentum || 'steady';
 
   markdown += `## Adherence Scores & Status\n`;
   markdown += `* **Weekly Adherence**: ${score.weekly}%\n`;
   markdown += `* **Monthly Adherence**: ${score.monthly}% (${levelLabel})\n`;
   markdown += `* **Adherence Momentum**: ${momentum}\n`;
-  markdown += `* **Current Streak**: ${streak} Day${streak === 1 ? "" : "s"} 🔥\n`;
+  markdown += `* **Current Streak**: ${streak} Day${streak === 1 ? '' : 's'} 🔥\n`;
   markdown += `* **Vitals Logging Consistency (Last 30 Days)**: ${vitalsAdherence}%\n\n`;
 
   // 2. AI Clinical Insights
@@ -169,13 +169,13 @@ function formatAdherenceDetailsMarkdown(details) {
   } else {
     unlocked.forEach((a) => {
       const tierEmoji =
-        a.tier === "legendary"
-          ? "👑"
-          : a.tier === "gold"
-            ? "🏆"
-            : a.tier === "silver"
-              ? "🥈"
-              : "🥉";
+        a.tier === 'legendary'
+          ? '👑'
+          : a.tier === 'gold'
+            ? '🏆'
+            : a.tier === 'silver'
+              ? '🥈'
+              : '🥉';
       markdown += `* ${tierEmoji} **${a.label}** (${a.tier}): ${a.description}\n`;
     });
   }

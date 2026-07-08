@@ -5,9 +5,9 @@
  * rolling Z-scores for a patient's health feature vector over a 30-day window.
  */
 
-"use strict";
+'use strict';
 
-const moment = require("moment-timezone");
+const moment = require('moment-timezone');
 
 const MOOD_VALUES = { sad: 1, okay: 2, good: 3, great: 4 };
 
@@ -28,14 +28,14 @@ function calculatePersonalAnomaly(
   vitalsHistory,
   adherenceLogs,
   sleepHistory,
-  currentValues,
+  currentValues
 ) {
-  const timezone = patient.timezone || "Asia/Kolkata";
-  const targetDate = moment.tz(targetDateStr, "YYYY-MM-DD", timezone);
+  const timezone = patient.timezone || 'Asia/Kolkata';
+  const targetDate = moment.tz(targetDateStr, 'YYYY-MM-DD', timezone);
 
   // Define the historical baseline window: [targetDate - 30 days, targetDate - 1 day]
-  const windowStart = targetDate.clone().subtract(30, "days").startOf("day");
-  const windowEnd = targetDate.clone().subtract(1, "days").endOf("day");
+  const windowStart = targetDate.clone().subtract(30, 'days').startOf('day');
+  const windowEnd = targetDate.clone().subtract(1, 'days').endOf('day');
 
   // Helper to check if a date is within the baseline window
   const inWindow = (dateVal) => {
@@ -122,36 +122,36 @@ function calculatePersonalAnomaly(
     const absZ = Math.abs(z_scores[key]);
     if (absZ >= 1.5) {
       const zStr = absZ.toFixed(1);
-      const direction = z_scores[key] > 0 ? "above" : "below";
+      const direction = z_scores[key] > 0 ? 'above' : 'below';
 
-      if (key === "systolic") {
+      if (key === 'systolic') {
         insights.push(
-          `Your systolic BP is ${zStr} standard deviations ${direction} your normal level.`,
+          `Your systolic BP is ${zStr} standard deviations ${direction} your normal level.`
         );
-      } else if (key === "diastolic") {
+      } else if (key === 'diastolic') {
         insights.push(
-          `Your diastolic BP is ${zStr} standard deviations ${direction} your normal level.`,
+          `Your diastolic BP is ${zStr} standard deviations ${direction} your normal level.`
         );
-      } else if (key === "heart_rate") {
+      } else if (key === 'heart_rate') {
         insights.push(
-          `Your heart rate is ${zStr} standard deviations ${direction} your normal baseline.`,
+          `Your heart rate is ${zStr} standard deviations ${direction} your normal baseline.`
         );
-      } else if (key === "oxygen_saturation" && z_scores[key] < 0) {
+      } else if (key === 'oxygen_saturation' && z_scores[key] < 0) {
         insights.push(
-          `Your oxygen saturation is ${zStr} standard deviations below your normal average.`,
+          `Your oxygen saturation is ${zStr} standard deviations below your normal average.`
         );
-      } else if (key === "sleep_hours") {
+      } else if (key === 'sleep_hours') {
         const diffHours = Math.abs(currentVal - mean).toFixed(1);
         insights.push(
-          `You slept ${diffHours} hours ${z_scores[key] > 0 ? "more" : "less"} than usual (${zStr} standard deviations deviation).`,
+          `You slept ${diffHours} hours ${z_scores[key] > 0 ? 'more' : 'less'} than usual (${zStr} standard deviations deviation).`
         );
-      } else if (key === "mood" && z_scores[key] < 0) {
+      } else if (key === 'mood' && z_scores[key] < 0) {
         insights.push(
-          `Your mood is significantly lower than your recent pattern.`,
+          `Your mood is significantly lower than your recent pattern.`
         );
-      } else if (key === "adherence" && z_scores[key] < 0) {
+      } else if (key === 'adherence' && z_scores[key] < 0) {
         insights.push(
-          `Your medication adherence dropped significantly below your usual average.`,
+          `Your medication adherence dropped significantly below your usual average.`
         );
       }
     }
@@ -159,13 +159,13 @@ function calculatePersonalAnomaly(
 
   // Calculate overall anomaly level
   const maxAbsZ = Math.max(...Object.values(z_scores).map(Math.abs));
-  let anomaly_level = "normal";
+  let anomaly_level = 'normal';
   if (maxAbsZ >= 3.0) {
-    anomaly_level = "extreme";
+    anomaly_level = 'extreme';
   } else if (maxAbsZ >= 2.0) {
-    anomaly_level = "significant";
+    anomaly_level = 'significant';
   } else if (maxAbsZ >= 1.5) {
-    anomaly_level = "mild";
+    anomaly_level = 'mild';
   }
 
   return {

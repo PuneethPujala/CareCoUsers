@@ -1,9 +1,9 @@
-const cron = require("node-cron");
-const axios = require("axios");
-const Notification = require("../models/Notification");
-const Patient = require("../models/Patient");
+const cron = require('node-cron');
+const axios = require('axios');
+const Notification = require('../models/Notification');
+const Patient = require('../models/Patient');
 
-const EXPO_RECEIPT_URL = "https://exp.host/--/api/v2/push/getReceipts";
+const EXPO_RECEIPT_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 
 /**
  * Poll pending Expo push receipts from the last 24 hours.
@@ -11,20 +11,20 @@ const EXPO_RECEIPT_URL = "https://exp.host/--/api/v2/push/getReceipts";
 const pollPushReceipts = async () => {
   const startTime = Date.now();
   console.log(
-    `[Job] Push Receipt Polling started at ${new Date().toISOString()}`,
+    `[Job] Push Receipt Polling started at ${new Date().toISOString()}`
   );
 
   try {
     // Find notifications sent in the last 24 hours with pending receipt status and a ticket ID
     const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const notifications = await Notification.find({
-      expo_receipt_status: "pending",
-      expo_ticket_id: { $exists: true, $nin: [null, ""] },
+      expo_receipt_status: 'pending',
+      expo_ticket_id: { $exists: true, $nin: [null, ''] },
       created_at: { $gte: cutoffTime },
-    }).select("_id patient_id expo_ticket_id expo_push_token");
+    }).select('_id patient_id expo_ticket_id expo_push_token');
 
     if (notifications.length === 0) {
-      console.log("[Job] No pending push receipts to poll.");
+      console.log('[Job] No pending push receipts to poll.');
       return;
     }
 
@@ -36,7 +36,7 @@ const pollPushReceipts = async () => {
     const ticketIds = Array.from(ticketIdMap.keys());
 
     console.log(
-      `[Job] Polling receipts for ${ticketIds.length} unique ticket(s)...`,
+      `[Job] Polling receipts for ${ticketIds.length} unique ticket(s)...`
     );
 
     // Batch ticket IDs (Expo allows up to 1000 at a time)
@@ -52,19 +52,19 @@ const pollPushReceipts = async () => {
           },
           {
             headers: {
-              Accept: "application/json",
-              "Accept-encoding": "gzip, deflate",
-              "Content-Type": "application/json",
+              Accept: 'application/json',
+              'Accept-encoding': 'gzip, deflate',
+              'Content-Type': 'application/json',
             },
             timeout: 10000, // 10 seconds timeout
-          },
+          }
         );
 
         const receipts = response.data?.data;
-        if (!receipts || typeof receipts !== "object") {
+        if (!receipts || typeof receipts !== 'object') {
           console.warn(
-            "[Job] Malformed or empty receipts response from Expo:",
-            response.data,
+            '[Job] Malformed or empty receipts response from Expo:',
+            response.data
           );
           continue;
         }
@@ -80,17 +80,17 @@ const pollPushReceipts = async () => {
           const correspondingNotif = ticketIdMap.get(ticketId);
           if (!correspondingNotif) continue;
 
-          if (receipt.status === "ok") {
+          if (receipt.status === 'ok') {
             // Mark notification as delivered and receipt as OK
             await Notification.updateMany(
               { expo_ticket_id: ticketId },
               {
                 $set: {
-                  expo_receipt_status: "ok",
+                  expo_receipt_status: 'ok',
                   push_delivered: true,
                   receipt_checked_at: new Date(),
                 },
-              },
+              }
             );
 
             // Reset push failures for the corresponding patient
@@ -99,11 +99,11 @@ const pollPushReceipts = async () => {
                 $set: { expo_push_token_failures: 0 },
               });
             }
-          } else if (receipt.status === "error") {
+          } else if (receipt.status === 'error') {
             const errorMsg =
-              receipt.details?.error || receipt.message || "Unknown error";
+              receipt.details?.error || receipt.message || 'Unknown error';
             console.error(
-              `[Job] Receipt error for ticket ${ticketId}: ${errorMsg}`,
+              `[Job] Receipt error for ticket ${ticketId}: ${errorMsg}`
             );
 
             // Mark notification as failed
@@ -111,18 +111,18 @@ const pollPushReceipts = async () => {
               { expo_ticket_id: ticketId },
               {
                 $set: {
-                  expo_receipt_status: "error",
+                  expo_receipt_status: 'error',
                   expo_receipt_error: errorMsg,
                   receipt_checked_at: new Date(),
                 },
-              },
+              }
             );
 
             // Handle token failures and pruning for terminal errors
             const terminalErrors = [
-              "DeviceNotRegistered",
-              "InvalidCredentials",
-              "MessageTooBig",
+              'DeviceNotRegistered',
+              'InvalidCredentials',
+              'MessageTooBig',
             ];
             if (terminalErrors.includes(receipt.details?.error)) {
               const patientId = correspondingNotif.patient_id;
@@ -130,7 +130,7 @@ const pollPushReceipts = async () => {
 
               if (patientId && loggedToken) {
                 const patient = await Patient.findById(patientId).select(
-                  "expo_push_token expo_push_token_failures",
+                  'expo_push_token expo_push_token_failures'
                 );
                 // Only prune or increment if the token hasn't changed since the push was sent
                 if (patient && patient.expo_push_token === loggedToken) {
@@ -138,7 +138,7 @@ const pollPushReceipts = async () => {
                     (patient.expo_push_token_failures || 0) + 1;
                   if (nextFailures >= 3) {
                     console.warn(
-                      `[Job] Pruning token for patient ${patientId} after 3 consecutive failures.`,
+                      `[Job] Pruning token for patient ${patientId} after 3 consecutive failures.`
                     );
                     await Patient.findByIdAndUpdate(patientId, {
                       $set: {
@@ -151,7 +151,7 @@ const pollPushReceipts = async () => {
                       $set: { expo_push_token_failures: nextFailures },
                     });
                     console.log(
-                      `[Job] Incremented token failures for patient ${patientId} to ${nextFailures}.`,
+                      `[Job] Incremented token failures for patient ${patientId} to ${nextFailures}.`
                     );
                   }
                 }
@@ -162,15 +162,15 @@ const pollPushReceipts = async () => {
       } catch (batchErr) {
         console.error(
           `[Job] Error polling receipt batch starting at index ${i}:`,
-          batchErr.message,
+          batchErr.message
         );
       }
     }
   } catch (error) {
-    console.error("[Job] Push Receipt Polling failed:", error);
+    console.error('[Job] Push Receipt Polling failed:', error);
   } finally {
     console.log(
-      `[Job] Push Receipt Polling finished in ${Date.now() - startTime}ms`,
+      `[Job] Push Receipt Polling finished in ${Date.now() - startTime}ms`
     );
   }
 };
@@ -185,13 +185,13 @@ const pruneDeadDevices = async () => {
   try {
     const thresholdDays = 30;
     const cutoffDate = new Date(
-      Date.now() - thresholdDays * 24 * 60 * 60 * 1000,
+      Date.now() - thresholdDays * 24 * 60 * 60 * 1000
     );
 
     // Find active tokens where both lastLoginAt and updated_at are older than cutoffDate
     // (if lastLoginAt does not exist, fall back to updated_at)
     const query = {
-      expo_push_token: { $exists: true, $nin: [null, ""] },
+      expo_push_token: { $exists: true, $nin: [null, ''] },
       $or: [
         { lastLoginAt: { $lt: cutoffDate } },
         { lastLoginAt: { $exists: false }, updated_at: { $lt: cutoffDate } },
@@ -206,13 +206,13 @@ const pruneDeadDevices = async () => {
     });
 
     console.log(
-      `[Job] Dead Device Sweep completed. Pruned ${result.modifiedCount} inactive device token(s).`,
+      `[Job] Dead Device Sweep completed. Pruned ${result.modifiedCount} inactive device token(s).`
     );
   } catch (error) {
-    console.error("[Job] Dead Device Sweep failed:", error);
+    console.error('[Job] Dead Device Sweep failed:', error);
   } finally {
     console.log(
-      `[Job] Dead Device Sweep finished in ${Date.now() - startTime}ms`,
+      `[Job] Dead Device Sweep finished in ${Date.now() - startTime}ms`
     );
   }
 };
@@ -222,18 +222,18 @@ let isReceiptCronStarted = false;
 const startReceiptCron = () => {
   if (isReceiptCronStarted) {
     console.warn(
-      "⚠️ Push receipt cron already started. Skipping duplicate initialization.",
+      '⚠️ Push receipt cron already started. Skipping duplicate initialization.'
     );
     return;
   }
   // Poll receipts every 5 minutes
-  cron.schedule("*/5 * * * *", pollPushReceipts);
+  cron.schedule('*/5 * * * *', pollPushReceipts);
 
   // Sweep dead devices daily at midnight
-  cron.schedule("0 0 * * *", pruneDeadDevices);
+  cron.schedule('0 0 * * *', pruneDeadDevices);
 
   isReceiptCronStarted = true;
-  console.log("✅ Push receipt polling & dead device sweeper crons started.");
+  console.log('✅ Push receipt polling & dead device sweeper crons started.');
 };
 
 module.exports = {

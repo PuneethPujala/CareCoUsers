@@ -15,7 +15,7 @@ function calculateMomentum(history = [], currentState = {}) {
     score: currentState.score ?? 82,
     adherence: currentState.adherence?.today ?? 0,
     streak: currentState.adherence?.streak ?? 0,
-    mood: currentState.mood ?? "good",
+    mood: currentState.mood ?? 'good',
   };
 
   const oldest = history.length > 0 ? history[0] : null;
@@ -51,11 +51,11 @@ function calculateMomentum(history = [], currentState = {}) {
   // Clamp score between 0 and 100
   const momentumScore = Math.min(100, Math.max(0, Math.round(momentum)));
 
-  let direction = "stable";
+  let direction = 'stable';
   if (momentumScore >= 70) {
-    direction = "improving";
+    direction = 'improving';
   } else if (momentumScore <= 40) {
-    direction = "declining";
+    direction = 'declining';
   }
 
   return {

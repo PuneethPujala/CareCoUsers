@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const achievementEventSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
@@ -19,17 +19,17 @@ const achievementEventSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
 // Compound index to guarantee uniqueness of achievement event per patient
 achievementEventSchema.index(
   { patient_id: 1, achievement: 1 },
-  { unique: true },
+  { unique: true }
 );
 
 // Optimize query index
 achievementEventSchema.index({ patient_id: 1, earned_at: -1 });
 
-module.exports = mongoose.model("AchievementEvent", achievementEventSchema);
+module.exports = mongoose.model('AchievementEvent', achievementEventSchema);

@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const PriorityActionSchema = new mongoose.Schema(
   {
@@ -6,19 +6,19 @@ const PriorityActionSchema = new mongoose.Schema(
     priority: { type: Number, required: true },
     severity: {
       type: String,
-      enum: ["critical", "warning", "info"],
+      enum: ['critical', 'warning', 'info'],
       required: true,
     },
     message: { type: String, required: true },
   },
-  { _id: false },
+  { _id: false }
 );
 
 const companionAiInsightSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       unique: true,
       index: true,
@@ -28,8 +28,8 @@ const companionAiInsightSchema = new mongoose.Schema(
     recommendations: [{ type: String }],
     risk_level: {
       type: String,
-      enum: ["low", "medium", "high"],
-      default: "low",
+      enum: ['low', 'medium', 'high'],
+      default: 'low',
     },
     risk_score: { type: Number, min: 0, max: 100, required: true },
     risk_breakdown: {
@@ -40,9 +40,9 @@ const companionAiInsightSchema = new mongoose.Schema(
     },
     risk_factors: [{ type: String }],
     risk_trend: {
-      previous: { type: String, enum: ["low", "medium", "high"] },
-      current: { type: String, enum: ["low", "medium", "high"] },
-      direction: { type: String, enum: ["improving", "worsening", "stable"] },
+      previous: { type: String, enum: ['low', 'medium', 'high'] },
+      current: { type: String, enum: ['low', 'medium', 'high'] },
+      direction: { type: String, enum: ['improving', 'worsening', 'stable'] },
     },
     trend_delta: {
       risk_score: { type: Number, default: 0 },
@@ -52,7 +52,7 @@ const companionAiInsightSchema = new mongoose.Schema(
     visibility_score: { type: Number, min: 0, max: 100, required: true },
     visibility_label: {
       type: String,
-      enum: ["Low", "Medium", "High"],
+      enum: ['Low', 'Medium', 'High'],
       required: true,
     },
     visibility_breakdown: {
@@ -64,7 +64,7 @@ const companionAiInsightSchema = new mongoose.Schema(
     confidence_score: { type: Number, min: 0, max: 100, required: true },
     confidence_label: {
       type: String,
-      enum: ["Low", "Medium", "High"],
+      enum: ['Low', 'Medium', 'High'],
       required: true,
     },
     last_stable: {
@@ -79,8 +79,8 @@ const companionAiInsightSchema = new mongoose.Schema(
         score: { type: Number, default: 50 },
         direction: {
           type: String,
-          enum: ["improving", "stable", "declining"],
-          default: "stable",
+          enum: ['improving', 'stable', 'declining'],
+          default: 'stable',
         },
       },
       consistency: {
@@ -99,8 +99,8 @@ const companionAiInsightSchema = new mongoose.Schema(
         projected_score_14d: { type: Number, default: 80 },
         trajectory: {
           type: String,
-          enum: ["positive", "negative", "stable"],
-          default: "stable",
+          enum: ['positive', 'negative', 'stable'],
+          default: 'stable',
         },
       },
     },
@@ -114,11 +114,11 @@ const companionAiInsightSchema = new mongoose.Schema(
     expires_at: { type: Date, required: true },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
 // TTL index to automatically delete expired insights (e.g. after 6 hours)
 companionAiInsightSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model("CompanionAiInsight", companionAiInsightSchema);
+module.exports = mongoose.model('CompanionAiInsight', companionAiInsightSchema);

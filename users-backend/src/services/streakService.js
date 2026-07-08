@@ -1,6 +1,6 @@
-const Patient = require("../models/Patient");
-const MedicineLog = require("../models/MedicineLog");
-const moment = require("moment-timezone");
+const Patient = require('../models/Patient');
+const MedicineLog = require('../models/MedicineLog');
+const moment = require('moment-timezone');
 
 /**
  * Validates and updates a patient's Care Streak safely.
@@ -26,13 +26,13 @@ exports.evaluateAndUpdateStreak = async (patientId) => {
     const patient = await Patient.findById(patientId);
     if (!patient) return null;
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const now = moment().tz(timezone);
 
     // BUG 10 FIX: derive local date string first, then build UTC midnight
     // to match how /today stores logs: new Date(`YYYY-MM-DDT00:00:00.000Z`)
-    const todayStr = now.format("YYYY-MM-DD");
-    const yesterdayStr = now.clone().subtract(1, "day").format("YYYY-MM-DD");
+    const todayStr = now.format('YYYY-MM-DD');
+    const yesterdayStr = now.clone().subtract(1, 'day').format('YYYY-MM-DD');
     const todayUtcMidnight = new Date(`${todayStr}T00:00:00.000Z`);
 
     const todayLog = await MedicineLog.findOne({
@@ -63,7 +63,7 @@ exports.evaluateAndUpdateStreak = async (patientId) => {
 
     const g = patient.gamification;
     const lastUpdateStr = g.last_streak_update
-      ? moment(g.last_streak_update).tz(timezone).format("YYYY-MM-DD")
+      ? moment(g.last_streak_update).tz(timezone).format('YYYY-MM-DD')
       : null;
 
     // Already updated today — idempotent guard
@@ -79,10 +79,10 @@ exports.evaluateAndUpdateStreak = async (patientId) => {
     } else {
       // Condition C: There's a gap — calculate how many days were missed
       const lastUpdateMoment = moment
-        .tz(lastUpdateStr, "YYYY-MM-DD", timezone)
-        .startOf("day");
-      const todayMoment = now.clone().startOf("day");
-      const daysDiff = todayMoment.diff(lastUpdateMoment, "days");
+        .tz(lastUpdateStr, 'YYYY-MM-DD', timezone)
+        .startOf('day');
+      const todayMoment = now.clone().startOf('day');
+      const daysDiff = todayMoment.diff(lastUpdateMoment, 'days');
 
       // BUG 11 FIX: daysDiff === 1 means consecutive (yesterday) — should
       // have been caught by Condition B but guard here for safety.
@@ -119,7 +119,7 @@ exports.evaluateAndUpdateStreak = async (patientId) => {
 
     return g;
   } catch (error) {
-    console.error("[StreakService] Error:", error);
+    console.error('[StreakService] Error:', error);
     return null;
   }
 };

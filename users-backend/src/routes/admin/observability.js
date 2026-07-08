@@ -1,12 +1,12 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const Patient = require("../../models/Patient");
-const Notification = require("../../models/Notification");
-const logger = require("../../utils/logger");
-const { authenticate } = require("../../middleware/authenticate");
+const Patient = require('../../models/Patient');
+const Notification = require('../../models/Notification');
+const logger = require('../../utils/logger');
+const { authenticate } = require('../../middleware/authenticate');
 
 // ── GET /api/admin/observability/system-health ──────────────────────
-router.get("/system-health", authenticate, async (req, res) => {
+router.get('/system-health', authenticate, async (req, res) => {
   try {
     // 1. Notification Delivery Stats (last 7 days)
     const sevenDaysAgo = new Date();
@@ -23,16 +23,16 @@ router.get("/system-health", authenticate, async (req, res) => {
     let platformStats = [];
 
     // Check if the request is from a Patient or has a patient_id query param
-    const isPatient = req.auth && req.auth.userType === "Patient";
+    const isPatient = req.auth && req.auth.userType === 'Patient';
 
     // Enforce role checks: only patients can view their own, or super_admin/org_admin/care_manager can view global system stats
     if (
       !isPatient &&
-      !["super_admin", "org_admin", "care_manager"].includes(req.profile?.role)
+      !['super_admin', 'org_admin', 'care_manager'].includes(req.profile?.role)
     ) {
       return res.status(403).json({
         error:
-          "Access denied. Insufficient permissions to view global observability metrics.",
+          'Access denied. Insufficient permissions to view global observability metrics.',
       });
     }
 
@@ -52,18 +52,18 @@ router.get("/system-health", authenticate, async (req, res) => {
         Notification.countDocuments({
           patient_id: targetPatientId,
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $nin: [null, ""] },
+          expo_push_token: { $exists: true, $nin: [null, ''] },
         }),
         Notification.countDocuments({
           patient_id: targetPatientId,
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $nin: [null, ""] },
+          expo_push_token: { $exists: true, $nin: [null, ''] },
           push_delivered: true,
         }),
         Notification.countDocuments({
           patient_id: targetPatientId,
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $nin: [null, ""] },
+          expo_push_token: { $exists: true, $nin: [null, ''] },
           push_delivered: false,
         }),
         Patient.countDocuments({
@@ -92,16 +92,16 @@ router.get("/system-health", authenticate, async (req, res) => {
       ] = await Promise.all([
         Notification.countDocuments({
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $nin: [null, ""] },
+          expo_push_token: { $exists: true, $nin: [null, ''] },
         }),
         Notification.countDocuments({
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $nin: [null, ""] },
+          expo_push_token: { $exists: true, $nin: [null, ''] },
           push_delivered: true,
         }),
         Notification.countDocuments({
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $nin: [null, ""] },
+          expo_push_token: { $exists: true, $nin: [null, ''] },
           push_delivered: false,
         }),
         Patient.countDocuments({
@@ -117,15 +117,15 @@ router.get("/system-health", authenticate, async (req, res) => {
         }),
         Patient.aggregate([
           { $match: { device_platform: { $exists: true } } },
-          { $group: { _id: "$device_platform", count: { $sum: 1 } } },
+          { $group: { _id: '$device_platform', count: { $sum: 1 } } },
         ]),
       ]);
     }
 
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const AIChatLog = require("../../models/AIChatLog");
-    const AuditLog = require("../../models/AuditLog");
+    const AIChatLog = require('../../models/AIChatLog');
+    const AuditLog = require('../../models/AuditLog');
 
     const [
       totalChats,
@@ -141,27 +141,27 @@ router.get("/system-health", authenticate, async (req, res) => {
         $or: [{ is_fallback: true }, { fallback_reason: { $ne: null } }],
       }),
       AuditLog.countDocuments({
-        action: { $in: ["ocr_extraction_success", "ocr_extraction_failed"] },
+        action: { $in: ['ocr_extraction_success', 'ocr_extraction_failed'] },
         createdAt: { $gte: fifteenMinutesAgo },
       }),
       AuditLog.countDocuments({
-        action: "ocr_extraction_failed",
+        action: 'ocr_extraction_failed',
         createdAt: { $gte: fifteenMinutesAgo },
       }),
       AuditLog.countDocuments({
         action: {
-          $in: ["payment_activation_success", "payment_activation_failed"],
+          $in: ['payment_activation_success', 'payment_activation_failed'],
         },
         createdAt: { $gte: twentyFourHoursAgo },
       }),
       AuditLog.countDocuments({
-        action: "payment_activation_failed",
+        action: 'payment_activation_failed',
         createdAt: { $gte: twentyFourHoursAgo },
       }),
     ]);
 
     const response = {
-      status: "healthy",
+      status: 'healthy',
       timestamp: new Date().toISOString(),
       is_patient_scoped: !!targetPatientId,
       notifications_7d: {
@@ -170,8 +170,8 @@ router.get("/system-health", authenticate, async (req, res) => {
         failed: failedDelivery,
         success_rate:
           totalSent > 0
-            ? ((successfullyDelivered / totalSent) * 100).toFixed(1) + "%"
-            : "0%",
+            ? ((successfullyDelivered / totalSent) * 100).toFixed(1) + '%'
+            : '0%',
       },
       system_metrics: {
         chatbot_15m: {
@@ -179,16 +179,16 @@ router.get("/system-health", authenticate, async (req, res) => {
           failed_or_fallback: failedChats,
           error_rate:
             totalChats > 0
-              ? ((failedChats / totalChats) * 100).toFixed(1) + "%"
-              : "0%",
+              ? ((failedChats / totalChats) * 100).toFixed(1) + '%'
+              : '0%',
         },
         ocr_15m: {
           total: ocrTotal,
           failed: ocrFailed,
           failure_rate:
             ocrTotal > 0
-              ? ((ocrFailed / ocrTotal) * 100).toFixed(1) + "%"
-              : "0%",
+              ? ((ocrFailed / ocrTotal) * 100).toFixed(1) + '%'
+              : '0%',
         },
         payment_24h: {
           total: paymentTotal,
@@ -196,9 +196,9 @@ router.get("/system-health", authenticate, async (req, res) => {
           success_rate:
             paymentTotal > 0
               ? (((paymentTotal - paymentFailed) / paymentTotal) * 100).toFixed(
-                  1,
-                ) + "%"
-              : "100%",
+                  1
+                ) + '%'
+              : '100%',
         },
       },
       tokens: {
@@ -207,15 +207,15 @@ router.get("/system-health", authenticate, async (req, res) => {
       },
       platforms: platformStats.reduce(
         (acc, curr) => ({ ...acc, [curr._id]: curr.count }),
-        {},
+        {}
       ),
     };
 
     res.json(response);
   } catch (error) {
-    logger.error("[Observability] Failed to fetch system health:", error);
+    logger.error('[Observability] Failed to fetch system health:', error);
     res.status(500).json({
-      error: "Failed to fetch observability stats",
+      error: 'Failed to fetch observability stats',
       details: error.message,
     });
   }

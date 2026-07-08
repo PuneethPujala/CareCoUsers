@@ -1,45 +1,45 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const AlertSchema = new mongoose.Schema(
   {
     type: {
       type: String,
       enum: [
-        "missed_call",
-        "medicine_refusal",
-        "medication_modification",
-        "unresponsive_7days",
-        "caller_performance",
-        "patient_unreachable_3attempts",
-        "caller_capacity",
-        "team_lead_recommended",
-        "general",
-        "other",
-        "medication_missed",
+        'missed_call',
+        'medicine_refusal',
+        'medication_modification',
+        'unresponsive_7days',
+        'caller_performance',
+        'patient_unreachable_3attempts',
+        'caller_capacity',
+        'team_lead_recommended',
+        'general',
+        'other',
+        'medication_missed',
       ],
       required: true,
       index: true,
     },
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
     },
     caller_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Caller",
+      ref: 'Caller',
     },
     manager_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
     },
     organization_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
+      ref: 'Organization',
     },
     status: {
       type: String,
-      enum: ["open", "actioned", "resolved", "acknowledged"],
-      default: "open",
+      enum: ['open', 'actioned', 'resolved', 'acknowledged'],
+      default: 'open',
       index: true,
     },
     auto_generated: {
@@ -60,13 +60,13 @@ const AlertSchema = new mongoose.Schema(
     ],
     acknowledged_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
     },
     acknowledged_at: Date,
   },
   {
-    timestamps: { createdAt: "created_at" },
-  },
+    timestamps: { createdAt: 'created_at' },
+  }
 );
 
 // Compound indexes
@@ -80,4 +80,4 @@ AlertSchema.index({ patient_id: 1, created_at: -1 });
 // Open alerts lookup by patient
 AlertSchema.index({ patient_id: 1, status: 1, created_at: -1 });
 
-module.exports = mongoose.model("Alert", AlertSchema);
+module.exports = mongoose.model('Alert', AlertSchema);

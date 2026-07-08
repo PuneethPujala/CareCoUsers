@@ -1,11 +1,11 @@
-const cron = require("node-cron");
-const moment = require("moment-timezone");
-const Patient = require("../models/Patient");
-const MedicineLog = require("../models/MedicineLog");
-const CompanionAccess = require("../models/CompanionAccess");
-const Notification = require("../models/Notification");
-const NotificationService = require("../services/NotificationService");
-const logger = require("../utils/logger");
+const cron = require('node-cron');
+const moment = require('moment-timezone');
+const Patient = require('../models/Patient');
+const MedicineLog = require('../models/MedicineLog');
+const CompanionAccess = require('../models/CompanionAccess');
+const Notification = require('../models/Notification');
+const NotificationService = require('../services/NotificationService');
+const logger = require('../utils/logger');
 
 /**
  * Escalation Ladder Job
@@ -16,7 +16,7 @@ const runEscalationJob = async () => {
   logger.info(`[Job] Escalation Job started at ${new Date().toISOString()}`);
 
   try {
-    const timezones = await Patient.distinct("timezone", {
+    const timezones = await Patient.distinct('timezone', {
       is_active: true,
     });
 
@@ -24,11 +24,11 @@ const runEscalationJob = async () => {
 
     for (const tz of timezones) {
       const localTime = nowUtc.clone().tz(tz);
-      const todayStr = localTime.format("YYYY-MM-DD");
+      const todayStr = localTime.format('YYYY-MM-DD');
       const yesterdayStr = localTime
         .clone()
-        .subtract(1, "day")
-        .format("YYYY-MM-DD");
+        .subtract(1, 'day')
+        .format('YYYY-MM-DD');
 
       // Find active patients in this timezone
       const patients = await Patient.find({
@@ -40,22 +40,22 @@ const runEscalationJob = async () => {
         // Determine past thresholds for today based on current hour
         const currentHour = localTime.hour();
         const prefs = patient.medication_call_preferences || {
-          morning: "09:00",
-          afternoon: "14:00",
-          night: "20:00",
+          morning: '09:00',
+          afternoon: '14:00',
+          night: '20:00',
         };
 
         const pastSlots = [];
-        if (currentHour > parseInt(prefs.morning.split(":")[0]) + 2)
-          pastSlots.push("morning");
-        if (currentHour > parseInt(prefs.afternoon.split(":")[0]) + 2)
-          pastSlots.push("afternoon");
-        if (currentHour > parseInt(prefs.night.split(":")[0]) + 2)
-          pastSlots.push("night");
+        if (currentHour > parseInt(prefs.morning.split(':')[0]) + 2)
+          pastSlots.push('morning');
+        if (currentHour > parseInt(prefs.afternoon.split(':')[0]) + 2)
+          pastSlots.push('afternoon');
+        if (currentHour > parseInt(prefs.night.split(':')[0]) + 2)
+          pastSlots.push('night');
 
         if (pastSlots.length === 0 && currentHour < 10) {
           // Check yesterday's night meds if it's early morning
-          pastSlots.push("yesterday_night");
+          pastSlots.push('yesterday_night');
         }
 
         // Simplified consecutive miss count:
@@ -77,11 +77,11 @@ const runEscalationJob = async () => {
 
         // ── Escalate based on missedCount ──
         if (missedCount === 1) {
-          const tz = patient.timezone || "UTC";
-          const startOfTodayLocal = moment().tz(tz).startOf("day");
+          const tz = patient.timezone || 'UTC';
+          const startOfTodayLocal = moment().tz(tz).startOf('day');
           const existing = await Notification.findOne({
             patient_id: patient._id,
-            "ai_context.trigger": "missed_dose_1",
+            'ai_context.trigger': 'missed_dose_1',
             created_at: { $gte: startOfTodayLocal.toDate() },
           });
 
@@ -92,23 +92,23 @@ const runEscalationJob = async () => {
           ) {
             const notificationDoc = await Notification.create({
               patient_id: patient._id,
-              type: "reminders",
-              title: "💊 Missed Dose",
+              type: 'reminders',
+              title: '💊 Missed Dose',
               message:
-                "You missed your last medication. Please take it as soon as possible.",
-              target_screen: "HomeScreen",
+                'You missed your last medication. Please take it as soon as possible.',
+              target_screen: 'HomeScreen',
               push_delivered: false,
               expo_push_token: patient.expo_push_token || undefined,
               ai_context: {
-                trigger: "missed_dose_1",
+                trigger: 'missed_dose_1',
               },
             });
 
             const pushResult = await NotificationService.sendPush(patient._id, {
-              title: "💊 Missed Dose",
-              body: "You missed your last medication. Please take it as soon as possible.",
+              title: '💊 Missed Dose',
+              body: 'You missed your last medication. Please take it as soon as possible.',
               data: {
-                screen: "HomeScreen",
+                screen: 'HomeScreen',
                 notification_id: notificationDoc._id.toString(),
               },
             });
@@ -123,11 +123,11 @@ const runEscalationJob = async () => {
             }
           }
         } else if (missedCount === 2) {
-          const tz = patient.timezone || "UTC";
-          const startOfTodayLocal = moment().tz(tz).startOf("day");
+          const tz = patient.timezone || 'UTC';
+          const startOfTodayLocal = moment().tz(tz).startOf('day');
           const existing = await Notification.findOne({
             patient_id: patient._id,
-            "ai_context.trigger": "missed_dose_2",
+            'ai_context.trigger': 'missed_dose_2',
             created_at: { $gte: startOfTodayLocal.toDate() },
           });
 
@@ -138,23 +138,23 @@ const runEscalationJob = async () => {
           ) {
             const notificationDoc = await Notification.create({
               patient_id: patient._id,
-              type: "reminders",
-              title: "⚠️ Missed Multiple Doses",
+              type: 'reminders',
+              title: '⚠️ Missed Multiple Doses',
               message:
-                "You have missed 2 doses in a row. It is very important to stay on track!",
-              target_screen: "HomeScreen",
+                'You have missed 2 doses in a row. It is very important to stay on track!',
+              target_screen: 'HomeScreen',
               push_delivered: false,
               expo_push_token: patient.expo_push_token || undefined,
               ai_context: {
-                trigger: "missed_dose_2",
+                trigger: 'missed_dose_2',
               },
             });
 
             const pushResult = await NotificationService.sendPush(patient._id, {
-              title: "⚠️ Missed Multiple Doses",
-              body: "You have missed 2 doses in a row. It is very important to stay on track!",
+              title: '⚠️ Missed Multiple Doses',
+              body: 'You have missed 2 doses in a row. It is very important to stay on track!',
               data: {
-                screen: "HomeScreen",
+                screen: 'HomeScreen',
                 notification_id: notificationDoc._id.toString(),
               },
             });
@@ -173,17 +173,17 @@ const runEscalationJob = async () => {
           const activeCompanionsCount = await CompanionAccess.countDocuments({
             patient_id: patient._id,
             is_active: true,
-            status: "accepted",
+            status: 'accepted',
           });
 
           if (activeCompanionsCount > 0) {
             // Generate alert for companion dashboard
-            const Alert = require("../models/Alert");
+            const Alert = require('../models/Alert');
             await Alert.updateOne(
               {
                 patient_id: patient._id,
-                type: "medication_missed",
-                status: "open",
+                type: 'medication_missed',
+                status: 'open',
               },
               {
                 $set: {
@@ -191,14 +191,14 @@ const runEscalationJob = async () => {
                   organization_id: patient.organization_id,
                 },
               },
-              { upsert: true },
+              { upsert: true }
             );
           }
         }
       }
     }
   } catch (error) {
-    logger.error("[Job] Escalation Job failed:", { error: error.message });
+    logger.error('[Job] Escalation Job failed:', { error: error.message });
   } finally {
     logger.info(`[Job] Escalation Job finished in ${Date.now() - startTime}ms`);
   }
@@ -209,11 +209,11 @@ let isEscalationCronStarted = false;
 const startEscalationCron = () => {
   if (isEscalationCronStarted) {
     console.warn(
-      "⚠️ Escalation cron already started. Skipping duplicate initialization.",
+      '⚠️ Escalation cron already started. Skipping duplicate initialization.'
     );
     return;
   }
-  cron.schedule("0 * * * *", runEscalationJob);
+  cron.schedule('0 * * * *', runEscalationJob);
   isEscalationCronStarted = true;
 };
 

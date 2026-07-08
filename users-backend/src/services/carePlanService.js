@@ -1,9 +1,9 @@
-const moment = require("moment-timezone");
-const Patient = require("../models/Patient");
-const SleepLog = require("../models/SleepLog");
-const CarePlanHistory = require("../models/CarePlanHistory");
-const { buildMergedMeds } = require("../routes/users/medicines");
-const logger = require("../utils/logger");
+const moment = require('moment-timezone');
+const Patient = require('../models/Patient');
+const SleepLog = require('../models/SleepLog');
+const CarePlanHistory = require('../models/CarePlanHistory');
+const { buildMergedMeds } = require('../routes/users/medicines');
+const logger = require('../utils/logger');
 
 /**
  * Helper to get local start/end of the current week (Monday to Sunday) based on patient's timezone.
@@ -12,8 +12,8 @@ const logger = require("../utils/logger");
  */
 function getWeekRange(timezone) {
   const nowLocal = moment().tz(timezone);
-  const startOfWeek = nowLocal.clone().startOf("isoWeek"); // ISO week starts on Monday
-  const endOfWeek = nowLocal.clone().endOf("isoWeek"); // ISO week ends on Sunday
+  const startOfWeek = nowLocal.clone().startOf('isoWeek'); // ISO week starts on Monday
+  const endOfWeek = nowLocal.clone().endOf('isoWeek'); // ISO week ends on Sunday
   return {
     weekStart: startOfWeek.toDate(),
     weekEnd: endOfWeek.toDate(),
@@ -36,8 +36,8 @@ async function computeSleepTarget(patientId, timezone) {
   // 14 days range
   const fourteenDaysAgo = nowLocal
     .clone()
-    .subtract(14, "days")
-    .startOf("day")
+    .subtract(14, 'days')
+    .startOf('day')
     .toDate();
   const sleepLogs14 = await SleepLog.find({
     patient_id: patientId,
@@ -52,11 +52,11 @@ async function computeSleepTarget(patientId, timezone) {
   // Fallback to 7 days
   const sevenDaysAgo = nowLocal
     .clone()
-    .subtract(7, "days")
-    .startOf("day")
+    .subtract(7, 'days')
+    .startOf('day')
     .toDate();
   const sleepLogs7 = sleepLogs14.filter(
-    (log) => new Date(log.date) >= sevenDaysAgo,
+    (log) => new Date(log.date) >= sevenDaysAgo
   );
 
   if (sleepLogs7.length >= 3) {
@@ -79,7 +79,7 @@ async function getOrGenerateCarePlan(patientId) {
     const patient = await Patient.findById(patientId);
     if (!patient) return null;
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const { weekStart, weekEnd } = getWeekRange(timezone);
 
     // Fetch active care plans for this week
@@ -106,7 +106,7 @@ async function getOrGenerateCarePlan(patientId) {
     // Sort tasks for easy comparison
     medicationTasks.sort(
       (a, b) =>
-        a.name.localeCompare(b.name) || a.time_slot.localeCompare(b.time_slot),
+        a.name.localeCompare(b.name) || a.time_slot.localeCompare(b.time_slot)
     );
 
     // Sleep Target
@@ -116,7 +116,7 @@ async function getOrGenerateCarePlan(patientId) {
     const currentScore = patient.health_score ?? 80;
     const targetScore = Math.min(100, currentScore + 5);
 
-    const vitalsTarget = "BP check every 2 days";
+    const vitalsTarget = 'BP check every 2 days';
 
     if (activePlan) {
       // Check if details have changed
@@ -127,8 +127,8 @@ async function getOrGenerateCarePlan(patientId) {
             .sort(
               (a, b) =>
                 a.name.localeCompare(b.name) ||
-                a.time_slot.localeCompare(b.time_slot),
-            ),
+                a.time_slot.localeCompare(b.time_slot)
+            )
         ) !== JSON.stringify(medicationTasks);
       const sleepChanged =
         Math.abs(activePlan.sleep_hours_goal - sleepTarget) > 0.1;
@@ -158,7 +158,7 @@ async function getOrGenerateCarePlan(patientId) {
       });
 
       logger.info(
-        `[CarePlanService] Upgraded Care Plan for patient ${patientId} to Version ${nextVersion} due to changes.`,
+        `[CarePlanService] Upgraded Care Plan for patient ${patientId} to Version ${nextVersion} due to changes.`
       );
       return newPlan;
     }
@@ -177,11 +177,11 @@ async function getOrGenerateCarePlan(patientId) {
     });
 
     logger.info(
-      `[CarePlanService] Generated new Initial Care Plan for patient ${patientId}`,
+      `[CarePlanService] Generated new Initial Care Plan for patient ${patientId}`
     );
     return initialPlan;
   } catch (err) {
-    logger.error("[CarePlanService] Error in getOrGenerateCarePlan", {
+    logger.error('[CarePlanService] Error in getOrGenerateCarePlan', {
       error: err.message,
       patientId,
     });

@@ -5,7 +5,7 @@
  * Expo Push API docs: https://docs.expo.dev/push-notifications/sending-notifications/
  */
 
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 class PushNotificationService {
   /**
@@ -18,33 +18,33 @@ class PushNotificationService {
    */
   static async sendPush(expoPushToken, title, body, data = {}) {
     if (!expoPushToken) {
-      console.warn("⚠️ No push token provided, skipping push notification.");
-      return { success: false, reason: "no_token" };
+      console.warn('⚠️ No push token provided, skipping push notification.');
+      return { success: false, reason: 'no_token' };
     }
 
     // Validate Expo push token format
     if (!this.isValidExpoPushToken(expoPushToken)) {
       console.warn(`⚠️ Invalid Expo push token format: ${expoPushToken}`);
-      return { success: false, reason: "invalid_token" };
+      return { success: false, reason: 'invalid_token' };
     }
 
     const message = {
       to: expoPushToken,
-      sound: "default",
+      sound: 'default',
       title,
       body,
       data,
-      priority: "high",
-      channelId: "default", // Android notification channel
+      priority: 'high',
+      channelId: 'default', // Android notification channel
     };
 
     try {
       const response = await fetch(EXPO_PUSH_URL, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          Accept: "application/json",
-          "Accept-encoding": "gzip, deflate",
-          "Content-Type": "application/json",
+          Accept: 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(message),
       });
@@ -53,7 +53,7 @@ class PushNotificationService {
       const rawResult = result.data;
       const ticket = Array.isArray(rawResult) ? rawResult[0] : rawResult;
 
-      if (ticket?.status === "error") {
+      if (ticket?.status === 'error') {
         console.error(`❌ Push notification failed:`, ticket.message);
         return {
           success: false,
@@ -64,12 +64,12 @@ class PushNotificationService {
 
       const ticketId = ticket?.id;
       console.log(
-        `✅ Push notification sent to token: ${expoPushToken.substring(0, 30)}...`,
+        `✅ Push notification sent to token: ${expoPushToken.substring(0, 30)}...`
       );
       return { success: true, ticketId };
     } catch (error) {
-      console.error("❌ Push notification network error:", error.message);
-      return { success: false, reason: "network_error", error: error.message };
+      console.error('❌ Push notification network error:', error.message);
+      return { success: false, reason: 'network_error', error: error.message };
     }
   }
 
@@ -81,14 +81,14 @@ class PushNotificationService {
    */
   static async sendCriticalVitalAlert(patient, prediction) {
     if (!patient.push_notifications_enabled) {
-      return { success: false, reason: "notifications_disabled" };
+      return { success: false, reason: 'notifications_disabled' };
     }
 
-    const title = "⚠️ Critical Vital Trend Detected";
+    const title = '⚠️ Critical Vital Trend Detected';
     const body = `Your predicted vitals are trending towards critical levels. Please check your health dashboard for details.`;
     const data = {
-      screen: "VitalsScreen",
-      type: "critical_vital_alert",
+      screen: 'VitalsScreen',
+      type: 'critical_vital_alert',
       prediction_id: prediction?._id?.toString(),
     };
 
@@ -103,11 +103,11 @@ class PushNotificationService {
    * @returns {Promise<object>}
    */
   static async sendCallerCriticalAlert(caller, patient, prediction) {
-    const title = "🚨 Patient Critical Alert";
+    const title = '🚨 Patient Critical Alert';
     const body = `Patient "${patient.name}" has predicted vitals trending towards critical. Immediate review recommended.`;
     const data = {
-      screen: "PatientDetail",
-      type: "caller_critical_alert",
+      screen: 'PatientDetail',
+      type: 'caller_critical_alert',
       patient_id: patient._id?.toString(),
     };
 
@@ -123,7 +123,7 @@ class PushNotificationService {
    * @returns {boolean}
    */
   static isValidExpoPushToken(token) {
-    if (!token || typeof token !== "string") return false;
+    if (!token || typeof token !== 'string') return false;
     return /^Expo(nent)?PushToken\[.+\]$/.test(token);
   }
 }

@@ -1,5 +1,5 @@
-const { AsyncLocalStorage } = require("async_hooks");
-const crypto = require("crypto");
+const { AsyncLocalStorage } = require('async_hooks');
+const crypto = require('crypto');
 
 const correlationLocalStorage = new AsyncLocalStorage();
 
@@ -19,7 +19,7 @@ function getLogContext() {
  */
 function getCorrelationId() {
   const store = correlationLocalStorage.getStore();
-  return typeof store === "object" && store !== null
+  return typeof store === 'object' && store !== null
     ? store.correlationId
     : store;
 }
@@ -29,7 +29,7 @@ function getCorrelationId() {
  */
 function getUserId() {
   const store = correlationLocalStorage.getStore();
-  return store && typeof store === "object" ? store.userId : undefined;
+  return store && typeof store === 'object' ? store.userId : undefined;
 }
 
 /**
@@ -37,7 +37,7 @@ function getUserId() {
  */
 function setLogContextUser(userId, userType) {
   const store = correlationLocalStorage.getStore();
-  if (store && typeof store === "object") {
+  if (store && typeof store === 'object') {
     store.userId = userId;
     if (userType) {
       store.userType = userType;
@@ -50,9 +50,9 @@ function setLogContextUser(userId, userType) {
  */
 const correlationIdMiddleware = (req, res, next) => {
   let correlationId =
-    req.headers["x-correlation-id"] || req.headers["x-request-id"];
+    req.headers['x-correlation-id'] || req.headers['x-request-id'];
 
-  if (correlationId && typeof correlationId === "string") {
+  if (correlationId && typeof correlationId === 'string') {
     correlationId = correlationId.trim();
   }
 
@@ -62,7 +62,7 @@ const correlationIdMiddleware = (req, res, next) => {
   }
 
   req.correlationId = correlationId;
-  res.setHeader("x-correlation-id", correlationId);
+  res.setHeader('x-correlation-id', correlationId);
 
   // Allocate a fresh context object per request to prevent cross-request leakage under concurrency
   const context = {

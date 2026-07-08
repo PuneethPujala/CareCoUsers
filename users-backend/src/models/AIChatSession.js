@@ -1,9 +1,9 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const ChatMessageSchema = new mongoose.Schema({
   role: {
     type: String,
-    enum: ["user", "assistant"],
+    enum: ['user', 'assistant'],
     required: true,
   },
   text: {
@@ -33,12 +33,12 @@ const AIChatSessionSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
     },
     title: {
       type: String,
-      default: "New Chat",
+      default: 'New Chat',
     },
     is_active: {
       type: Boolean,
@@ -56,10 +56,10 @@ const AIChatSessionSchema = new mongoose.Schema(
     messages: [ChatMessageSchema],
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
 AIChatSessionSchema.index({ patient_id: 1, is_active: 1, updated_at: -1 });
 
-module.exports = mongoose.model("AIChatSession", AIChatSessionSchema);
+module.exports = mongoose.model('AIChatSession', AIChatSessionSchema);

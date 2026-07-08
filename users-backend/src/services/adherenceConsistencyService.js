@@ -29,7 +29,7 @@ function calculateConsistency(history = []) {
   const mean = sum / count;
   const varianceSum = adherenceValues.reduce(
     (acc, val) => acc + Math.pow(val - mean, 2),
-    0,
+    0
   );
   const standardDeviation = Math.sqrt(varianceSum / count);
 

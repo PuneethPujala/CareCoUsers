@@ -4,15 +4,15 @@
  * Audit items: 2.1–2.4, 2.8, 2.9
  */
 
-const mfaService = require("../services/mfaService");
-const passwordService = require("../services/passwordService");
-const tokenService = require("../services/tokenService");
-const { logSecurityEvent } = require("../services/auditService");
+const mfaService = require('../services/mfaService');
+const passwordService = require('../services/passwordService');
+const tokenService = require('../services/tokenService');
+const { logSecurityEvent } = require('../services/auditService');
 
 function sendError(res, err) {
   const status = err.status || 500;
   const payload = {
-    error: err.message || "Request failed",
+    error: err.message || 'Request failed',
     ...(err.code && { code: err.code }),
   };
   return res.status(status).json(payload);
@@ -25,16 +25,16 @@ function sendError(res, err) {
  */
 async function setupMfa(req, res) {
   try {
-    const isPatient = req.profile.role === "patient";
+    const isPatient = req.profile.role === 'patient';
     const userId = req.profile._id;
-    const userType = isPatient ? "Patient" : "Profile";
+    const userType = isPatient ? 'Patient' : 'Profile';
 
     const result = await mfaService.generateSecret(userId, userType);
     res.json(result);
   } catch (err) {
     if (err.status) return sendError(res, err);
-    console.error("MFA setup error:", err);
-    res.status(500).json({ error: "Failed to set up MFA" });
+    console.error('MFA setup error:', err);
+    res.status(500).json({ error: 'Failed to set up MFA' });
   }
 }
 
@@ -49,24 +49,24 @@ async function verifySetup(req, res) {
     if (!code || code.length !== 6) {
       return res
         .status(400)
-        .json({ error: "A 6-digit verification code is required" });
+        .json({ error: 'A 6-digit verification code is required' });
     }
 
-    const isPatient = req.profile.role === "patient";
+    const isPatient = req.profile.role === 'patient';
     const userId = req.profile._id;
-    const userType = isPatient ? "Patient" : "Profile";
+    const userType = isPatient ? 'Patient' : 'Profile';
 
     const result = await mfaService.verifyAndEnable(
       userId,
       userType,
       code,
-      req,
+      req
     );
     res.json(result);
   } catch (err) {
     if (err.status) return sendError(res, err);
-    console.error("MFA verify-setup error:", err);
-    res.status(500).json({ error: "Failed to verify MFA setup" });
+    console.error('MFA verify-setup error:', err);
+    res.status(500).json({ error: 'Failed to verify MFA setup' });
   }
 }
 
@@ -82,26 +82,26 @@ async function verifyLogin(req, res) {
   try {
     const { mfa_token, code } = req.body;
     if (!mfa_token || !code) {
-      return res.status(400).json({ error: "mfa_token and code are required" });
+      return res.status(400).json({ error: 'mfa_token and code are required' });
     }
 
     // Decode the MFA token to get user info
-    const jwt = require("jsonwebtoken");
-    const jwtConfig = require("../config/jwt");
+    const jwt = require('jsonwebtoken');
+    const jwtConfig = require('../config/jwt');
     let decoded;
     try {
       decoded = jwt.verify(mfa_token, jwtConfig.secret);
     } catch {
       return res.status(401).json({
-        error: "MFA token expired or invalid. Please log in again.",
-        code: "MFA_TOKEN_EXPIRED",
+        error: 'MFA token expired or invalid. Please log in again.',
+        code: 'MFA_TOKEN_EXPIRED',
       });
     }
 
-    if (decoded.purpose !== "mfa_challenge") {
+    if (decoded.purpose !== 'mfa_challenge') {
       return res
         .status(401)
-        .json({ error: "Invalid MFA token", code: "INVALID_MFA_TOKEN" });
+        .json({ error: 'Invalid MFA token', code: 'INVALID_MFA_TOKEN' });
     }
 
     const { userId, userType } = decoded;
@@ -110,14 +110,14 @@ async function verifyLogin(req, res) {
     if (!result.valid) {
       await logSecurityEvent(
         decoded.subject,
-        "mfa_verify_failed",
-        "medium",
-        "Invalid TOTP code during login",
-        req,
+        'mfa_verify_failed',
+        'medium',
+        'Invalid TOTP code during login',
+        req
       );
       return res
         .status(401)
-        .json({ error: "Invalid verification code", code: "INVALID_MFA_CODE" });
+        .json({ error: 'Invalid verification code', code: 'INVALID_MFA_CODE' });
     }
 
     // MFA passed — issue full token pair
@@ -130,23 +130,23 @@ async function verifyLogin(req, res) {
         email: decoded.email,
         emailVerified: decoded.emailVerified,
       },
-      req,
+      req
     );
 
-    const { logEvent } = require("../services/auditService");
+    const { logEvent } = require('../services/auditService');
     await logEvent(
       decoded.subject,
-      "mfa_login_success",
-      decoded.userType === "Patient" ? "patient" : "profile",
+      'mfa_login_success',
+      decoded.userType === 'Patient' ? 'patient' : 'profile',
       decoded.userId,
       req,
       {
         method: result.method,
-      },
+      }
     );
 
     res.json({
-      message: "MFA verification successful",
+      message: 'MFA verification successful',
       session: {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
@@ -162,8 +162,8 @@ async function verifyLogin(req, res) {
     });
   } catch (err) {
     if (err.status) return sendError(res, err);
-    console.error("MFA verify-login error:", err);
-    res.status(500).json({ error: "MFA verification failed" });
+    console.error('MFA verify-login error:', err);
+    res.status(500).json({ error: 'MFA verification failed' });
   }
 }
 
@@ -178,48 +178,48 @@ async function disableMfa(req, res) {
     if (!password) {
       return res
         .status(400)
-        .json({ error: "Current password is required to disable MFA" });
+        .json({ error: 'Current password is required to disable MFA' });
     }
 
-    const isPatient = req.profile.role === "patient";
+    const isPatient = req.profile.role === 'patient';
     const userId = req.profile._id;
-    const userType = isPatient ? "Patient" : "Profile";
+    const userType = isPatient ? 'Patient' : 'Profile';
     const Model = isPatient
-      ? require("../models/Patient")
-      : require("../models/Profile");
+      ? require('../models/Patient')
+      : require('../models/Profile');
 
     // Verify password first (2.9: MFA changes require password re-entry)
-    const account = await Model.findById(userId).select("+passwordHash");
+    const account = await Model.findById(userId).select('+passwordHash');
     if (!account?.passwordHash) {
       return res.status(400).json({
         error:
-          "No password set. Cannot disable MFA without password verification.",
+          'No password set. Cannot disable MFA without password verification.',
       });
     }
 
     const valid = await passwordService.verifyPassword(
       password,
-      account.passwordHash,
+      account.passwordHash
     );
     if (!valid) {
       await logSecurityEvent(
         isPatient ? account.supabase_uid : account.supabaseUid,
-        "mfa_disable_failed",
-        "high",
-        "Incorrect password during MFA disable",
-        req,
+        'mfa_disable_failed',
+        'high',
+        'Incorrect password during MFA disable',
+        req
       );
       return res
         .status(401)
-        .json({ error: "Incorrect password", code: "INVALID_PASSWORD" });
+        .json({ error: 'Incorrect password', code: 'INVALID_PASSWORD' });
     }
 
     const result = await mfaService.disable(userId, userType, req);
     res.json(result);
   } catch (err) {
     if (err.status) return sendError(res, err);
-    console.error("MFA disable error:", err);
-    res.status(500).json({ error: "Failed to disable MFA" });
+    console.error('MFA disable error:', err);
+    res.status(500).json({ error: 'Failed to disable MFA' });
   }
 }
 
@@ -229,15 +229,15 @@ async function disableMfa(req, res) {
  */
 async function mfaStatus(req, res) {
   try {
-    const isPatient = req.profile.role === "patient";
+    const isPatient = req.profile.role === 'patient';
     const userId = req.profile._id;
-    const userType = isPatient ? "Patient" : "Profile";
+    const userType = isPatient ? 'Patient' : 'Profile';
 
     const enabled = await mfaService.hasMfa(userId, userType);
     res.json({ mfaEnabled: enabled });
   } catch (err) {
-    console.error("MFA status error:", err);
-    res.status(500).json({ error: "Failed to get MFA status" });
+    console.error('MFA status error:', err);
+    res.status(500).json({ error: 'Failed to get MFA status' });
   }
 }
 

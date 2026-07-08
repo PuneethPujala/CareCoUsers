@@ -5,7 +5,7 @@
  * are well-formed. Prevents NoSQL injection via malformed ID strings.
  */
 
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 function validateObjectId(...paramNames) {
   return (req, res, next) => {
@@ -13,8 +13,8 @@ function validateObjectId(...paramNames) {
       const value = req.params[param];
       if (value && !mongoose.Types.ObjectId.isValid(value)) {
         return res.status(400).json({
-          error: "Invalid resource identifier",
-          code: "INVALID_ID",
+          error: 'Invalid resource identifier',
+          code: 'INVALID_ID',
         });
       }
     }

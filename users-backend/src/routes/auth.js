@@ -1,20 +1,20 @@
-const express = require("express");
-const rateLimit = require("express-rate-limit");
-const authController = require("../controllers/authController");
-const { authenticate } = require("../middleware/authenticate");
-const { authorize } = require("../middleware/authorize");
-const { checkPasswordChange } = require("../middleware/checkPasswordChange");
-const { validateRequest } = require("../middleware/validateRequest");
-const authValidators = require("../validators/authValidators");
+const express = require('express');
+const rateLimit = require('express-rate-limit');
+const authController = require('../controllers/authController');
+const { authenticate } = require('../middleware/authenticate');
+const { authorize } = require('../middleware/authorize');
+const { checkPasswordChange } = require('../middleware/checkPasswordChange');
+const { validateRequest } = require('../middleware/validateRequest');
+const authValidators = require('../validators/authValidators');
 
 const router = express.Router();
 
 const authWindowMs = parseInt(
   process.env.AUTH_RATE_LIMIT_WINDOW_MS || String(15 * 60 * 1000),
-  10,
+  10
 );
-const authMax = parseInt(process.env.AUTH_RATE_LIMIT_MAX || "60", 10);
-const loginMax = parseInt(process.env.AUTH_LOGIN_RATE_LIMIT_MAX || "25", 10);
+const authMax = parseInt(process.env.AUTH_RATE_LIMIT_MAX || '60', 10);
+const loginMax = parseInt(process.env.AUTH_LOGIN_RATE_LIMIT_MAX || '25', 10);
 
 const authLimiter = rateLimit({
   windowMs: authWindowMs,
@@ -22,8 +22,8 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many requests. Please try again later.",
-    code: "RATE_LIMIT",
+    error: 'Too many requests. Please try again later.',
+    code: 'RATE_LIMIT',
   },
 });
 
@@ -33,102 +33,102 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many login attempts. Please try again later.",
-    code: "RATE_LIMIT",
+    error: 'Too many login attempts. Please try again later.',
+    code: 'RATE_LIMIT',
   },
 });
 
 router.use(authLimiter);
 
 router.post(
-  "/register",
+  '/register',
   authValidators.register,
   validateRequest,
-  authController.register,
+  authController.register
 );
 
 router.post(
-  "/login",
+  '/login',
   loginLimiter,
   authValidators.login,
   validateRequest,
-  authController.login,
+  authController.login
 );
 
-router.post("/logout", authenticate, authController.logout);
+router.post('/logout', authenticate, authController.logout);
 
 router.post(
-  "/refresh",
+  '/refresh',
   authValidators.refresh,
   validateRequest,
-  authController.refresh,
+  authController.refresh
 );
 
 router.post(
-  "/reset-password",
+  '/reset-password',
   authValidators.resetPassword,
   validateRequest,
-  authController.resetPassword,
+  authController.resetPassword
 );
 
 router.post(
-  "/reset-password/verify",
+  '/reset-password/verify',
   authValidators.resetPasswordVerify,
   validateRequest,
-  authController.resetPasswordVerify,
+  authController.resetPasswordVerify
 );
 
-router.get("/me", authenticate, authController.me);
-router.post("/switch-role", authenticate, authController.switchRole);
-router.post("/me/avatar", authenticate, authController.uploadAvatar);
+router.get('/me', authenticate, authController.me);
+router.post('/switch-role', authenticate, authController.switchRole);
+router.post('/me/avatar', authenticate, authController.uploadAvatar);
 
 // SEC-FIX-9: Account deletion (GDPR/DPDPA compliance) — permanent hard delete
-router.delete("/me", authenticate, authController.deleteMe);
+router.delete('/me', authenticate, authController.deleteMe);
 
 // Account deactivation — preserves data, user can reactivate by logging in
-router.post("/me/deactivate", authenticate, authController.deactivateMe);
+router.post('/me/deactivate', authenticate, authController.deactivateMe);
 
 // SEC-FIX-16: Data export (GDPR/DPDPA portability)
-router.get("/me/export", authenticate, authController.exportMyData);
+router.get('/me/export', authenticate, authController.exportMyData);
 
 router.post(
-  "/create-user",
+  '/create-user',
   authenticate,
   checkPasswordChange,
   authValidators.createUser,
   validateRequest,
-  authController.createUser,
+  authController.createUser
 );
 
 router.post(
-  "/change-password",
+  '/change-password',
   authenticate,
   authValidators.changePassword,
   validateRequest,
-  authController.changePassword,
+  authController.changePassword
 );
 
 router.put(
-  "/patient-city",
+  '/patient-city',
   authenticate,
   authValidators.patientCity,
   validateRequest,
-  authController.patientCity,
+  authController.patientCity
 );
 
 router.put(
-  "/me",
+  '/me',
   authenticate,
   checkPasswordChange,
   authValidators.updateMe,
   validateRequest,
   (req, res, next) => {
-    if (req.profile && req.profile.role === "companion") {
+    if (req.profile && req.profile.role === 'companion') {
       return next();
     }
-    authorize("profile", "update")(req, res, next);
+    authorize('profile', 'update')(req, res, next);
   },
-  authController.updateMe,
+  authController.updateMe
 );
 
 // BUG-7 FIX: Dedicated OTP rate limiters to prevent flooding
@@ -138,8 +138,8 @@ const otpSendLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many OTP requests. Please try again later.",
-    code: "RATE_LIMIT",
+    error: 'Too many OTP requests. Please try again later.',
+    code: 'RATE_LIMIT',
   },
 });
 
@@ -149,25 +149,25 @@ const otpVerifyLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many verification attempts. Please try again later.",
-    code: "RATE_LIMIT",
+    error: 'Too many verification attempts. Please try again later.',
+    code: 'RATE_LIMIT',
   },
 });
 
-router.post("/send-otp", otpSendLimiter, authController.sendOtp);
+router.post('/send-otp', otpSendLimiter, authController.sendOtp);
 
-router.post("/verify-otp", otpVerifyLimiter, authController.verifyOtp);
+router.post('/verify-otp', otpVerifyLimiter, authController.verifyOtp);
 
 router.post(
-  "/set-password",
+  '/set-password',
   authenticate,
   authValidators.setPassword,
   validateRequest,
-  authController.setPassword,
+  authController.setPassword
 );
 
 // ── MFA Routes ──────────────────────────────────────────────────────────────
-const mfaController = require("../controllers/mfaController");
+const mfaController = require('../controllers/mfaController');
 
 const mfaLimiter = rateLimit({
   windowMs: authWindowMs,
@@ -175,20 +175,20 @@ const mfaLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Too many MFA attempts. Please try again later.",
-    code: "RATE_LIMIT",
+    error: 'Too many MFA attempts. Please try again later.',
+    code: 'RATE_LIMIT',
   },
 });
 
-router.post("/mfa/setup", authenticate, mfaController.setupMfa);
+router.post('/mfa/setup', authenticate, mfaController.setupMfa);
 router.post(
-  "/mfa/verify-setup",
+  '/mfa/verify-setup',
   authenticate,
   mfaLimiter,
-  mfaController.verifySetup,
+  mfaController.verifySetup
 );
-router.post("/mfa/verify", mfaLimiter, mfaController.verifyLogin); // No authenticate — uses mfa_token
-router.post("/mfa/disable", authenticate, mfaController.disableMfa);
-router.get("/mfa/status", authenticate, mfaController.mfaStatus);
+router.post('/mfa/verify', mfaLimiter, mfaController.verifyLogin); // No authenticate — uses mfa_token
+router.post('/mfa/disable', authenticate, mfaController.disableMfa);
+router.get('/mfa/status', authenticate, mfaController.mfaStatus);
 
 module.exports = router;

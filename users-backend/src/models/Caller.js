@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const CallerSchema = new mongoose.Schema(
   {
@@ -25,19 +25,19 @@ const CallerSchema = new mongoose.Schema(
     },
     organization_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
+      ref: 'Organization',
       required: true,
       index: true,
     },
     manager_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
       index: true,
     },
     patient_ids: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Patient",
+        ref: 'Patient',
       },
     ],
     profile_photo_url: String,
@@ -66,7 +66,7 @@ const CallerSchema = new mongoose.Schema(
     },
     current_call_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "CallSession",
+      ref: 'CallSession',
     },
     is_active: {
       type: Boolean,
@@ -75,18 +75,18 @@ const CallerSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // Virtual for patient count
-CallerSchema.virtual("patient_count").get(function () {
+CallerSchema.virtual('patient_count').get(function () {
   return this.patient_ids ? this.patient_ids.length : 0;
 });
 
 // Indexes
 CallerSchema.index({ organization_id: 1, is_active: 1 });
 
-module.exports = mongoose.model("Caller", CallerSchema);
+module.exports = mongoose.model('Caller', CallerSchema);

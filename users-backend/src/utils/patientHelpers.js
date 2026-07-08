@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
-const Patient = require("../models/Patient");
-const logger = require("./logger");
+const mongoose = require('mongoose');
+const Patient = require('../models/Patient');
+const logger = require('./logger');
 
 /**
  * Auto-seed a minimal Patient document on first sign-in.
@@ -14,25 +14,25 @@ async function createBasicPatient(
   email,
   name,
   profileId,
-  paid = 0,
+  paid = 0
 ) {
   try {
-    const DEFAULT_ORG_ID = "674f07e1525049b7348908f9";
+    const DEFAULT_ORG_ID = '674f07e1525049b7348908f9';
 
     const patientData = {
       supabase_uid: supabaseUid,
       profile_id: profileId,
-      name: name || (email ? email.split("@")[0] : "Patient"),
+      name: name || (email ? email.split('@')[0] : 'Patient'),
       email: email || `${supabaseUid}@phone.caremymed.in`,
       organization_id: new mongoose.Types.ObjectId(DEFAULT_ORG_ID),
       subscription: {
-        status: paid === 1 ? "active" : "pending_payment",
-        plan: "basic",
+        status: paid === 1 ? 'active' : 'pending_payment',
+        plan: 'basic',
       },
       paid,
       emailVerified: true,
       profile_complete: false,
-      role: "patient",
+      role: 'patient',
       conditions: [],
       medical_history: [],
       allergies: [],
@@ -41,7 +41,7 @@ async function createBasicPatient(
 
     const patient = await Patient.create(patientData);
 
-    logger.info("Patient profile auto-seeded", {
+    logger.info('Patient profile auto-seeded', {
       email,
       supabaseUid,
       orgId: DEFAULT_ORG_ID,
@@ -51,7 +51,7 @@ async function createBasicPatient(
     return patient;
   } catch (err) {
     if (err.code === 11000) {
-      logger.info("Patient re-fetch triggered by duplicate key conflict", {
+      logger.info('Patient re-fetch triggered by duplicate key conflict', {
         email,
         supabaseUid,
       });
@@ -64,7 +64,7 @@ async function createBasicPatient(
       const existing = await Patient.findOne({ $or: orConditions });
       if (existing) {
         if (existing.supabase_uid !== supabaseUid) {
-          logger.info("Healing stale supabase_uid on existing patient", {
+          logger.info('Healing stale supabase_uid on existing patient', {
             email,
             oldUid: existing.supabase_uid,
             newUid: supabaseUid,
@@ -75,7 +75,7 @@ async function createBasicPatient(
         return existing;
       }
     }
-    logger.error("Failed to create basic patient", {
+    logger.error('Failed to create basic patient', {
       error: err,
       email,
       supabaseUid,
@@ -99,7 +99,7 @@ async function findOrCreatePatientRecord({
     try {
       patient = await createBasicPatient(supabaseUid, email, name, profileId);
     } catch (err) {
-      logger.error("findOrCreatePatientRecord failed", {
+      logger.error('findOrCreatePatientRecord failed', {
         error: err,
         supabaseUid,
       });
@@ -126,17 +126,17 @@ async function getOrCreatePatient(req, customName = null) {
   // auto-creation. Staff hitting patient routes would pollute the Patient
   // collection with phantom records and skew dashboard metrics.
   const STAFF_ROLES = [
-    "caller",
-    "caretaker",
-    "care_manager",
-    "org_admin",
-    "super_admin",
-    "companion",
-    "patient_mentor",
+    'caller',
+    'caretaker',
+    'care_manager',
+    'org_admin',
+    'super_admin',
+    'companion',
+    'patient_mentor',
   ];
   if (req.profile && STAFF_ROLES.includes(req.profile.role)) {
     const err = new Error(
-      "Staff accounts cannot access patient-only endpoints.",
+      'Staff accounts cannot access patient-only endpoints.'
     );
     err.status = 400;
     throw err;

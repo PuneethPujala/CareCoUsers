@@ -1,27 +1,27 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const moment = require("moment-timezone");
-const Patient = require("../../models/Patient");
-const CallLog = require("../../models/CallLog");
-const MedicineLog = require("../../models/MedicineLog");
-const VitalLog = require("../../models/VitalLog");
-const Caller = require("../../models/Caller");
-const Notification = require("../../models/Notification");
-const AIVitalPrediction = require("../../models/AIVitalPrediction");
-const CompanionAccess = require("../../models/CompanionAccess");
-const logger = require("../../utils/logger");
+const express = require('express');
+const mongoose = require('mongoose');
+const moment = require('moment-timezone');
+const Patient = require('../../models/Patient');
+const CallLog = require('../../models/CallLog');
+const MedicineLog = require('../../models/MedicineLog');
+const VitalLog = require('../../models/VitalLog');
+const Caller = require('../../models/Caller');
+const Notification = require('../../models/Notification');
+const AIVitalPrediction = require('../../models/AIVitalPrediction');
+const CompanionAccess = require('../../models/CompanionAccess');
+const logger = require('../../utils/logger');
 const {
   getOrCreatePatient,
   createBasicPatient,
   findOrCreatePatientRecord,
-} = require("../../utils/patientHelpers");
-const { authenticateSession } = require("../../middleware/authenticate");
-const { validateObjectId } = require("../../middleware/validateObjectId");
-const { computeHealthScore } = require("../../services/healthScoreService");
+} = require('../../utils/patientHelpers');
+const { authenticateSession } = require('../../middleware/authenticate');
+const { validateObjectId } = require('../../middleware/validateObjectId');
+const { computeHealthScore } = require('../../services/healthScoreService');
 
 const router = express.Router();
 
-const requireSubscription = require("../../middleware/requireSubscription");
+const requireSubscription = require('../../middleware/requireSubscription');
 
 // Combined router-level middleware for Authentication, Companion Block, and Subscription Enforcement
 router.use((req, res, next) => {
@@ -30,19 +30,19 @@ router.use((req, res, next) => {
 
   // 1. Exclude public, billing, and basic onboarding/status routes from subscription checks
   const isSubscriptionExcluded =
-    path === "/cities" ||
-    path === "/location/reverse" ||
-    path === "/location/search" ||
-    path === "/subscribe" ||
-    path === "/initiate-payment" ||
-    (path === "/me" && (method === "GET" || method === "PUT")) ||
-    (path === "/" && (method === "GET" || method === "PUT"));
+    path === '/cities' ||
+    path === '/location/reverse' ||
+    path === '/location/search' ||
+    path === '/subscribe' ||
+    path === '/initiate-payment' ||
+    (path === '/me' && (method === 'GET' || method === 'PUT')) ||
+    (path === '/' && (method === 'GET' || method === 'PUT'));
 
   // 2. Identify if the route itself is public (no authentication needed at all)
   const isPublicRoute =
-    path === "/cities" ||
-    path === "/location/reverse" ||
-    path === "/location/search";
+    path === '/cities' ||
+    path === '/location/reverse' ||
+    path === '/location/search';
 
   if (isPublicRoute) {
     return next();
@@ -61,10 +61,10 @@ router.use((req, res, next) => {
 
   function runChecks() {
     // SEC-FIX: Block companions from accessing patient mutation/settings routes
-    if (req.profile && req.profile.role === "companion") {
+    if (req.profile && req.profile.role === 'companion') {
       return res.status(403).json({
         error:
-          "Companions cannot access or mutate patient records directly. Use the companion APIs.",
+          'Companions cannot access or mutate patient records directly. Use the companion APIs.',
       });
     }
 
@@ -86,10 +86,10 @@ async function refreshHealthScoreCache(patientId, targetDate = null) {
   try {
     const {
       enqueueHealthStateRecompute,
-    } = require("../../services/patientHealthStateService");
+    } = require('../../services/patientHealthStateService');
     await enqueueHealthStateRecompute(patientId, { targetDate });
   } catch (err) {
-    logger.warn("Failed to refresh unified health state cache", {
+    logger.warn('Failed to refresh unified health state cache', {
       error: err.message,
       patientId,
     });
@@ -99,19 +99,19 @@ async function refreshHealthScoreCache(patientId, targetDate = null) {
 // ─── Subscription & Onboarding ────────────────────────────────────────────────
 
 async function activateSubscription(patient, planId) {
-  const isActive = patient.subscription?.status === "active";
+  const isActive = patient.subscription?.status === 'active';
   const isExpired =
     patient.subscription?.expires_at &&
     new Date(patient.subscription.expires_at) < new Date();
 
-  const isTest = process.env.NODE_ENV === "test";
+  const isTest = process.env.NODE_ENV === 'test';
   const session = isTest ? null : await mongoose.startSession();
   if (session) session.startTransaction();
 
   try {
     const orgId =
       patient.organization_id ||
-      new mongoose.Types.ObjectId("674f07e1525049b7348908f9");
+      new mongoose.Types.ObjectId('674f07e1525049b7348908f9');
 
     // Map plan pricing correctly
     const planAmounts = {
@@ -119,16 +119,16 @@ async function activateSubscription(patient, planId) {
       premium_annual: 8000,
       basic: 800,
     };
-    const resolvedPlan = planId || patient.pending_plan || "basic";
+    const resolvedPlan = planId || patient.pending_plan || 'basic';
     const amount = planAmounts[resolvedPlan] || 800;
-    const durationDays = resolvedPlan === "premium_annual" ? 365 : 30;
+    const durationDays = resolvedPlan === 'premium_annual' ? 365 : 30;
 
     let newExpiresAt;
     if (isActive && !isExpired && patient.subscription?.expires_at) {
       // Stack the days on top of the current remaining days
       newExpiresAt = new Date(
         new Date(patient.subscription.expires_at).getTime() +
-          durationDays * 86400000,
+          durationDays * 86400000
       );
     } else {
       // Start fresh from today
@@ -136,52 +136,52 @@ async function activateSubscription(patient, planId) {
     }
 
     const subscriptionUpdates = {
-      "subscription.status": "active",
-      "subscription.plan": resolvedPlan,
-      "subscription.amount": amount,
-      "subscription.payment_date": new Date(),
-      "subscription.expires_at": newExpiresAt,
-      "subscription.next_billing": newExpiresAt,
+      'subscription.status': 'active',
+      'subscription.plan': resolvedPlan,
+      'subscription.amount': amount,
+      'subscription.payment_date': new Date(),
+      'subscription.expires_at': newExpiresAt,
+      'subscription.next_billing': newExpiresAt,
       paid: 1,
     };
 
     if (!isActive || isExpired) {
-      subscriptionUpdates["subscription.started_at"] = new Date();
+      subscriptionUpdates['subscription.started_at'] = new Date();
     }
 
     await Patient.updateOne(
       { _id: patient._id },
       { $set: subscriptionUpdates },
-      { session },
+      { session }
     );
 
-    const Profile = require("../../models/Profile");
+    const Profile = require('../../models/Profile');
     const manager = await Profile.findOne({
       organization_id: orgId,
-      role: { $in: ["manager", "admin", "super_admin", "care manager"] },
+      role: { $in: ['manager', 'admin', 'super_admin', 'care manager'] },
     }).session(session);
 
     if (manager && !patient.assigned_manager_id) {
       await Patient.updateOne(
         { _id: patient._id },
         { $set: { assigned_manager_id: manager._id } },
-        { session },
+        { session }
       );
 
-      const Alert = require("../../models/Alert");
+      const Alert = require('../../models/Alert');
       await Alert.create(
         [
           {
-            type: "team_lead_recommended",
+            type: 'team_lead_recommended',
             patient_id: patient._id,
             manager_id: manager._id,
             organization_id: orgId,
             description: `New patient "${patient.name || patient.email}" subscribed. Needs caregiver assignment.`,
             auto_generated: true,
-            status: "open",
+            status: 'open',
           },
         ],
-        { session },
+        { session }
       );
     }
 
@@ -189,37 +189,37 @@ async function activateSubscription(patient, planId) {
       [
         {
           patient_id: patient._id,
-          type: "system",
-          title: "Welcome to CareMyMed! 🎉",
+          type: 'system',
+          title: 'Welcome to CareMyMed! 🎉',
           message:
-            "Your account is now active. Explore the app while we appoint your dedicated caller.",
-          target_screen: "HealthProfile",
+            'Your account is now active. Explore the app while we appoint your dedicated caller.',
+          target_screen: 'HealthProfile',
         },
       ],
-      { session },
+      { session }
     );
 
     if (session) await session.commitTransaction();
-    logger.info("Subscription activated atomically", {
+    logger.info('Subscription activated atomically', {
       patientId: patient._id,
-      plan: subscriptionUpdates["subscription.plan"],
+      plan: subscriptionUpdates['subscription.plan'],
     });
 
     if (patient.expo_push_token) {
-      const PushNotificationService = require("../../utils/pushNotifications");
+      const PushNotificationService = require('../../utils/pushNotifications');
       PushNotificationService.sendPush(
         patient.expo_push_token,
-        "Welcome to CareMyMed! 🎉",
-        "Your account is now active.",
+        'Welcome to CareMyMed! 🎉',
+        'Your account is now active.'
       ).catch((err) =>
-        logger.warn("Push notification failed", { error: err.message }),
+        logger.warn('Push notification failed', { error: err.message })
       );
     }
 
     return await Patient.findById(patient._id);
   } catch (error) {
     if (session) await session.abortTransaction();
-    logger.error("Subscription transaction aborted", {
+    logger.error('Subscription transaction aborted', {
       error: error.message,
       patientId: patient._id,
     });
@@ -231,56 +231,56 @@ async function activateSubscription(patient, planId) {
 
 // ─── Public endpoints ─────────────────────────────────────────────────────────
 
-router.get("/cities", async (req, res) => {
+router.get('/cities', async (req, res) => {
   try {
-    const City = require("../../models/City");
-    let cities = await City.find({ isActive: true }).sort("name");
+    const City = require('../../models/City');
+    let cities = await City.find({ isActive: true }).sort('name');
 
     if (cities.length === 0) {
       const seedCities = [
-        { name: "Guntur", state: "Andhra Pradesh", isActive: true },
-        { name: "Vijayawada", state: "Andhra Pradesh", isActive: true },
+        { name: 'Guntur', state: 'Andhra Pradesh', isActive: true },
+        { name: 'Vijayawada', state: 'Andhra Pradesh', isActive: true },
       ];
       await City.insertMany(seedCities);
-      cities = await City.find({ isActive: true }).sort("name");
+      cities = await City.find({ isActive: true }).sort('name');
     }
     res.json({ cities });
   } catch (error) {
-    logger.error("Get cities error", { error: error.message });
-    res.status(500).json({ error: "Failed to fetch cities" });
+    logger.error('Get cities error', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch cities' });
   }
 });
 
-router.get("/location/reverse", async (req, res) => {
+router.get('/location/reverse', async (req, res) => {
   try {
     const { lat, lon } = req.query;
     if (!lat || !lon)
       return res
         .status(400)
-        .json({ error: "Latitude and longitude are required" });
+        .json({ error: 'Latitude and longitude are required' });
 
-    const fetch = global.fetch || require("node-fetch");
+    const fetch = global.fetch || require('node-fetch');
     const response = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
-      { headers: { "User-Agent": "CareMyMed-Backend/1.0" } },
+      { headers: { 'User-Agent': 'CareMyMed-Backend/1.0' } }
     );
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error("Reverse geocoding error", { error: error.message });
-    res.status(500).json({ error: "Failed to geocode location" });
+    logger.error('Reverse geocoding error', { error: error.message });
+    res.status(500).json({ error: 'Failed to geocode location' });
   }
 });
 
-router.get("/location/search", async (req, res) => {
+router.get('/location/search', async (req, res) => {
   try {
     const { q } = req.query;
-    if (!q) return res.status(400).json({ error: "Search query is required" });
+    if (!q) return res.status(400).json({ error: 'Search query is required' });
 
-    const fetch = global.fetch || require("node-fetch");
+    const fetch = global.fetch || require('node-fetch');
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&countrycodes=in&limit=5`,
-      { headers: { "User-Agent": "CareMyMed-Backend/1.0" } },
+      { headers: { 'User-Agent': 'CareMyMed-Backend/1.0' } }
     );
     const data = await response.json();
     const results = data.map((item) => ({
@@ -300,8 +300,8 @@ router.get("/location/search", async (req, res) => {
     }));
     res.json({ results });
   } catch (error) {
-    logger.error("Location search error", { error: error.message });
-    res.status(500).json({ error: "Failed to search location" });
+    logger.error('Location search error', { error: error.message });
+    res.status(500).json({ error: 'Failed to search location' });
   }
 });
 
@@ -327,24 +327,24 @@ router.get("/location/search", async (req, res) => {
  * POST /api/users/patients/initiate-payment
  * Generates a signed payment intent token for the client.
  */
-router.post("/initiate-payment", authenticateSession, async (req, res) => {
+router.post('/initiate-payment', authenticateSession, async (req, res) => {
   try {
     const { planId, plan } = req.body;
-    const resolvedPlanId = plan || planId || "basic";
+    const resolvedPlanId = plan || planId || 'basic';
 
-    const crypto = require("crypto");
+    const crypto = require('crypto');
     const secret =
-      process.env.PAYMENT_GATEWAY_SECRET || "fallback_mock_secret_key";
+      process.env.PAYMENT_GATEWAY_SECRET || 'fallback_mock_secret_key';
 
     // Generate a unique transaction/payment ID
-    const paymentId = "txn_" + crypto.randomBytes(16).toString("hex");
+    const paymentId = 'txn_' + crypto.randomBytes(16).toString('hex');
 
     // Compute the signature: paymentId:planId:userId
     const dataToSign = `${paymentId}:${resolvedPlanId}:${req.user.id}`;
     const signature = crypto
-      .createHmac("sha256", secret)
+      .createHmac('sha256', secret)
       .update(dataToSign)
-      .digest("hex");
+      .digest('hex');
 
     res.json({
       success: true,
@@ -353,11 +353,11 @@ router.post("/initiate-payment", authenticateSession, async (req, res) => {
       planId: resolvedPlanId,
     });
   } catch (error) {
-    logger.error("Initiate payment error", {
+    logger.error('Initiate payment error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to initiate payment" });
+    res.status(500).json({ error: 'Failed to initiate payment' });
   }
 });
 
@@ -367,42 +367,42 @@ router.post("/initiate-payment", authenticateSession, async (req, res) => {
  * SEC-FIX: Cryptographic validation of the payment status.
  * Requires a paymentId and signature computed with PAYMENT_GATEWAY_SECRET.
  */
-router.post("/subscribe", authenticateSession, async (req, res) => {
+router.post('/subscribe', authenticateSession, async (req, res) => {
   try {
     // Accept 'plan' or 'planId'
     const { paid, plan, planId, paymentId, signature } = req.body;
-    const resolvedPlanId = plan || planId || "basic";
+    const resolvedPlanId = plan || planId || 'basic';
 
     let patient = await getOrCreatePatient(req);
 
     // Verification check:
     // Always require signature verification in non-test environments.
-    const isTest = process.env.NODE_ENV === "test";
+    const isTest = process.env.NODE_ENV === 'test';
     if (!isTest) {
       if (paid !== 1) {
         return res.status(400).json({
-          error: "Payment is required to activate a subscription.",
+          error: 'Payment is required to activate a subscription.',
         });
       }
       if (!paymentId || !signature) {
         return res.status(400).json({
           error:
-            "Payment verification failed. Missing payment ID or signature.",
+            'Payment verification failed. Missing payment ID or signature.',
         });
       }
-      const crypto = require("crypto");
+      const crypto = require('crypto');
       const secret =
-        process.env.PAYMENT_GATEWAY_SECRET || "fallback_mock_secret_key";
+        process.env.PAYMENT_GATEWAY_SECRET || 'fallback_mock_secret_key';
       const expectedData = `${paymentId}:${resolvedPlanId}:${req.user.id}`;
       const expectedSignature = crypto
-        .createHmac("sha256", secret)
+        .createHmac('sha256', secret)
         .update(expectedData)
-        .digest("hex");
+        .digest('hex');
 
       if (signature !== expectedSignature) {
         return res
           .status(400)
-          .json({ error: "Invalid payment signature. Verification failed." });
+          .json({ error: 'Invalid payment signature. Verification failed.' });
       }
     }
 
@@ -421,30 +421,30 @@ router.post("/subscribe", authenticateSession, async (req, res) => {
       message: `Successfully subscribed to ${resolvedPlanId} plan.`,
     });
   } catch (error) {
-    logger.error("Subscription endpoint error", {
+    logger.error('Subscription endpoint error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to process subscription" });
+    res.status(500).json({ error: 'Failed to process subscription' });
   }
 });
 
 // ─── Addresses ────────────────────────────────────────────────────────────────
 
-router.get("/me/addresses", authenticateSession, async (req, res) => {
+router.get('/me/addresses', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     res.json({ saved_addresses: patient.saved_addresses || [] });
   } catch (error) {
-    logger.error("Get addresses error", {
+    logger.error('Get addresses error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get saved addresses" });
+    res.status(500).json({ error: 'Failed to get saved addresses' });
   }
 });
 
-router.post("/me/addresses", authenticateSession, async (req, res) => {
+router.post('/me/addresses', authenticateSession, async (req, res) => {
   try {
     const {
       label,
@@ -473,27 +473,27 @@ router.post("/me/addresses", authenticateSession, async (req, res) => {
     };
     await Patient.updateOne(
       { _id: patient._id },
-      { $push: { saved_addresses: newAddress } },
+      { $push: { saved_addresses: newAddress } }
     );
     req.patient = await Patient.findById(patient._id);
-    logger.info("Address added", { patientId: patient._id, label });
+    logger.info('Address added', { patientId: patient._id, label });
     res.status(201).json({
       saved_addresses: req.patient.saved_addresses,
-      message: "Address saved successfully",
+      message: 'Address saved successfully',
     });
   } catch (error) {
-    logger.error("Add address error", {
+    logger.error('Add address error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to save address" });
+    res.status(500).json({ error: 'Failed to save address' });
   }
 });
 
 router.put(
-  "/me/addresses/:id",
+  '/me/addresses/:id',
   authenticateSession,
-  validateObjectId("id"),
+  validateObjectId('id'),
   async (req, res) => {
     try {
       const {
@@ -510,80 +510,80 @@ router.put(
       } = req.body;
       const patient = await getOrCreatePatient(req);
       const updates = {};
-      if (label !== undefined) updates["saved_addresses.$.label"] = label;
-      if (title !== undefined) updates["saved_addresses.$.title"] = title;
+      if (label !== undefined) updates['saved_addresses.$.label'] = label;
+      if (title !== undefined) updates['saved_addresses.$.title'] = title;
       if (address_line !== undefined)
-        updates["saved_addresses.$.address_line"] = address_line;
-      if (flat_no !== undefined) updates["saved_addresses.$.flat_no"] = flat_no;
-      if (street !== undefined) updates["saved_addresses.$.street"] = street;
-      if (city !== undefined) updates["saved_addresses.$.city"] = city;
-      if (state !== undefined) updates["saved_addresses.$.state"] = state;
+        updates['saved_addresses.$.address_line'] = address_line;
+      if (flat_no !== undefined) updates['saved_addresses.$.flat_no'] = flat_no;
+      if (street !== undefined) updates['saved_addresses.$.street'] = street;
+      if (city !== undefined) updates['saved_addresses.$.city'] = city;
+      if (state !== undefined) updates['saved_addresses.$.state'] = state;
       if (postcode !== undefined)
-        updates["saved_addresses.$.postcode"] = postcode;
-      if (lat !== undefined) updates["saved_addresses.$.lat"] = lat;
-      if (lon !== undefined) updates["saved_addresses.$.lon"] = lon;
+        updates['saved_addresses.$.postcode'] = postcode;
+      if (lat !== undefined) updates['saved_addresses.$.lat'] = lat;
+      if (lon !== undefined) updates['saved_addresses.$.lon'] = lon;
       const result = await Patient.updateOne(
-        { _id: patient._id, "saved_addresses._id": req.params.id },
-        { $set: updates },
+        { _id: patient._id, 'saved_addresses._id': req.params.id },
+        { $set: updates }
       );
       if (result.matchedCount === 0)
-        return res.status(404).json({ error: "Address not found" });
+        return res.status(404).json({ error: 'Address not found' });
       req.patient = await Patient.findById(patient._id);
-      logger.info("Address updated", {
+      logger.info('Address updated', {
         patientId: patient._id,
         addressId: req.params.id,
       });
       res.json({
         saved_addresses: req.patient.saved_addresses,
-        message: "Address updated successfully",
+        message: 'Address updated successfully',
       });
     } catch (error) {
-      logger.error("Update address error", {
+      logger.error('Update address error', {
         error: error.message,
         addressId: req.params.id,
       });
-      res.status(500).json({ error: "Failed to update address" });
+      res.status(500).json({ error: 'Failed to update address' });
     }
-  },
+  }
 );
 
 router.delete(
-  "/me/addresses/:id",
+  '/me/addresses/:id',
   authenticateSession,
-  validateObjectId("id"),
+  validateObjectId('id'),
   async (req, res) => {
     try {
       const patient = await getOrCreatePatient(req);
       await Patient.updateOne(
         { _id: patient._id },
-        { $pull: { saved_addresses: { _id: req.params.id } } },
+        { $pull: { saved_addresses: { _id: req.params.id } } }
       );
       req.patient = await Patient.findById(patient._id);
-      logger.info("Address deleted", {
+      logger.info('Address deleted', {
         patientId: patient._id,
         addressId: req.params.id,
       });
       res.json({
         saved_addresses: req.patient.saved_addresses,
-        message: "Address deleted successfully",
+        message: 'Address deleted successfully',
       });
     } catch (error) {
-      logger.error("Delete address error", {
+      logger.error('Delete address error', {
         error: error.message,
         addressId: req.params.id,
       });
-      res.status(500).json({ error: "Failed to delete address" });
+      res.status(500).json({ error: 'Failed to delete address' });
     }
-  },
+  }
 );
 
 // ─── Core profile ─────────────────────────────────────────────────────────────
 
-router.get("/me", authenticateSession, async (req, res) => {
+router.get('/me', authenticateSession, async (req, res) => {
   try {
     let patient = await getOrCreatePatient(req);
     const withHash = await Patient.findById(patient._id).select(
-      "+passwordHash",
+      '+passwordHash'
     );
     const patientObj = patient.toObject();
     patientObj.hasPassword = !!withHash?.passwordHash;
@@ -592,8 +592,8 @@ router.get("/me", authenticateSession, async (req, res) => {
     const companionAccesses = await CompanionAccess.find({
       patient_id: patient._id,
       is_active: true,
-      status: "accepted",
-    }).populate("companion_id");
+      status: 'accepted',
+    }).populate('companion_id');
 
     // Map back to the expected array format for transparent backward compatibility
     patientObj.companions = companionAccesses.map((access) => ({
@@ -609,17 +609,17 @@ router.get("/me", authenticateSession, async (req, res) => {
 
     res.json({ patient: patientObj });
   } catch (error) {
-    logger.error("Get patient profile error", {
+    logger.error('Get patient profile error', {
       error: error.message,
       patientId: req.user?.id,
     });
     res
       .status(500)
-      .json({ error: "Failed to fetch or initialize patient profile" });
+      .json({ error: 'Failed to fetch or initialize patient profile' });
   }
 });
 
-router.put("/me", authenticateSession, async (req, res) => {
+router.put('/me', authenticateSession, async (req, res) => {
   try {
     const {
       name,
@@ -650,18 +650,18 @@ router.put("/me", authenticateSession, async (req, res) => {
     if (gender !== undefined) updates.gender = gender;
     if (blood_type !== undefined) {
       const validBloodTypes = [
-        "A+",
-        "A-",
-        "B+",
-        "B-",
-        "AB+",
-        "AB-",
-        "O+",
-        "O-",
-        "unknown",
+        'A+',
+        'A-',
+        'B+',
+        'B-',
+        'AB+',
+        'AB-',
+        'O+',
+        'O-',
+        'unknown',
       ];
       if (!validBloodTypes.includes(blood_type)) {
-        return res.status(400).json({ error: "Invalid blood type provided" });
+        return res.status(400).json({ error: 'Invalid blood type provided' });
       }
       updates.blood_type = blood_type;
     }
@@ -694,49 +694,49 @@ router.put("/me", authenticateSession, async (req, res) => {
     if (
       updates.expo_push_token !== undefined &&
       req.profile &&
-      req.profile.role === "caller"
+      req.profile.role === 'caller'
     ) {
-      const Profile = require("../../models/Profile");
-      const Caller = require("../../models/Caller");
+      const Profile = require('../../models/Profile');
+      const Caller = require('../../models/Caller');
       await Profile.updateOne(
         { _id: req.profile._id },
-        { $set: { expo_push_token: updates.expo_push_token } },
+        { $set: { expo_push_token: updates.expo_push_token } }
       );
       await Caller.updateOne(
         { supabase_uid: req.profile.supabaseUid },
-        { $set: { expo_push_token: updates.expo_push_token } },
+        { $set: { expo_push_token: updates.expo_push_token } }
       );
     }
-    logger.info("Profile updated", { patientId: patient._id, body: req.body });
+    logger.info('Profile updated', { patientId: patient._id, body: req.body });
 
     // Only send the connection success notification if the patient did not have a token previously.
     // This prevents spamming the user on daily app launches, preview updates, or normal token rotations.
     if (expo_push_token && !patient.expo_push_token) {
-      const PushNotificationService = require("../../utils/pushNotifications");
+      const PushNotificationService = require('../../utils/pushNotifications');
       PushNotificationService.sendPush(
         expo_push_token,
-        "Push Notifications Connected! 🔔",
-        `Hi ${(patient.name || "").split(" ")[0] || "there"}, you will now receive live alerts.`,
+        'Push Notifications Connected! 🔔',
+        `Hi ${(patient.name || '').split(' ')[0] || 'there'}, you will now receive live alerts.`
       ).catch((err) =>
-        logger.warn("Failed to send push connection notification", {
+        logger.warn('Failed to send push connection notification', {
           error: err.message,
-        }),
+        })
       );
     }
 
-    res.json({ patient: req.patient, message: "Profile updated successfully" });
+    res.json({ patient: req.patient, message: 'Profile updated successfully' });
   } catch (error) {
-    logger.error("Update patient profile error", {
+    logger.error('Update patient profile error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to update profile" });
+    res.status(500).json({ error: 'Failed to update profile' });
   }
 });
 
 // ─── Health Profile ───────────────────────────────────────────────────────────
 
-router.get("/me/profile", authenticateSession, async (req, res) => {
+router.get('/me/profile', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const patientObj = patient.toObject();
@@ -766,7 +766,7 @@ router.get("/me/profile", authenticateSession, async (req, res) => {
     // ── Fetch cached unified health state ──────────────────────────────────
     const {
       getCachedHealthState,
-    } = require("../../services/patientHealthStateService");
+    } = require('../../services/patientHealthStateService');
     const healthState = await getCachedHealthState(patient);
     patientObj.health_score = {
       score: healthState.score,
@@ -779,11 +779,11 @@ router.get("/me/profile", authenticateSession, async (req, res) => {
 
     res.json(patientObj);
   } catch (err) {
-    logger.error("Profile fetch error", {
+    logger.error('Profile fetch error', {
       error: err.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: 'Server Error' });
   }
 });
 
@@ -793,16 +793,16 @@ const updateProfileArray = (field) => async (req, res) => {
     if (req.body._id) {
       const updates = {};
       for (const [key, value] of Object.entries(req.body)) {
-        if (key !== "_id") updates[`${field}.$.${key}`] = value;
+        if (key !== '_id') updates[`${field}.$.${key}`] = value;
       }
       await Patient.updateOne(
         { _id: patient._id, [`${field}._id`]: req.body._id },
-        { $set: updates },
+        { $set: updates }
       );
     } else {
       await Patient.updateOne(
         { _id: patient._id },
-        { $push: { [field]: req.body } },
+        { $push: { [field]: req.body } }
       );
     }
     req.patient = await Patient.findById(patient._id);
@@ -815,74 +815,74 @@ const updateProfileArray = (field) => async (req, res) => {
       error: err.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: 'Server Error' });
   }
 };
 
 router.put(
-  "/me/conditions",
+  '/me/conditions',
   authenticateSession,
-  updateProfileArray("conditions"),
+  updateProfileArray('conditions')
 );
 router.put(
-  "/me/allergies",
+  '/me/allergies',
   authenticateSession,
-  updateProfileArray("allergies"),
+  updateProfileArray('allergies')
 );
 router.put(
-  "/me/vaccinations",
+  '/me/vaccinations',
   authenticateSession,
-  updateProfileArray("vaccinations"),
+  updateProfileArray('vaccinations')
 );
 router.put(
-  "/me/appointments",
+  '/me/appointments',
   authenticateSession,
-  updateProfileArray("appointments"),
+  updateProfileArray('appointments')
 );
 router.put(
-  "/me/medical-history",
+  '/me/medical-history',
   authenticateSession,
-  updateProfileArray("medical_history"),
+  updateProfileArray('medical_history')
 );
 
-router.post("/me/prescriptions", authenticateSession, async (req, res) => {
+router.post('/me/prescriptions', authenticateSession, async (req, res) => {
   try {
     const { file_base64, content_type } = req.body;
     if (!file_base64)
-      return res.status(400).json({ error: "file_base64 is required" });
+      return res.status(400).json({ error: 'file_base64 is required' });
 
     const patient = await getOrCreatePatient(req);
-    const { createClient } = require("@supabase/supabase-js");
+    const { createClient } = require('@supabase/supabase-js');
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !supabaseServiceKey) {
       return res
         .status(500)
-        .json({ error: "Supabase configuration missing on server" });
+        .json({ error: 'Supabase configuration missing on server' });
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const buffer = Buffer.from(file_base64, "base64");
-    const ext = content_type === "image/png" ? "png" : "jpg";
+    const buffer = Buffer.from(file_base64, 'base64');
+    const ext = content_type === 'image/png' ? 'png' : 'jpg';
     const randomHash =
       Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
     const fileName = `${patient.supabase_uid}/${randomHash}.${ext}`;
     const { data, error } = await supabaseAdmin.storage
-      .from("prescriptions")
-      .upload(fileName, buffer, { contentType: content_type || "image/jpeg" });
+      .from('prescriptions')
+      .upload(fileName, buffer, { contentType: content_type || 'image/jpeg' });
 
     if (error) {
-      logger.error("Supabase upload error", {
+      logger.error('Supabase upload error', {
         error: error.message,
         patientId: patient._id,
       });
       return res
         .status(500)
-        .json({ error: "Failed to upload: " + error.message });
+        .json({ error: 'Failed to upload: ' + error.message });
     }
 
     const publicUrl = supabaseAdmin.storage
-      .from("prescriptions")
+      .from('prescriptions')
       .getPublicUrl(fileName).data.publicUrl;
     patient.uploaded_prescriptions.push({
       file_url: publicUrl,
@@ -890,60 +890,60 @@ router.post("/me/prescriptions", authenticateSession, async (req, res) => {
     });
     await patient.save();
     res.status(201).json({
-      message: "Prescription uploaded successfully",
+      message: 'Prescription uploaded successfully',
       uploaded_prescriptions: patient.uploaded_prescriptions,
     });
   } catch (err) {
-    logger.error("Upload prescription error", {
+    logger.error('Upload prescription error', {
       error: err.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: 'Server Error' });
   }
 });
 
-router.post("/me/avatar", authenticateSession, async (req, res) => {
+router.post('/me/avatar', authenticateSession, async (req, res) => {
   try {
     const { file_base64, content_type } = req.body;
     if (!file_base64)
-      return res.status(400).json({ error: "file_base64 is required" });
+      return res.status(400).json({ error: 'file_base64 is required' });
 
     const patient = await getOrCreatePatient(req);
-    const { createClient } = require("@supabase/supabase-js");
+    const { createClient } = require('@supabase/supabase-js');
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !supabaseServiceKey) {
       return res
         .status(500)
-        .json({ error: "Supabase configuration missing on server" });
+        .json({ error: 'Supabase configuration missing on server' });
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const buffer = Buffer.from(file_base64, "base64");
-    const ext = content_type === "image/png" ? "png" : "jpg";
+    const buffer = Buffer.from(file_base64, 'base64');
+    const ext = content_type === 'image/png' ? 'png' : 'jpg';
     const randomHash =
       Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
     const fileName = `${patient.supabase_uid || patient._id}/${randomHash}.${ext}`;
 
     const { data, error } = await supabaseAdmin.storage
-      .from("avatars")
+      .from('avatars')
       .upload(fileName, buffer, {
-        contentType: content_type || "image/jpeg",
+        contentType: content_type || 'image/jpeg',
         upsert: true,
       });
 
     if (error) {
-      logger.error("Supabase avatar upload error", {
+      logger.error('Supabase avatar upload error', {
         error: error.message,
         patientId: patient._id,
       });
       return res
         .status(500)
-        .json({ error: "Failed to upload avatar: " + error.message });
+        .json({ error: 'Failed to upload avatar: ' + error.message });
     }
 
     const publicUrl = supabaseAdmin.storage
-      .from("avatars")
+      .from('avatars')
       .getPublicUrl(fileName).data.publicUrl;
 
     // Proactively delete old avatar from Supabase Storage if it exists
@@ -953,12 +953,12 @@ router.post("/me/avatar", authenticateSession, async (req, res) => {
         const idx = patient.avatar_url.indexOf(marker);
         if (idx !== -1) {
           const oldFilePath = decodeURIComponent(
-            patient.avatar_url.substring(idx + marker.length),
+            patient.avatar_url.substring(idx + marker.length)
           );
-          await supabaseAdmin.storage.from("avatars").remove([oldFilePath]);
+          await supabaseAdmin.storage.from('avatars').remove([oldFilePath]);
         }
       } catch (delErr) {
-        logger.warn("Failed to delete old avatar file", {
+        logger.warn('Failed to delete old avatar file', {
           error: delErr.message,
           patientId: patient._id,
         });
@@ -969,20 +969,20 @@ router.post("/me/avatar", authenticateSession, async (req, res) => {
     await patient.save();
 
     res.status(200).json({
-      message: "Avatar uploaded successfully",
+      message: 'Avatar uploaded successfully',
       avatar_url: publicUrl,
       patient,
     });
   } catch (err) {
-    logger.error("Upload avatar error", {
+    logger.error('Upload avatar error', {
       error: err.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: 'Server Error' });
   }
 });
 
-router.put("/me/lifestyle", authenticateSession, async (req, res) => {
+router.put('/me/lifestyle', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const {
@@ -1013,21 +1013,21 @@ router.put("/me/lifestyle", authenticateSession, async (req, res) => {
     if (device_sync_status !== undefined)
       patient.lifestyle.device_sync_status = device_sync_status;
 
-    patient.markModified("lifestyle");
+    patient.markModified('lifestyle');
     await patient.save();
     // Refresh health score cache in background
     refreshHealthScoreCache(patient._id).catch(() => {});
-    res.json({ message: "Lifestyle updated", patient });
+    res.json({ message: 'Lifestyle updated', patient });
   } catch (err) {
-    logger.error("Update lifestyle error", {
+    logger.error('Update lifestyle error', {
       error: err.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: 'Server Error' });
   }
 });
 
-router.put("/me/primary-doctor", authenticateSession, async (req, res) => {
+router.put('/me/primary-doctor', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const { gp_name, gp_phone, gp_email, name, phone, email } = req.body;
@@ -1038,13 +1038,13 @@ router.put("/me/primary-doctor", authenticateSession, async (req, res) => {
     if (gp_email !== undefined || email !== undefined)
       patient.gp_email = gp_email || email;
     await patient.save();
-    res.json({ message: "Primary doctor updated", patient });
+    res.json({ message: 'Primary doctor updated', patient });
   } catch (err) {
-    logger.error("Update gp error", {
+    logger.error('Update gp error', {
       error: err.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: 'Server Error' });
   }
 });
 
@@ -1056,74 +1056,74 @@ const deleteProfileItem = (dbCollection, responseKey) => async (req, res) => {
       patient[dbCollection].pull(req.params.id);
       await patient.save();
       res.json({
-        message: "Item deleted",
+        message: 'Item deleted',
         [responseKey]: patient[dbCollection],
       });
     } else {
-      res.status(404).json({ error: "Item not found" });
+      res.status(404).json({ error: 'Item not found' });
     }
   } catch (err) {
     logger.error(`Delete ${dbCollection} error`, {
       error: err.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Server Error" });
+    res.status(500).json({ error: 'Server Error' });
   }
 };
 
 router.delete(
-  "/me/conditions/:id",
+  '/me/conditions/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("conditions", "conditions"),
+  validateObjectId('id'),
+  deleteProfileItem('conditions', 'conditions')
 );
 router.delete(
-  "/me/allergies/:id",
+  '/me/allergies/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("allergies", "allergies"),
+  validateObjectId('id'),
+  deleteProfileItem('allergies', 'allergies')
 );
 router.delete(
-  "/me/vaccinations/:id",
+  '/me/vaccinations/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("vaccinations", "vaccinations"),
+  validateObjectId('id'),
+  deleteProfileItem('vaccinations', 'vaccinations')
 );
 router.delete(
-  "/me/appointments/:id",
+  '/me/appointments/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("appointments", "appointments"),
+  validateObjectId('id'),
+  deleteProfileItem('appointments', 'appointments')
 );
 router.delete(
-  "/me/medical-history/:id",
+  '/me/medical-history/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("medical_history", "medical_history"),
+  validateObjectId('id'),
+  deleteProfileItem('medical_history', 'medical_history')
 );
 router.delete(
-  "/me/history/:id",
+  '/me/history/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("medical_history", "medical_history"),
+  validateObjectId('id'),
+  deleteProfileItem('medical_history', 'medical_history')
 );
 router.delete(
-  "/me/medications/:id",
+  '/me/medications/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("medications", "medications"),
+  validateObjectId('id'),
+  deleteProfileItem('medications', 'medications')
 );
 router.delete(
-  "/me/trusted-contacts/:id",
+  '/me/trusted-contacts/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("trusted_contacts", "trusted_contacts"),
+  validateObjectId('id'),
+  deleteProfileItem('trusted_contacts', 'trusted_contacts')
 );
 router.delete(
-  "/me/contact/:id",
+  '/me/contact/:id',
   authenticateSession,
-  validateObjectId("id"),
-  deleteProfileItem("trusted_contacts", "trusted_contacts"),
+  validateObjectId('id'),
+  deleteProfileItem('trusted_contacts', 'trusted_contacts')
 );
 
 // ─── Emergency Contact ────────────────────────────────────────────────────────
@@ -1140,7 +1140,7 @@ router.delete(
  *   Fixed by finding the existing emergency contact BEFORE clearing the flag,
  *   then using that _id for the targeted update.
  */
-router.put("/me/emergency-contact", authenticateSession, async (req, res) => {
+router.put('/me/emergency-contact', authenticateSession, async (req, res) => {
   try {
     const { name, phone, relation } = req.body;
     const patient = await getOrCreatePatient(req);
@@ -1148,13 +1148,13 @@ router.put("/me/emergency-contact", authenticateSession, async (req, res) => {
     if (!name && !phone) {
       await Patient.updateOne(
         { _id: patient._id },
-        { $pull: { trusted_contacts: { is_emergency: true } } },
+        { $pull: { trusted_contacts: { is_emergency: true } } }
       );
     } else {
       // FIX: find the existing emergency contact BEFORE clearing the flag.
       // The original cleared first, re-fetched, then tried to find — always null.
       const existingEmergencyContact = patient.trusted_contacts.find(
-        (c) => c.is_emergency,
+        (c) => c.is_emergency
       );
 
       if (existingEmergencyContact) {
@@ -1162,16 +1162,16 @@ router.put("/me/emergency-contact", authenticateSession, async (req, res) => {
         await Patient.updateOne(
           {
             _id: patient._id,
-            "trusted_contacts._id": existingEmergencyContact._id,
+            'trusted_contacts._id': existingEmergencyContact._id,
           },
           {
             $set: {
-              "trusted_contacts.$.name": name,
-              "trusted_contacts.$.phone": phone,
-              "trusted_contacts.$.relation": relation,
-              "trusted_contacts.$.is_emergency": true,
+              'trusted_contacts.$.name': name,
+              'trusted_contacts.$.phone': phone,
+              'trusted_contacts.$.relation': relation,
+              'trusted_contacts.$.is_emergency': true,
             },
-          },
+          }
         );
       } else {
         // No existing emergency contact — add a new one
@@ -1187,23 +1187,23 @@ router.put("/me/emergency-contact", authenticateSession, async (req, res) => {
                 is_primary: true,
               },
             },
-          },
+          }
         );
       }
     }
 
     req.patient = await Patient.findById(patient._id);
-    logger.info("Emergency contact updated", { patientId: patient._id });
+    logger.info('Emergency contact updated', { patientId: patient._id });
     res.json({
       patient: req.patient,
-      message: "Emergency contact updated successfully",
+      message: 'Emergency contact updated successfully',
     });
   } catch (error) {
-    logger.error("Update emergency contact error", {
+    logger.error('Update emergency contact error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to update emergency contact" });
+    res.status(500).json({ error: 'Failed to update emergency contact' });
   }
 });
 
@@ -1213,17 +1213,17 @@ router.put("/me/emergency-contact", authenticateSession, async (req, res) => {
  * POST /api/users/patients/me/invite-code
  * Generates a single-use 6-character invite code valid for 24 hours.
  */
-router.post("/me/invite-code", authenticateSession, async (req, res) => {
+router.post('/me/invite-code', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
 
     // Generate a clean 6-char alphanumeric code (excluding confusing chars like 0/O, 1/I)
-    const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-    let code = "";
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let code = '';
     let isUnique = false;
 
     while (!isUnique) {
-      code = "";
+      code = '';
       for (let i = 0; i < 6; i++) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
       }
@@ -1238,17 +1238,17 @@ router.post("/me/invite-code", authenticateSession, async (req, res) => {
 
     await Patient.updateOne(
       { _id: patient._id },
-      { $set: { invite_code: code, invite_code_expires_at: expiresAt } },
+      { $set: { invite_code: code, invite_code_expires_at: expiresAt } }
     );
 
-    logger.info("Companion invite code generated", { patientId: patient._id });
+    logger.info('Companion invite code generated', { patientId: patient._id });
     res.json({ success: true, invite_code: code, expires_at: expiresAt });
   } catch (error) {
-    logger.error("Generate invite code error", {
+    logger.error('Generate invite code error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to generate invite code" });
+    res.status(500).json({ error: 'Failed to generate invite code' });
   }
 });
 
@@ -1257,9 +1257,9 @@ router.post("/me/invite-code", authenticateSession, async (req, res) => {
  * Revokes a companion's access to this patient's data.
  */
 router.delete(
-  "/me/companions/:id",
+  '/me/companions/:id',
   authenticateSession,
-  validateObjectId("id"),
+  validateObjectId('id'),
   async (req, res) => {
     try {
       const patient = await getOrCreatePatient(req);
@@ -1270,49 +1270,49 @@ router.delete(
         { companion_id: companionId, patient_id: patient._id },
         {
           is_active: false,
-          status: "revoked",
+          status: 'revoked',
           revoked_at: new Date(),
           revoked_by: req.profile._id,
-        },
+        }
       );
 
       // FUTURE: In a robust setup, you might want to force-logout the companion here
       // by invalidating their RefreshTokens in the DB.
 
-      logger.info("Companion access revoked", {
+      logger.info('Companion access revoked', {
         patientId: patient._id,
         companionId,
       });
       res.json({
         success: true,
-        message: "Companion access revoked successfully.",
+        message: 'Companion access revoked successfully.',
       });
     } catch (error) {
-      logger.error("Revoke companion error", {
+      logger.error('Revoke companion error', {
         error: error.message,
         patientId: req.user?.id,
       });
-      res.status(500).json({ error: "Failed to revoke companion access" });
+      res.status(500).json({ error: 'Failed to revoke companion access' });
     }
-  },
+  }
 );
 
 // ─── Trusted Contacts ─────────────────────────────────────────────────────────
 
-router.get("/me/trusted-contacts", authenticateSession, async (req, res) => {
+router.get('/me/trusted-contacts', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     res.json({ trusted_contacts: patient.trusted_contacts || [] });
   } catch (error) {
-    logger.error("Get trusted contacts error", {
+    logger.error('Get trusted contacts error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get trusted contacts" });
+    res.status(500).json({ error: 'Failed to get trusted contacts' });
   }
 });
 
-router.post("/me/trusted-contacts", authenticateSession, async (req, res) => {
+router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
   try {
     const {
       name,
@@ -1325,9 +1325,9 @@ router.post("/me/trusted-contacts", authenticateSession, async (req, res) => {
       permissions,
     } = req.body;
     if (!name || name.trim().length < 2)
-      return res.status(400).json({ error: "Valid name is required" });
-    if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, "")))
-      return res.status(400).json({ error: "Valid phone number is required" });
+      return res.status(400).json({ error: 'Valid name is required' });
+    if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, '')))
+      return res.status(400).json({ error: 'Valid phone number is required' });
 
     const patient = await getOrCreatePatient(req);
     if (is_emergency) {
@@ -1349,39 +1349,39 @@ router.post("/me/trusted-contacts", authenticateSession, async (req, res) => {
 
     // Seam 4: Send warm caregiver invitation SMS (fire-and-forget)
     try {
-      const smsService = require("../../services/smsService");
-      const patientName = patient.name || "Someone";
-      const caregiverFirstName = name.split(" ")[0];
+      const smsService = require('../../services/smsService');
+      const patientName = patient.name || 'Someone';
+      const caregiverFirstName = name.split(' ')[0];
       const warmMessage = `Hi ${caregiverFirstName} — ${patientName} has added you to their trusted care circle on CareMyMed. They'd love for you to be quietly kept in the loop regarding their health. Tap here to connect: https://caremymed.app/invite`;
       smsService.sendMessage(phone, warmMessage).catch((e) =>
-        logger.warn("Caregiver invite SMS failed (non-critical)", {
+        logger.warn('Caregiver invite SMS failed (non-critical)', {
           error: e.message,
-        }),
+        })
       );
     } catch (smsErr) {
       // Non-critical — never block the response
-      logger.warn("Caregiver invite SMS setup failed", {
+      logger.warn('Caregiver invite SMS setup failed', {
         error: smsErr.message,
       });
     }
 
     res.status(201).json({
       trusted_contacts: patient.trusted_contacts,
-      message: "Trusted contact added successfully",
+      message: 'Trusted contact added successfully',
     });
   } catch (error) {
-    logger.error("Add trusted contact error", {
+    logger.error('Add trusted contact error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to add trusted contact" });
+    res.status(500).json({ error: 'Failed to add trusted contact' });
   }
 });
 
 router.put(
-  "/me/trusted-contacts/:id",
+  '/me/trusted-contacts/:id',
   authenticateSession,
-  validateObjectId("id"),
+  validateObjectId('id'),
   async (req, res) => {
     try {
       const {
@@ -1395,84 +1395,84 @@ router.put(
         permissions,
       } = req.body;
       if (!name || name.trim().length < 2)
-        return res.status(400).json({ error: "Valid name is required" });
-      if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, "")))
+        return res.status(400).json({ error: 'Valid name is required' });
+      if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, '')))
         return res
           .status(400)
-          .json({ error: "Valid phone number is required" });
+          .json({ error: 'Valid phone number is required' });
 
       const patient = await getOrCreatePatient(req);
       if (is_emergency) {
         await Patient.updateOne(
           {
             _id: patient._id,
-            "trusted_contacts.is_emergency": true,
-            "trusted_contacts._id": { $ne: req.params.id },
+            'trusted_contacts.is_emergency': true,
+            'trusted_contacts._id': { $ne: req.params.id },
           },
-          { $set: { "trusted_contacts.$.is_emergency": false } },
+          { $set: { 'trusted_contacts.$.is_emergency': false } }
         );
       }
 
       const updates = {};
-      if (name !== undefined) updates["trusted_contacts.$.name"] = name;
-      if (phone !== undefined) updates["trusted_contacts.$.phone"] = phone;
+      if (name !== undefined) updates['trusted_contacts.$.name'] = name;
+      if (phone !== undefined) updates['trusted_contacts.$.phone'] = phone;
       if (relation !== undefined)
-        updates["trusted_contacts.$.relation"] = relation;
-      if (email !== undefined) updates["trusted_contacts.$.email"] = email;
+        updates['trusted_contacts.$.relation'] = relation;
+      if (email !== undefined) updates['trusted_contacts.$.email'] = email;
       if (is_primary !== undefined)
-        updates["trusted_contacts.$.is_primary"] = is_primary;
+        updates['trusted_contacts.$.is_primary'] = is_primary;
       if (is_emergency !== undefined)
-        updates["trusted_contacts.$.is_emergency"] = is_emergency;
+        updates['trusted_contacts.$.is_emergency'] = is_emergency;
       if (can_view_data !== undefined)
-        updates["trusted_contacts.$.can_view_data"] = can_view_data;
+        updates['trusted_contacts.$.can_view_data'] = can_view_data;
       if (permissions !== undefined)
-        updates["trusted_contacts.$.permissions"] = permissions;
+        updates['trusted_contacts.$.permissions'] = permissions;
 
       const result = await Patient.updateOne(
-        { _id: patient._id, "trusted_contacts._id": req.params.id },
-        { $set: updates },
+        { _id: patient._id, 'trusted_contacts._id': req.params.id },
+        { $set: updates }
       );
       if (result.matchedCount === 0)
-        return res.status(404).json({ error: "Contact not found" });
+        return res.status(404).json({ error: 'Contact not found' });
 
       req.patient = await Patient.findById(patient._id);
-      logger.info("Trusted contact updated", {
+      logger.info('Trusted contact updated', {
         patientId: patient._id,
         contactId: req.params.id,
       });
       res.json({
         trusted_contacts: req.patient.trusted_contacts,
-        message: "Contact updated successfully",
+        message: 'Contact updated successfully',
       });
     } catch (error) {
-      logger.error("Update trusted contact error", {
+      logger.error('Update trusted contact error', {
         error: error.message,
         contactId: req.params.id,
       });
-      res.status(500).json({ error: "Failed to update contact" });
+      res.status(500).json({ error: 'Failed to update contact' });
     }
-  },
+  }
 );
 
 // ─── Caller & Calls ───────────────────────────────────────────────────────────
 
-router.get("/me/caller", authenticateSession, async (req, res) => {
+router.get('/me/caller', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     let caller = null;
 
     if (patient.assigned_caller_id) {
       caller = await Caller.findById(patient.assigned_caller_id).select(
-        "name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id",
+        'name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id'
       );
     }
 
     // Populate manager data if assigned
     let manager = null;
     if (patient.assigned_manager_id) {
-      const Profile = require("../../models/Profile");
+      const Profile = require('../../models/Profile');
       manager = await Profile.findById(patient.assigned_manager_id).select(
-        "fullName phone email profile_photo_url languages_spoken experience_years last_active_at",
+        'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
       );
     }
 
@@ -1481,15 +1481,15 @@ router.get("/me/caller", authenticateSession, async (req, res) => {
         patient_ids: patient._id,
         is_active: true,
       }).select(
-        "name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id",
+        'name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id'
       );
       if (caller) {
         await Patient.updateOne(
           { _id: patient._id },
-          { $set: { assigned_caller_id: caller._id } },
+          { $set: { assigned_caller_id: caller._id } }
         );
         req.patient = await Patient.findById(patient._id);
-        logger.info("Synced assigned_caller_id", {
+        logger.info('Synced assigned_caller_id', {
           patientId: patient._id,
           callerId: caller._id,
         });
@@ -1497,7 +1497,7 @@ router.get("/me/caller", authenticateSession, async (req, res) => {
     }
 
     const getDerivedAvailability = (c) => {
-      if (!c) return "offline";
+      if (!c) return 'offline';
       const now = new Date();
       const activeThreshold = 2 * 60 * 1000; // 2 minutes
       const awayThreshold = 10 * 60 * 1000; // 10 minutes
@@ -1505,21 +1505,21 @@ router.get("/me/caller", authenticateSession, async (req, res) => {
       const diff = now - (c.last_active_at || 0);
 
       if (c.current_call_id) {
-        return "busy";
+        return 'busy';
       }
       if (diff < activeThreshold) {
-        return "available";
+        return 'available';
       }
       if (diff < awayThreshold) {
-        return "recently_active";
+        return 'recently_active';
       }
-      return "offline";
+      return 'offline';
     };
 
     let mappedCaller = null;
     if (caller) {
       mappedCaller =
-        typeof caller.toJSON === "function" ? caller.toJSON() : { ...caller };
+        typeof caller.toJSON === 'function' ? caller.toJSON() : { ...caller };
       mappedCaller.availability = getDerivedAvailability(caller);
 
       const statsResult = await CallLog.aggregate([
@@ -1529,11 +1529,11 @@ router.get("/me/caller", authenticateSession, async (req, res) => {
             _id: null,
             totalCalls: { $sum: 1 },
             completedCalls: {
-              $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+              $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
             },
             totalDuration: {
               $sum: {
-                $cond: [{ $eq: ["$status", "completed"] }, "$duration", 0],
+                $cond: [{ $eq: ['$status', 'completed'] }, '$duration', 0],
               },
             },
           },
@@ -1565,7 +1565,7 @@ router.get("/me/caller", authenticateSession, async (req, res) => {
     let mappedManager = null;
     if (manager) {
       mappedManager =
-        typeof manager.toJSON === "function"
+        typeof manager.toJSON === 'function'
           ? manager.toJSON()
           : { ...manager };
       mappedManager.availability = getDerivedAvailability(manager);
@@ -1573,11 +1573,11 @@ router.get("/me/caller", authenticateSession, async (req, res) => {
 
     res.json({ caller: mappedCaller || null, manager: mappedManager || null });
   } catch (error) {
-    logger.error("Get assigned caller error", {
+    logger.error('Get assigned caller error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get assigned caller" });
+    res.status(500).json({ error: 'Failed to get assigned caller' });
   }
 });
 
@@ -1587,7 +1587,7 @@ router.get("/me/caller", authenticateSession, async (req, res) => {
  * FIX 4: parseInt(page) and parseInt(limit) on arbitrary query strings can return
  *   NaN, which Mongoose passes through and throws. Explicit defaults + bounds added.
  */
-router.get("/me/calls", authenticateSession, async (req, res) => {
+router.get('/me/calls', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
 
@@ -1601,7 +1601,7 @@ router.get("/me/calls", authenticateSession, async (req, res) => {
         .sort({ scheduledTime: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("caretakerId", "name profile_photo_url"),
+        .populate('caretakerId', 'name profile_photo_url'),
       CallLog.countDocuments({ patientId: patient._id }),
     ]);
 
@@ -1622,11 +1622,11 @@ router.get("/me/calls", authenticateSession, async (req, res) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
-    logger.error("Get patient calls error", {
+    logger.error('Get patient calls error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get call history" });
+    res.status(500).json({ error: 'Failed to get call history' });
   }
 });
 
@@ -1636,21 +1636,21 @@ router.get("/me/calls", authenticateSession, async (req, res) => {
  * GET /api/users/patients/me/agora-token
  * Dynamic Agora token builder with 503 production protection
  */
-router.get("/me/agora-token", authenticateSession, async (req, res) => {
+router.get('/me/agora-token', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     if (!patient) {
-      return res.status(404).json({ error: "Patient profile not found" });
+      return res.status(404).json({ error: 'Patient profile not found' });
     }
 
     // Verify paid subscription
     if (
-      patient.subscription_status !== "active" &&
-      patient.subscription_tier === "free"
+      patient.subscription_status !== 'active' &&
+      patient.subscription_tier === 'free'
     ) {
       return res.status(403).json({
         error:
-          "Voice calling is a premium feature. Please upgrade your subscription.",
+          'Voice calling is a premium feature. Please upgrade your subscription.',
       });
     }
 
@@ -1658,24 +1658,24 @@ router.get("/me/agora-token", authenticateSession, async (req, res) => {
     const appCertificate = process.env.AGORA_APP_CERTIFICATE;
 
     if (!appId || !appCertificate) {
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NODE_ENV === 'development') {
         logger.warn(
-          "[Agora] Missing credentials, returning mock credentials in development.",
+          '[Agora] Missing credentials, returning mock credentials in development.'
         );
-        return res.json({ token: "mock-token", uid: 0, appId: "mock-app-id" });
+        return res.json({ token: 'mock-token', uid: 0, appId: 'mock-app-id' });
       } else {
         logger.warn(
-          "[Agora] Credentials missing in production. Disabling calling.",
+          '[Agora] Credentials missing in production. Disabling calling.'
         );
         return res.status(503).json({
           voice_calling_enabled: false,
-          reason: "service_unavailable",
+          reason: 'service_unavailable',
         });
       }
     }
 
     // We use agora-token for generation
-    const { RtcTokenBuilder, RtcRole } = require("agora-token");
+    const { RtcTokenBuilder, RtcRole } = require('agora-token');
     const channelName = patient._id.toString();
     const uid = 0; // 0 means Agora assigns the UID
     const role = RtcRole.PUBLISHER;
@@ -1690,13 +1690,13 @@ router.get("/me/agora-token", authenticateSession, async (req, res) => {
       uid,
       role,
       expirationTimeInSeconds,
-      privilegeExpiredTs,
+      privilegeExpiredTs
     );
 
     res.json({ token, uid, appId, channelName });
   } catch (error) {
-    logger.error("[Agora] Token generation error:", error);
-    res.status(500).json({ error: "Failed to generate token" });
+    logger.error('[Agora] Token generation error:', error);
+    res.status(500).json({ error: 'Failed to generate token' });
   }
 });
 
@@ -1704,10 +1704,10 @@ router.get("/me/agora-token", authenticateSession, async (req, res) => {
  * POST /api/users/patients/me/calls/initiate
  * Initiate a stateful CallSession in ringing state
  */
-router.post("/me/calls/initiate", authenticateSession, async (req, res) => {
+router.post('/me/calls/initiate', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
-    if (!patient) return res.status(404).json({ error: "Patient not found" });
+    if (!patient) return res.status(404).json({ error: 'Patient not found' });
 
     // Ensure caregiver is assigned
     let caretakerId = patient.assigned_caller_id;
@@ -1718,13 +1718,13 @@ router.post("/me/calls/initiate", authenticateSession, async (req, res) => {
       });
       if (!assignedCaller) {
         return res.status(400).json({
-          error: "No coordinator is currently assigned to your account.",
+          error: 'No coordinator is currently assigned to your account.',
         });
       }
       caretakerId = assignedCaller._id;
     }
 
-    const CallSession = require("../../models/CallSession");
+    const CallSession = require('../../models/CallSession');
 
     // TTL expires in 15 minutes if unanswered
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
@@ -1732,7 +1732,7 @@ router.post("/me/calls/initiate", authenticateSession, async (req, res) => {
     const session = new CallSession({
       patientId: patient._id,
       caretakerId,
-      status: "ringing",
+      status: 'ringing',
       channelName: patient._id.toString(),
       expiresAt,
     });
@@ -1741,24 +1741,24 @@ router.post("/me/calls/initiate", authenticateSession, async (req, res) => {
     // Update Caller current call session
     await Caller.updateOne(
       { _id: caretakerId },
-      { $set: { current_call_id: session._id } },
+      { $set: { current_call_id: session._id } }
     );
 
     // Log initiation in AuditTrail
-    const AuditLog = require("../../models/AuditLog");
+    const AuditLog = require('../../models/AuditLog');
     await AuditLog.createLog({
       supabaseUid: req.user.id,
-      action: "call_initiated",
-      resourceType: "patient",
+      action: 'call_initiated',
+      resourceType: 'patient',
       resourceId: patient._id,
-      outcome: "success",
+      outcome: 'success',
       details: { sessionId: session._id, caretakerId },
     });
 
     res.status(201).json({ session });
   } catch (error) {
-    logger.error("Initiate call error:", error);
-    res.status(500).json({ error: "Failed to initiate call session" });
+    logger.error('Initiate call error:', error);
+    res.status(500).json({ error: 'Failed to initiate call session' });
   }
 });
 
@@ -1767,26 +1767,26 @@ router.post("/me/calls/initiate", authenticateSession, async (req, res) => {
  * Get the current real-time status of a call session
  */
 router.get(
-  "/me/calls/:sessionId/status",
+  '/me/calls/:sessionId/status',
   authenticateSession,
   async (req, res) => {
     try {
-      const CallSession = require("../../models/CallSession");
+      const CallSession = require('../../models/CallSession');
       const session = await CallSession.findById(req.params.sessionId);
       if (!session) {
         return res
           .status(404)
-          .json({ error: "Call session not found or expired" });
+          .json({ error: 'Call session not found or expired' });
       }
       res.json({
         status: session.status,
         durationSeconds: session.durationSeconds,
       });
     } catch (error) {
-      logger.error("Get call status error:", error);
-      res.status(500).json({ error: "Failed to get call status" });
+      logger.error('Get call status error:', error);
+      res.status(500).json({ error: 'Failed to get call status' });
     }
-  },
+  }
 );
 
 /**
@@ -1794,24 +1794,24 @@ router.get(
  * Simulate caretaker accepting the call (useful for dev testing / callbacks)
  */
 router.post(
-  "/me/calls/:sessionId/accept",
+  '/me/calls/:sessionId/accept',
   authenticateSession,
   async (req, res) => {
     try {
-      const CallSession = require("../../models/CallSession");
+      const CallSession = require('../../models/CallSession');
       const session = await CallSession.findById(req.params.sessionId);
-      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (!session) return res.status(404).json({ error: 'Session not found' });
 
-      session.status = "accepted";
+      session.status = 'accepted';
       session.startedAt = new Date();
       await session.save();
 
       res.json({ success: true, session });
     } catch (error) {
-      logger.error("Accept call error:", error);
-      res.status(500).json({ error: "Failed to accept call session" });
+      logger.error('Accept call error:', error);
+      res.status(500).json({ error: 'Failed to accept call session' });
     }
-  },
+  }
 );
 
 /**
@@ -1819,22 +1819,22 @@ router.post(
  * Simulate caretaker rejecting the call
  */
 router.post(
-  "/me/calls/:sessionId/reject",
+  '/me/calls/:sessionId/reject',
   authenticateSession,
   async (req, res) => {
     try {
-      const CallSession = require("../../models/CallSession");
+      const CallSession = require('../../models/CallSession');
       const session = await CallSession.findById(req.params.sessionId);
-      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (!session) return res.status(404).json({ error: 'Session not found' });
 
-      session.status = "rejected";
+      session.status = 'rejected';
       session.endedAt = new Date();
       await session.save();
 
       // Clear caller active call
       await Caller.updateOne(
         { _id: session.caretakerId },
-        { $unset: { current_call_id: "" } },
+        { $unset: { current_call_id: '' } }
       );
 
       // Save CallLog
@@ -1843,16 +1843,16 @@ router.post(
         caretakerId: session.caretakerId,
         scheduledTime: new Date(),
         duration: 0,
-        status: "rejected",
+        status: 'rejected',
       });
       await callLog.save();
 
       res.json({ success: true, session });
     } catch (error) {
-      logger.error("Reject call error:", error);
-      res.status(500).json({ error: "Failed to reject call session" });
+      logger.error('Reject call error:', error);
+      res.status(500).json({ error: 'Failed to reject call session' });
     }
-  },
+  }
 );
 
 /**
@@ -1860,16 +1860,16 @@ router.post(
  * End an active CallSession, compute duration, and save a persistent CallLog
  */
 router.post(
-  "/me/calls/:sessionId/end",
+  '/me/calls/:sessionId/end',
   authenticateSession,
   async (req, res) => {
     try {
-      const CallSession = require("../../models/CallSession");
+      const CallSession = require('../../models/CallSession');
       const session = await CallSession.findById(req.params.sessionId);
       if (!session)
-        return res.status(404).json({ error: "Call session not found" });
+        return res.status(404).json({ error: 'Call session not found' });
 
-      session.status = "completed";
+      session.status = 'completed';
       session.endedAt = new Date();
 
       const durationMs = session.endedAt - (session.startedAt || new Date());
@@ -1879,7 +1879,7 @@ router.post(
       // Clear caller current session
       await Caller.updateOne(
         { _id: session.caretakerId },
-        { $unset: { current_call_id: "" } },
+        { $unset: { current_call_id: '' } }
       );
 
       // Persist persistent historical CallLog
@@ -1888,17 +1888,17 @@ router.post(
         caretakerId: session.caretakerId,
         scheduledTime: session.startedAt || new Date(),
         duration: session.durationSeconds,
-        status: "completed",
-        outcome: "completed",
+        status: 'completed',
+        outcome: 'completed',
       });
       await callLog.save();
 
       res.json({ success: true, session, logId: callLog._id });
     } catch (error) {
-      logger.error("End call error:", error);
-      res.status(500).json({ error: "Failed to end call session" });
+      logger.error('End call error:', error);
+      res.status(500).json({ error: 'Failed to end call session' });
     }
-  },
+  }
 );
 
 /**
@@ -1906,22 +1906,22 @@ router.post(
  * Create a missed/callback request CallLog and trigger notification
  */
 router.post(
-  "/me/calls/:sessionId/callback-request",
+  '/me/calls/:sessionId/callback-request',
   authenticateSession,
   async (req, res) => {
     try {
-      const CallSession = require("../../models/CallSession");
+      const CallSession = require('../../models/CallSession');
       const session = await CallSession.findById(req.params.sessionId);
       if (!session)
-        return res.status(404).json({ error: "Call session not found" });
+        return res.status(404).json({ error: 'Call session not found' });
 
-      session.status = "missed";
+      session.status = 'missed';
       await session.save();
 
       // Clear active session
       await Caller.updateOne(
         { _id: session.caretakerId },
-        { $unset: { current_call_id: "" } },
+        { $unset: { current_call_id: '' } }
       );
 
       // Save historical CallLog with outcome callback_requested
@@ -1930,31 +1930,31 @@ router.post(
         caretakerId: session.caretakerId,
         scheduledTime: new Date(),
         duration: 0,
-        status: "callback_requested",
-        outcome: "callback_requested",
+        status: 'callback_requested',
+        outcome: 'callback_requested',
       });
       await callLog.save();
 
       // Log compliance audit trail
-      const AuditLog = require("../../models/AuditLog");
+      const AuditLog = require('../../models/AuditLog');
       await AuditLog.createLog({
         supabaseUid: req.user.id,
-        action: "callback_request_created",
-        resourceType: "call_log",
+        action: 'callback_request_created',
+        resourceType: 'call_log',
         resourceId: callLog._id,
-        outcome: "success",
+        outcome: 'success',
         details: { sessionId: session._id },
       });
 
       res.json({
         success: true,
-        message: "Callback request registered successfully.",
+        message: 'Callback request registered successfully.',
       });
     } catch (error) {
-      logger.error("Callback request error:", error);
-      res.status(500).json({ error: "Failed to register callback request" });
+      logger.error('Callback request error:', error);
+      res.status(500).json({ error: 'Failed to register callback request' });
     }
-  },
+  }
 );
 
 /**
@@ -1962,27 +1962,27 @@ router.post(
  * Missed Call Recovery: leave a prioritized secure message for the caretaker
  */
 router.post(
-  "/me/calls/:sessionId/secure-message",
+  '/me/calls/:sessionId/secure-message',
   authenticateSession,
   async (req, res) => {
     try {
       const { text, priority } = req.body; // priority: 'Routine' | 'Important' | 'Urgent'
       if (!text) {
-        return res.status(400).json({ error: "Message text is required" });
+        return res.status(400).json({ error: 'Message text is required' });
       }
 
-      const CallSession = require("../../models/CallSession");
+      const CallSession = require('../../models/CallSession');
       const session = await CallSession.findById(req.params.sessionId);
       if (!session)
-        return res.status(404).json({ error: "Call session not found" });
+        return res.status(404).json({ error: 'Call session not found' });
 
-      session.status = "missed";
+      session.status = 'missed';
       await session.save();
 
       // Clear active session
       await Caller.updateOne(
         { _id: session.caretakerId },
-        { $unset: { current_call_id: "" } },
+        { $unset: { current_call_id: '' } }
       );
 
       // Save CallLog
@@ -1991,43 +1991,43 @@ router.post(
         caretakerId: session.caretakerId,
         scheduledTime: new Date(),
         duration: 0,
-        status: "secure_message_left",
-        outcome: "secure_message_left",
-        notes: `[Priority: ${priority || "Routine"}] ${text}`,
+        status: 'secure_message_left',
+        outcome: 'secure_message_left',
+        notes: `[Priority: ${priority || 'Routine'}] ${text}`,
       });
       await callLog.save();
 
       // Create Caregiver Alert notification
-      const AlertModel = require("../../models/Alert");
+      const AlertModel = require('../../models/Alert');
       const alert = new AlertModel({
-        type: "missed_call",
+        type: 'missed_call',
         patient_id: session.patientId,
         caller_id: session.caretakerId,
         organization_id: session.patientId.organizationId,
-        description: `[Priority: ${priority || "Routine"}] Patient left secure callback message: "${text}"`,
+        description: `[Priority: ${priority || 'Routine'}] Patient left secure callback message: "${text}"`,
       });
       await alert.save();
 
       // Log compliance audit trail
-      const AuditLog = require("../../models/AuditLog");
+      const AuditLog = require('../../models/AuditLog');
       await AuditLog.createLog({
         supabaseUid: req.user.id,
-        action: "secure_message_sent",
-        resourceType: "call_log",
+        action: 'secure_message_sent',
+        resourceType: 'call_log',
         resourceId: callLog._id,
-        outcome: "success",
+        outcome: 'success',
         details: { sessionId: session._id, priority },
       });
 
       res.json({
         success: true,
-        message: "Secure callback message saved successfully.",
+        message: 'Secure callback message saved successfully.',
       });
     } catch (error) {
-      logger.error("Secure message fallback error:", error);
-      res.status(500).json({ error: "Failed to save secure message" });
+      logger.error('Secure message fallback error:', error);
+      res.status(500).json({ error: 'Failed to save secure message' });
     }
-  },
+  }
 );
 
 /**
@@ -2035,15 +2035,15 @@ router.post(
  * Submit star rating and notes for the call
  */
 router.post(
-  "/me/calls/:sessionId/feedback",
+  '/me/calls/:sessionId/feedback',
   authenticateSession,
   async (req, res) => {
     try {
       const { rating, notes } = req.body;
-      const CallSession = require("../../models/CallSession");
+      const CallSession = require('../../models/CallSession');
       const session = await CallSession.findById(req.params.sessionId);
       if (!session)
-        return res.status(404).json({ error: "Call session not found" });
+        return res.status(404).json({ error: 'Call session not found' });
 
       // Find the matched CallLog of the ended session
       const matchingLog = await CallLog.findOne({
@@ -2062,33 +2062,33 @@ router.post(
         await matchingLog.save();
       }
 
-      res.json({ success: true, message: "Feedback logged successfully." });
+      res.json({ success: true, message: 'Feedback logged successfully.' });
     } catch (error) {
-      logger.error("Submit feedback error:", error);
-      res.status(500).json({ error: "Failed to log feedback" });
+      logger.error('Submit feedback error:', error);
+      res.status(500).json({ error: 'Failed to log feedback' });
     }
-  },
+  }
 );
 
 // ─── Medications ──────────────────────────────────────────────────────────────
 
-router.get("/me/medications", authenticateSession, async (req, res) => {
+router.get('/me/medications', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const activeMeds = (patient.medications || []).filter(
-      (m) => m.is_active !== false,
+      (m) => m.is_active !== false
     );
     res.json({ medications: activeMeds });
   } catch (error) {
-    logger.error("Get medications error", {
+    logger.error('Get medications error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get medications" });
+    res.status(500).json({ error: 'Failed to get medications' });
   }
 });
 
-router.put("/me/medications", authenticateSession, async (req, res) => {
+router.put('/me/medications', authenticateSession, async (req, res) => {
   try {
     const {
       _id,
@@ -2107,34 +2107,34 @@ router.put("/me/medications", authenticateSession, async (req, res) => {
     let scheduledTimes = [];
     if (times && times.length > 0) {
       const prefs = patient.medication_call_preferences || {
-        morning: "09:00",
-        afternoon: "14:00",
-        evening: "17:00",
-        night: "20:00",
+        morning: '09:00',
+        afternoon: '14:00',
+        evening: '17:00',
+        night: '20:00',
       };
-      if (times.includes("morning")) scheduledTimes.push(prefs.morning);
-      if (times.includes("afternoon")) scheduledTimes.push(prefs.afternoon);
-      if (times.includes("evening")) scheduledTimes.push(prefs.evening);
-      if (times.includes("night")) scheduledTimes.push(prefs.night);
+      if (times.includes('morning')) scheduledTimes.push(prefs.morning);
+      if (times.includes('afternoon')) scheduledTimes.push(prefs.afternoon);
+      if (times.includes('evening')) scheduledTimes.push(prefs.evening);
+      if (times.includes('night')) scheduledTimes.push(prefs.night);
       scheduledTimes = [...new Set(scheduledTimes)].sort();
     }
 
     if (_id) {
       const updates = {
-        "medications.$.name": name,
-        "medications.$.dosage": dosage,
-        "medications.$.frequency": frequency,
-        "medications.$.times": times,
-        "medications.$.scheduledTimes": scheduledTimes,
-        "medications.$.start_date": start_date,
-        "medications.$.end_date": end_date,
-        "medications.$.is_active": is_active,
-        "medications.$.instructions": instructions,
-        "medications.$.prescribed_by": prescribed_by,
+        'medications.$.name': name,
+        'medications.$.dosage': dosage,
+        'medications.$.frequency': frequency,
+        'medications.$.times': times,
+        'medications.$.scheduledTimes': scheduledTimes,
+        'medications.$.start_date': start_date,
+        'medications.$.end_date': end_date,
+        'medications.$.is_active': is_active,
+        'medications.$.instructions': instructions,
+        'medications.$.prescribed_by': prescribed_by,
       };
       await Patient.updateOne(
-        { _id: patient._id, "medications._id": _id },
-        { $set: updates },
+        { _id: patient._id, 'medications._id': _id },
+        { $set: updates }
       );
     } else {
       await Patient.updateOne(
@@ -2154,45 +2154,45 @@ router.put("/me/medications", authenticateSession, async (req, res) => {
               prescribed_by,
             },
           },
-        },
+        }
       );
     }
 
     req.patient = await Patient.findById(patient._id);
-    logger.info("Medications updated", { patientId: patient._id });
+    logger.info('Medications updated', { patientId: patient._id });
     // Refresh health score cache in background
     refreshHealthScoreCache(patient._id).catch(() => {});
     const activeMeds = (req.patient.medications || []).filter(
-      (m) => m.is_active !== false,
+      (m) => m.is_active !== false
     );
     res.json({ medications: activeMeds });
   } catch (error) {
-    logger.error("Update medications error", {
+    logger.error('Update medications error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to update medications" });
+    res.status(500).json({ error: 'Failed to update medications' });
   }
 });
 
-router.put("/me/call-preferences", authenticateSession, async (req, res) => {
+router.put('/me/call-preferences', authenticateSession, async (req, res) => {
   try {
     const { morning, afternoon, evening, night } = req.body;
     const patient = await getOrCreatePatient(req);
 
     const newPrefs = {
       morning:
-        morning || patient.medication_call_preferences?.morning || "09:00",
+        morning || patient.medication_call_preferences?.morning || '09:00',
       afternoon:
-        afternoon || patient.medication_call_preferences?.afternoon || "14:00",
+        afternoon || patient.medication_call_preferences?.afternoon || '14:00',
       evening:
-        evening || patient.medication_call_preferences?.evening || "17:00",
-      night: night || patient.medication_call_preferences?.night || "20:00",
+        evening || patient.medication_call_preferences?.evening || '17:00',
+      night: night || patient.medication_call_preferences?.night || '20:00',
     };
 
     await Patient.updateOne(
       { _id: patient._id },
-      { $set: { medication_call_preferences: newPrefs } },
+      { $set: { medication_call_preferences: newPrefs } }
     );
 
     const freshPatient = await Patient.findById(patient._id);
@@ -2201,20 +2201,20 @@ router.put("/me/call-preferences", authenticateSession, async (req, res) => {
         const newScheduledTimes = [];
         const prefs = freshPatient.medication_call_preferences;
         if (med.times?.length > 0) {
-          if (med.times.includes("morning"))
+          if (med.times.includes('morning'))
             newScheduledTimes.push(prefs.morning);
-          if (med.times.includes("afternoon"))
+          if (med.times.includes('afternoon'))
             newScheduledTimes.push(prefs.afternoon);
-          if (med.times.includes("evening"))
+          if (med.times.includes('evening'))
             newScheduledTimes.push(prefs.evening);
-          if (med.times.includes("night")) newScheduledTimes.push(prefs.night);
+          if (med.times.includes('night')) newScheduledTimes.push(prefs.night);
         }
         return {
           updateOne: {
-            filter: { _id: freshPatient._id, "medications._id": med._id },
+            filter: { _id: freshPatient._id, 'medications._id': med._id },
             update: {
               $set: {
-                "medications.$.scheduledTimes": [
+                'medications.$.scheduledTimes': [
                   ...new Set(newScheduledTimes),
                 ].sort(),
               },
@@ -2226,23 +2226,23 @@ router.put("/me/call-preferences", authenticateSession, async (req, res) => {
     }
 
     req.patient = await Patient.findById(patient._id);
-    logger.info("Call preferences updated", { patientId: patient._id });
+    logger.info('Call preferences updated', { patientId: patient._id });
     res.json({
       preferences: req.patient.medication_call_preferences,
-      message: "Preferences updated successfully",
+      message: 'Preferences updated successfully',
     });
   } catch (error) {
-    logger.error("Update call preferences error", {
+    logger.error('Update call preferences error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to update preferences" });
+    res.status(500).json({ error: 'Failed to update preferences' });
   }
 });
 
 // ─── Misc ─────────────────────────────────────────────────────────────────────
 
-router.get("/me/notifications", authenticateSession, async (req, res) => {
+router.get('/me/notifications', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const notifications = await Notification.find({
@@ -2250,40 +2250,40 @@ router.get("/me/notifications", authenticateSession, async (req, res) => {
     }).sort({ created_at: -1 });
     res.json({ notifications });
   } catch (error) {
-    logger.error("Get notifications error", {
+    logger.error('Get notifications error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get notifications" });
+    res.status(500).json({ error: 'Failed to get notifications' });
   }
 });
 
 router.put(
-  "/me/notifications/:id/read",
+  '/me/notifications/:id/read',
   authenticateSession,
-  validateObjectId("id"),
+  validateObjectId('id'),
   async (req, res) => {
     try {
       const patient = await getOrCreatePatient(req);
       const notification = await Notification.findOneAndUpdate(
         { _id: req.params.id, patient_id: patient._id },
         { $set: { is_read: true } },
-        { new: true },
+        { new: true }
       );
       if (!notification)
-        return res.status(404).json({ error: "Notification not found" });
+        return res.status(404).json({ error: 'Notification not found' });
       res.json({ success: true, notification });
     } catch (error) {
-      logger.error("Read notification error", {
+      logger.error('Read notification error', {
         error: error.message,
         notificationId: req.params.id,
       });
-      res.status(500).json({ error: "Failed to mark notification as read" });
+      res.status(500).json({ error: 'Failed to mark notification as read' });
     }
-  },
+  }
 );
 
-router.get("/me/ai-prediction", authenticateSession, async (req, res) => {
+router.get('/me/ai-prediction', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const prediction = await AIVitalPrediction.findOne({
@@ -2291,21 +2291,21 @@ router.get("/me/ai-prediction", authenticateSession, async (req, res) => {
     });
     res.json({ prediction: prediction || null });
   } catch (error) {
-    logger.error("Get AI Prediction error", {
+    logger.error('Get AI Prediction error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to fetch AI Prediction" });
+    res.status(500).json({ error: 'Failed to fetch AI Prediction' });
   }
 });
 
-router.post("/me/flag-issue", authenticateSession, async (req, res) => {
+router.post('/me/flag-issue', authenticateSession, async (req, res) => {
   try {
     const { type, description, file_url, extracted_medicines } = req.body;
     const patient = await getOrCreatePatient(req);
-    const Alert = require("../../models/Alert");
+    const Alert = require('../../models/Alert');
     const alert = new Alert({
-      type: type || "missed_call",
+      type: type || 'missed_call',
       patient_id: patient._id,
       caller_id: patient.assigned_caller_id,
       manager_id: patient.assigned_manager_id,
@@ -2316,19 +2316,19 @@ router.post("/me/flag-issue", authenticateSession, async (req, res) => {
       extracted_medicines: extracted_medicines,
     });
     await alert.save();
-    res.status(201).json({ message: "Issue flagged successfully", alert });
+    res.status(201).json({ message: 'Issue flagged successfully', alert });
   } catch (error) {
-    logger.error("Flag issue error", {
+    logger.error('Flag issue error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to flag issue" });
+    res.status(500).json({ error: 'Failed to flag issue' });
   }
 });
 
 // ─── Vitals ───────────────────────────────────────────────────────────────────
 
-router.post("/me/vitals", authenticateSession, async (req, res) => {
+router.post('/me/vitals', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const {
@@ -2350,11 +2350,11 @@ router.post("/me/vitals", authenticateSession, async (req, res) => {
         date: queryDate,
       });
       if (existing) {
-        logger.info("Duplicate vitals log ignored (idempotent check)", {
+        logger.info('Duplicate vitals log ignored (idempotent check)', {
           patientId: patient._id,
         });
         return res.status(200).json({
-          message: "Vitals logged successfully (duplicate ignored)",
+          message: 'Vitals logged successfully (duplicate ignored)',
           vitals: existing,
         });
       }
@@ -2369,26 +2369,26 @@ router.post("/me/vitals", authenticateSession, async (req, res) => {
       hydration,
       temperature,
       notes,
-      source: source || "manual",
+      source: source || 'manual',
     });
     await vitalLog.save();
-    logger.info("Vitals logged", {
+    logger.info('Vitals logged', {
       patientId: patient._id,
       source: vitalLog.source,
     });
 
     // Trigger health state recomputation
     refreshHealthScoreCache(patient._id).catch((e) =>
-      logger.warn("Vitals trigger recompute state failed", {
+      logger.warn('Vitals trigger recompute state failed', {
         error: e.message,
-      }),
+      })
     );
 
     res
       .status(201)
-      .json({ message: "Vitals logged successfully", vitals: vitalLog });
+      .json({ message: 'Vitals logged successfully', vitals: vitalLog });
   } catch (error) {
-    logger.error("Log vitals error", {
+    logger.error('Log vitals error', {
       error: error.message,
       patientId: req.user?.id,
     });
@@ -2405,26 +2405,26 @@ router.post("/me/vitals", authenticateSession, async (req, res) => {
           });
           if (existing) {
             logger.info(
-              "Duplicate vitals log caught via unique index constraint (idempotent fallback)",
-              { patientId: patient._id },
+              'Duplicate vitals log caught via unique index constraint (idempotent fallback)',
+              { patientId: patient._id }
             );
             return res.status(200).json({
-              message: "Vitals logged successfully (duplicate ignored)",
+              message: 'Vitals logged successfully (duplicate ignored)',
               vitals: existing,
             });
           }
         }
       } catch (findError) {
         logger.error(
-          "Error fetching existing vitals log after duplicate key catch",
-          { error: findError.message },
+          'Error fetching existing vitals log after duplicate key catch',
+          { error: findError.message }
         );
       }
     }
 
-    if (error.name === "ValidationError")
+    if (error.name === 'ValidationError')
       return res.status(400).json({ error: error.message });
-    res.status(500).json({ error: "Failed to log vitals" });
+    res.status(500).json({ error: 'Failed to log vitals' });
   }
 });
 
@@ -2437,10 +2437,10 @@ router.post("/me/vitals", authenticateSession, async (req, res) => {
  *   Now derives boundaries from the patient's timezone via moment-timezone,
  *   consistent with how medicines.js handles date ranges.
  */
-router.get("/me/vitals", authenticateSession, async (req, res) => {
+router.get('/me/vitals', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const { start_date, end_date } = req.query;
     const query = { patient_id: patient._id };
 
@@ -2449,15 +2449,15 @@ router.get("/me/vitals", authenticateSession, async (req, res) => {
       if (start_date) {
         // Treat the date string as a date in the patient's timezone
         const sd = moment
-          .tz(start_date, "YYYY-MM-DD", timezone)
-          .startOf("day")
+          .tz(start_date, 'YYYY-MM-DD', timezone)
+          .startOf('day')
           .toDate();
         query.date.$gte = sd;
       }
       if (end_date) {
         const ed = moment
-          .tz(end_date, "YYYY-MM-DD", timezone)
-          .endOf("day")
+          .tz(end_date, 'YYYY-MM-DD', timezone)
+          .endOf('day')
           .toDate();
         query.date.$lte = ed;
       }
@@ -2465,110 +2465,110 @@ router.get("/me/vitals", authenticateSession, async (req, res) => {
       // Default: last 30 days from the patient's local "today"
       const thirtyDaysAgoStr = moment()
         .tz(timezone)
-        .subtract(30, "days")
-        .format("YYYY-MM-DD");
+        .subtract(30, 'days')
+        .format('YYYY-MM-DD');
       query.date = { $gte: new Date(`${thirtyDaysAgoStr}T00:00:00.000Z`) };
     }
 
     const vitals = await VitalLog.find(query).sort({ date: 1 });
     res.json({ vitals });
   } catch (error) {
-    logger.error("Get vitals error", {
+    logger.error('Get vitals error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to fetch vitals history" });
+    res.status(500).json({ error: 'Failed to fetch vitals history' });
   }
 });
 
 // ─── Security & Privacy ───────────────────────────────────────────────────────
 
 router.post(
-  "/me/security/screenshots/request-otp",
+  '/me/security/screenshots/request-otp',
   authenticateSession,
   async (req, res) => {
     try {
       const patient = await getOrCreatePatient(req);
-      const otpService = require("../../services/otpService");
-      const emailService = require("../../services/emailService");
+      const otpService = require('../../services/otpService');
+      const emailService = require('../../services/emailService');
       const otp = await otpService.createOTP(patient.email);
       await emailService.sendSecurityOTPEmail(patient.email, otp);
-      res.json({ message: "OTP sent successfully to your registered email" });
+      res.json({ message: 'OTP sent successfully to your registered email' });
     } catch (err) {
-      logger.error("Request screenshot OTP error", {
+      logger.error('Request screenshot OTP error', {
         error: err.message,
         patientId: req.user?.id,
       });
-      res.status(500).json({ error: "Server Error" });
+      res.status(500).json({ error: 'Server Error' });
     }
-  },
+  }
 );
 
 router.post(
-  "/me/security/screenshots/verify",
+  '/me/security/screenshots/verify',
   authenticateSession,
   async (req, res) => {
     try {
       const { otp, allow } = req.body;
-      if (!otp || typeof allow !== "boolean") {
+      if (!otp || typeof allow !== 'boolean') {
         return res
           .status(400)
           .json({ error: 'OTP and boolean "allow" parameter are required' });
       }
       const patient = await getOrCreatePatient(req);
-      const otpService = require("../../services/otpService");
+      const otpService = require('../../services/otpService');
       const verification = await otpService.verifyOTP(patient.email, otp);
       if (!verification.valid)
         return res.status(400).json({ error: verification.reason });
       patient.allow_screenshots = allow;
       await patient.save();
       res.json({
-        message: allow ? "Screenshots enabled" : "Screenshots disabled",
+        message: allow ? 'Screenshots enabled' : 'Screenshots disabled',
         allow_screenshots: patient.allow_screenshots,
         patient,
       });
     } catch (err) {
-      logger.error("Verify screenshot OTP error", {
+      logger.error('Verify screenshot OTP error', {
         error: err.message,
         patientId: req.user?.id,
       });
-      res.status(500).json({ error: "Server Error" });
+      res.status(500).json({ error: 'Server Error' });
     }
-  },
+  }
 );
 
 // ─── Emergency Contact OTP ────────────────────────────────────────────────────
 
 router.post(
-  "/me/security/emergency-contact/request-otp",
+  '/me/security/emergency-contact/request-otp',
   authenticateSession,
   async (req, res) => {
     try {
       const patient = await getOrCreatePatient(req);
-      const otpService = require("../../services/otpService");
-      const emailService = require("../../services/emailService");
+      const otpService = require('../../services/otpService');
+      const emailService = require('../../services/emailService');
       const otp = await otpService.createOTP(patient.email);
       await emailService.sendSecurityOTPEmail(patient.email, otp);
-      res.json({ message: "OTP sent successfully to your registered email" });
+      res.json({ message: 'OTP sent successfully to your registered email' });
     } catch (err) {
-      logger.error("Request EC OTP error", {
+      logger.error('Request EC OTP error', {
         error: err.message,
         patientId: req.user?.id,
       });
-      res.status(500).json({ error: "Server Error" });
+      res.status(500).json({ error: 'Server Error' });
     }
-  },
+  }
 );
 
 router.post(
-  "/me/security/emergency-contact/verify",
+  '/me/security/emergency-contact/verify',
   authenticateSession,
   async (req, res) => {
     try {
       const { otp, name, phone, relation } = req.body;
-      if (!otp) return res.status(400).json({ error: "OTP is required" });
+      if (!otp) return res.status(400).json({ error: 'OTP is required' });
       const patient = await getOrCreatePatient(req);
-      const otpService = require("../../services/otpService");
+      const otpService = require('../../services/otpService');
       const verification = await otpService.verifyOTP(patient.email, otp);
       if (!verification.valid)
         return res.status(400).json({ error: verification.reason });
@@ -2576,26 +2576,26 @@ router.post(
       if (!name && !phone) {
         await Patient.updateOne(
           { _id: patient._id },
-          { $pull: { trusted_contacts: { is_emergency: true } } },
+          { $pull: { trusted_contacts: { is_emergency: true } } }
         );
       } else {
         const existingEmergencyContact = patient.trusted_contacts.find(
-          (c) => c.is_emergency,
+          (c) => c.is_emergency
         );
         if (existingEmergencyContact) {
           await Patient.updateOne(
             {
               _id: patient._id,
-              "trusted_contacts._id": existingEmergencyContact._id,
+              'trusted_contacts._id': existingEmergencyContact._id,
             },
             {
               $set: {
-                "trusted_contacts.$.name": name,
-                "trusted_contacts.$.phone": phone,
-                "trusted_contacts.$.relation": relation,
-                "trusted_contacts.$.is_emergency": true,
+                'trusted_contacts.$.name': name,
+                'trusted_contacts.$.phone': phone,
+                'trusted_contacts.$.relation': relation,
+                'trusted_contacts.$.is_emergency': true,
               },
-            },
+            }
           );
         } else {
           await Patient.updateOne(
@@ -2610,27 +2610,27 @@ router.post(
                   is_primary: true,
                 },
               },
-            },
+            }
           );
         }
       }
 
       const updated = await Patient.findById(patient._id);
-      logger.info("Emergency contact updated via OTP", {
+      logger.info('Emergency contact updated via OTP', {
         patientId: patient._id,
       });
       res.json({
         patient: updated,
-        message: "Emergency contact updated successfully",
+        message: 'Emergency contact updated successfully',
       });
     } catch (err) {
-      logger.error("Verify EC OTP error", {
+      logger.error('Verify EC OTP error', {
         error: err.message,
         patientId: req.user?.id,
       });
-      res.status(500).json({ error: "Server Error" });
+      res.status(500).json({ error: 'Server Error' });
     }
-  },
+  }
 );
 
 // ─── Aggregate Dashboard ──────────────────────────────────────────────────────
@@ -2645,21 +2645,21 @@ router.post(
  * All DB queries run in parallel within the same server process — no HTTP
  * overhead, shared connection pool, single auth check.
  */
-router.get("/me/dashboard", authenticateSession, async (req, res) => {
+router.get('/me/dashboard', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const patientObj = patient.toObject();
     const withHash = await Patient.findById(patient._id)
-      .select("+passwordHash")
+      .select('+passwordHash')
       .lean();
     patientObj.hasPassword = !!withHash?.passwordHash;
 
-    const timezone = patient.timezone || "Asia/Kolkata";
-    const todayStr = moment().tz(timezone).format("YYYY-MM-DD");
+    const timezone = patient.timezone || 'Asia/Kolkata';
+    const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
     const todayUtc = new Date(`${todayStr}T00:00:00.000Z`);
     const todayEndUtc = new Date(`${todayStr}T23:59:59.999Z`);
     const sevenDaysAgo = new Date(
-      `${moment().tz(timezone).subtract(7, "days").format("YYYY-MM-DD")}T00:00:00.000Z`,
+      `${moment().tz(timezone).subtract(7, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`
     );
 
     // ── Fire all queries in parallel ────────────────────────────────────
@@ -2688,7 +2688,7 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
 
       // 3. Today's medication log (re-uses existing /today logic inline)
       (async () => {
-        const { buildMergedMeds } = require("./medicines");
+        const { buildMergedMeds } = require('./medicines');
         let log = await MedicineLog.findOne({
           patient_id: patient._id,
           date: todayUtc,
@@ -2723,7 +2723,7 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
             .map((m) => m.name);
           const originalCount = log.medicines.length;
           log.medicines = log.medicines.filter((m) =>
-            activeMedNames.includes(m.medicine_name),
+            activeMedNames.includes(m.medicine_name)
           );
           if (log.medicines.length !== originalCount) isModified = true;
           for (const med of allMedsRaw) {
@@ -2731,7 +2731,7 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
               for (const time of med.times) {
                 const exists = log.medicines.some(
                   (m) =>
-                    m.medicine_name === med.name && m.scheduled_time === time,
+                    m.medicine_name === med.name && m.scheduled_time === time
                 );
                 if (!exists) {
                   log.medicines.push({
@@ -2749,10 +2749,10 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
 
         const logObj = log ? log.toObject() : { medicines: [], date: todayUtc };
         const preferences = patient.medication_call_preferences || {
-          morning: "09:00",
-          afternoon: "14:00",
-          evening: "17:00",
-          night: "20:00",
+          morning: '09:00',
+          afternoon: '14:00',
+          evening: '17:00',
+          night: '20:00',
         };
         if (logObj.medicines) {
           logObj.medicines = logObj.medicines
@@ -2761,9 +2761,9 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
               const patMed = allMedsRaw.find((p) => p.name === m.medicine_name);
               return {
                 ...m,
-                dosage: patMed?.dosage || "",
-                instructions: patMed?.instructions || "",
-                preferred_time: preferences[m.scheduled_time] || "",
+                dosage: patMed?.dosage || '',
+                instructions: patMed?.instructions || '',
+                preferred_time: preferences[m.scheduled_time] || '',
                 refillInfo: patMed?.refillInfo || null,
               };
             });
@@ -2781,7 +2781,7 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
         patient_id: patient._id,
         date: {
           $gte: new Date(
-            `${moment().tz(timezone).subtract(30, "days").format("YYYY-MM-DD")}T00:00:00.000Z`,
+            `${moment().tz(timezone).subtract(30, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`
           ),
         },
       })
@@ -2802,7 +2802,7 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
       const dateStr = log.date.toISOString().slice(0, 10);
 
       // Only count last 7 days for weekly rate
-      if (moment(dateStr).isSameOrAfter(moment(todayStr).subtract(6, "days"))) {
+      if (moment(dateStr).isSameOrAfter(moment(todayStr).subtract(6, 'days'))) {
         weeklyTaken += taken;
         weeklyTotal += total;
       }
@@ -2816,11 +2816,11 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
     }
 
     // Use the same streak function as the Medications screen
-    const { computeCurrentStreak } = require("./medicines");
+    const { computeCurrentStreak } = require('./medicines');
     const historyStartStr = moment()
       .tz(timezone)
-      .subtract(30, "days")
-      .format("YYYY-MM-DD");
+      .subtract(30, 'days')
+      .format('YYYY-MM-DD');
     const streak = computeCurrentStreak(dailyLog, todayStr, historyStartStr);
 
     const adherence = {
@@ -2841,7 +2841,7 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
     const {
       getCachedHealthState,
       getHealthHistory,
-    } = require("../../services/patientHealthStateService");
+    } = require('../../services/patientHealthStateService');
     const healthState = await getCachedHealthState(patient);
     const healthHistory = await getHealthHistory(patient._id, timezone).catch(
       () => ({
@@ -2851,7 +2851,7 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
           score_delta_30d: 0,
           adherence_delta_30d: 0,
         },
-      }),
+      })
     );
 
     res.json({
@@ -2865,44 +2865,44 @@ router.get("/me/dashboard", authenticateSession, async (req, res) => {
       healthHistory,
     });
   } catch (error) {
-    logger.error("Dashboard aggregate error", {
+    logger.error('Dashboard aggregate error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to load dashboard" });
+    res.status(500).json({ error: 'Failed to load dashboard' });
   }
 });
 
 // ─── Log Daily Mood ─────────────────────────────────────────────────────────
-router.post("/me/mood", authenticateSession, async (req, res) => {
+router.post('/me/mood', authenticateSession, async (req, res) => {
   try {
     const { value } = req.body;
-    if (!["sad", "okay", "good", "great"].includes(value)) {
-      return res.status(400).json({ error: "Invalid mood value" });
+    if (!['sad', 'okay', 'good', 'great'].includes(value)) {
+      return res.status(400).json({ error: 'Invalid mood value' });
     }
 
     const patient = await getOrCreatePatient(req);
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
 
     // Find if they already logged mood today
-    const todayStr = moment().tz(timezone).format("YYYY-MM-DD");
+    const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
     const todayStart = new Date(`${todayStr}T00:00:00.000Z`);
     const todayEnd = new Date(`${todayStr}T23:59:59.999Z`);
 
     let existingIdx = (patient.moodHistory || []).findIndex(
-      (m) => m.date >= todayStart && m.date <= todayEnd,
+      (m) => m.date >= todayStart && m.date <= todayEnd
     );
 
     if (existingIdx !== -1) {
       patient.moodHistory[existingIdx].value = value;
       patient.moodHistory[existingIdx].mood = value;
-      patient.moodHistory[existingIdx].source = "patient";
+      patient.moodHistory[existingIdx].source = 'patient';
       patient.moodHistory[existingIdx].date = new Date(); // update timestamp
     } else {
       patient.moodHistory.push({
         value,
         mood: value,
-        source: "patient",
+        source: 'patient',
         date: new Date(),
       });
     }
@@ -2915,60 +2915,60 @@ router.post("/me/mood", authenticateSession, async (req, res) => {
     const updated = await Patient.findById(patient._id).lean();
     res.json({ success: true, patient: updated });
   } catch (err) {
-    logger.error("Mood logging error", {
+    logger.error('Mood logging error', {
       error: err.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to log mood" });
+    res.status(500).json({ error: 'Failed to log mood' });
   }
 });
 
 // ─── Get Unified Health State ───────────────────────────────────────────────
-router.get("/me/health-state", authenticateSession, async (req, res) => {
+router.get('/me/health-state', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const {
       getCachedHealthState,
-    } = require("../../services/patientHealthStateService");
+    } = require('../../services/patientHealthStateService');
     const state = await getCachedHealthState(patient);
     res.json(state);
   } catch (error) {
-    logger.error("Get health state error", {
+    logger.error('Get health state error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to retrieve patient health state" });
+    res.status(500).json({ error: 'Failed to retrieve patient health state' });
   }
 });
 
 // ─── Get Health score history and deltas ─────────────────────────────────────
-router.get("/me/health-history", authenticateSession, async (req, res) => {
+router.get('/me/health-history', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const {
       getHealthHistory,
-    } = require("../../services/patientHealthStateService");
+    } = require('../../services/patientHealthStateService');
     const historyData = await getHealthHistory(patient._id, timezone);
 
     const {
       calculateConsistency,
-    } = require("../../services/adherenceConsistencyService");
+    } = require('../../services/adherenceConsistencyService');
     const {
       calculateMomentum,
-    } = require("../../services/healthMomentumService");
+    } = require('../../services/healthMomentumService');
     const {
       forecastTrajectory,
-    } = require("../../services/trajectoryForecastService");
+    } = require('../../services/trajectoryForecastService');
 
     const consistencyMetrics = calculateConsistency(historyData.history);
     const momentumMetrics = calculateMomentum(
       historyData.history,
-      patient.patient_health_state || {},
+      patient.patient_health_state || {}
     );
     const trajectoryMetrics = forecastTrajectory(
       historyData.history,
-      patient.patient_health_state?.score ?? 82,
+      patient.patient_health_state?.score ?? 82
     );
 
     res.json({
@@ -2992,64 +2992,64 @@ router.get("/me/health-history", authenticateSession, async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Get health history error", {
+    logger.error('Get health history error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to fetch health history" });
+    res.status(500).json({ error: 'Failed to fetch health history' });
   }
 });
 
 const ACHIEVEMENT_METADATA = {
   first_perfect_day: {
-    title: "Perfect Day! 🎯",
-    description: "Completed all your scheduled medications in a single day.",
-    icon: "check-circle",
+    title: 'Perfect Day! 🎯',
+    description: 'Completed all your scheduled medications in a single day.',
+    icon: 'check-circle',
   },
   streak_7: {
-    title: "7-Day Streak! 🔥",
-    description: "Maintained your medication compliance for 7 days in a row.",
-    icon: "fire",
+    title: '7-Day Streak! 🔥',
+    description: 'Maintained your medication compliance for 7 days in a row.',
+    icon: 'fire',
   },
   streak_30: {
-    title: "30-Day Warrior! 🏆",
-    description: "Incredible dedication! 30 days of consistent compliance.",
-    icon: "trophy",
+    title: '30-Day Warrior! 🏆',
+    description: 'Incredible dedication! 30 days of consistent compliance.',
+    icon: 'trophy',
   },
   bp_stabilized: {
-    title: "BP Stabilized! ❤️",
+    title: 'BP Stabilized! ❤️',
     description:
-      "Kept blood pressure within standard normal ranges for 3 consecutive logs.",
-    icon: "heart",
+      'Kept blood pressure within standard normal ranges for 3 consecutive logs.',
+    icon: 'heart',
   },
   adherence_30d_90: {
-    title: "Compliance Champ! ⭐",
+    title: 'Compliance Champ! ⭐',
     description:
-      "Achieved an average medication compliance rate of 90%+ over 30 days.",
-    icon: "star",
+      'Achieved an average medication compliance rate of 90%+ over 30 days.',
+    icon: 'star',
   },
   score_plus_20: {
-    title: "Major Improvement! 📈",
+    title: 'Major Improvement! 📈',
     description:
-      "Increased your overall health score by 20 points from your starting baseline.",
-    icon: "trending-up",
+      'Increased your overall health score by 20 points from your starting baseline.',
+    icon: 'trending-up',
   },
 };
 
 // ─── Get Achievements timeline ───────────────────────────────────────────────
-router.get("/me/health-timeline", authenticateSession, async (req, res) => {
+router.get('/me/health-timeline', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
-    const AchievementEvent = require("../../models/AchievementEvent");
+    const AchievementEvent = require('../../models/AchievementEvent');
     const events = await AchievementEvent.find({ patient_id: patient._id })
       .sort({ earned_at: -1 })
       .lean();
 
     const timeline = events.map((event) => {
       const meta = ACHIEVEMENT_METADATA[event.achievement] || {
-        title: "Achievement Unlocked!",
-        description: "You unlocked a new health milestone.",
-        icon: "award",
+        title: 'Achievement Unlocked!',
+        description: 'You unlocked a new health milestone.',
+        icon: 'award',
       };
       return {
         id: event._id,
@@ -3063,28 +3063,28 @@ router.get("/me/health-timeline", authenticateSession, async (req, res) => {
 
     res.json({ timeline });
   } catch (error) {
-    logger.error("Get health timeline error", {
+    logger.error('Get health timeline error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to fetch health timeline" });
+    res.status(500).json({ error: 'Failed to fetch health timeline' });
   }
 });
 
 // ─── Health Copilot Context ────────────────────────────────────────────────
-router.get("/copilot/context", authenticateSession, async (req, res) => {
+router.get('/copilot/context', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const patientId = patient._id;
 
     const {
       generateMorningBrief,
-    } = require("../../services/dailyBriefService");
-    const { getOrGenerateCarePlan } = require("../../services/carePlanService");
+    } = require('../../services/dailyBriefService');
+    const { getOrGenerateCarePlan } = require('../../services/carePlanService');
     const {
       getOrGenerateInsights,
-    } = require("../../services/companionAiService");
-    const AchievementEvent = require("../../models/AchievementEvent");
+    } = require('../../services/companionAiService');
+    const AchievementEvent = require('../../models/AchievementEvent');
 
     const [morningBrief, carePlan, insights, achievements] = await Promise.all([
       generateMorningBrief(patientId),
@@ -3104,119 +3104,119 @@ router.get("/copilot/context", authenticateSession, async (req, res) => {
       adherence_rate: patient.adherence_rate ?? 100,
     });
   } catch (error) {
-    logger.error("Get copilot context error", {
+    logger.error('Get copilot context error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to fetch copilot context" });
+    res.status(500).json({ error: 'Failed to fetch copilot context' });
   }
 });
 
 // ─── Get Sleep logs ──────────────────────────────────────────────────────────
-router.get("/me/sleep", authenticateSession, async (req, res) => {
+router.get('/me/sleep', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const { start_date, end_date } = req.query;
     const query = { patient_id: patient._id };
-    const SleepLog = require("../../models/SleepLog");
+    const SleepLog = require('../../models/SleepLog');
 
     if (start_date || end_date) {
       query.date = {};
       if (start_date) {
         const sd = moment
-          .tz(start_date, "YYYY-MM-DD", timezone)
-          .startOf("day")
+          .tz(start_date, 'YYYY-MM-DD', timezone)
+          .startOf('day')
           .toDate();
         query.date.$gte = sd;
       }
       if (end_date) {
         const ed = moment
-          .tz(end_date, "YYYY-MM-DD", timezone)
-          .endOf("day")
+          .tz(end_date, 'YYYY-MM-DD', timezone)
+          .endOf('day')
           .toDate();
         query.date.$lte = ed;
       }
     } else {
       const thirtyDaysAgoStr = moment()
         .tz(timezone)
-        .subtract(30, "days")
-        .format("YYYY-MM-DD");
+        .subtract(30, 'days')
+        .format('YYYY-MM-DD');
       query.date = { $gte: new Date(`${thirtyDaysAgoStr}T00:00:00.000Z`) };
     }
 
     const sleepLogs = await SleepLog.find(query).sort({ date: 1 }).lean();
     res.json({ sleep: sleepLogs });
   } catch (error) {
-    logger.error("Get sleep logs error", {
+    logger.error('Get sleep logs error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to fetch sleep logs" });
+    res.status(500).json({ error: 'Failed to fetch sleep logs' });
   }
 });
 
 // ─── Post Sleep log ──────────────────────────────────────────────────────────
-router.post("/me/sleep", authenticateSession, async (req, res) => {
+router.post('/me/sleep', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const { date, hours, quality, deep_sleep_hours, rem_sleep_hours, source } =
       req.body;
 
     if (hours === undefined || hours === null) {
-      return res.status(400).json({ error: "Hours of sleep is required" });
+      return res.status(400).json({ error: 'Hours of sleep is required' });
     }
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const dateStr = date
-      ? moment(date).tz(timezone).format("YYYY-MM-DD")
-      : moment().tz(timezone).format("YYYY-MM-DD");
+      ? moment(date).tz(timezone).format('YYYY-MM-DD')
+      : moment().tz(timezone).format('YYYY-MM-DD');
     const targetDate = new Date(`${dateStr}T00:00:00.000Z`);
     const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
-    const SleepLog = require("../../models/SleepLog");
+    const SleepLog = require('../../models/SleepLog');
 
     const updateData = {
       hours,
       quality,
       deep_sleep_hours,
       rem_sleep_hours,
-      source: source || "manual",
+      source: source || 'manual',
       expires_at: expiresAt,
     };
 
     const sleepLog = await SleepLog.findOneAndUpdate(
       { patient_id: patient._id, date: targetDate },
       { $set: updateData },
-      { upsert: true, new: true, runValidators: true },
+      { upsert: true, new: true, runValidators: true }
     );
 
-    logger.info("Sleep logged", { patientId: patient._id, date: dateStr });
+    logger.info('Sleep logged', { patientId: patient._id, date: dateStr });
     refreshHealthScoreCache(patient._id, dateStr).catch(() => {});
 
     // Also refresh today's cache if targetDate is a historical date
-    const todayStr = moment().tz(timezone).format("YYYY-MM-DD");
+    const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
     if (dateStr !== todayStr) {
       refreshHealthScoreCache(patient._id, todayStr).catch(() => {});
     }
 
     res
       .status(201)
-      .json({ message: "Sleep logged successfully", sleep: sleepLog });
+      .json({ message: 'Sleep logged successfully', sleep: sleepLog });
   } catch (error) {
-    logger.error("Log sleep error", {
+    logger.error('Log sleep error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    if (error.name === "ValidationError")
+    if (error.name === 'ValidationError')
       return res.status(400).json({ error: error.message });
-    res.status(500).json({ error: "Failed to log sleep" });
+    res.status(500).json({ error: 'Failed to log sleep' });
   }
 });
 
 // Deprecated: Call activateSubscription instead. Kept for backwards compatibility.
 async function subscribeAndSeedDemoData(patient, planId) {
   logger.warn(
-    "subscribeAndSeedDemoData is deprecated, use activateSubscription instead.",
+    'subscribeAndSeedDemoData is deprecated, use activateSubscription instead.'
   );
   return activateSubscription(patient, planId);
 }

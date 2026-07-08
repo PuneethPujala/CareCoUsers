@@ -6,28 +6,28 @@
  * routing, and telemetry logging to AIChatLog.
  */
 
-const axios = require("axios");
-const mongoose = require("mongoose");
-const { ChromaClient } = require("chromadb");
-const { buildPatientContext } = require("../../src/services/aiContextService");
+const axios = require('axios');
+const mongoose = require('mongoose');
+const { ChromaClient } = require('chromadb');
+const { buildPatientContext } = require('../../src/services/aiContextService');
 // Mock dependencies
-jest.mock("axios");
-jest.mock("chromadb");
-jest.mock("../../src/services/aiContextService");
-jest.mock("../../src/models/AIChatLog", () => {
+jest.mock('axios');
+jest.mock('chromadb');
+jest.mock('../../src/services/aiContextService');
+jest.mock('../../src/models/AIChatLog', () => {
   return {
     create: jest.fn(),
   };
 });
 
-const AIChatLog = require("../../src/models/AIChatLog");
+const AIChatLog = require('../../src/models/AIChatLog');
 
 const {
   streamPoCResponse,
   generatePoCResponse,
-} = require("../../src/services/aiChatbotPoC");
+} = require('../../src/services/aiChatbotPoC');
 
-describe("AI Latency Telemetry & Fallback Model Routing", () => {
+describe('AI Latency Telemetry & Fallback Model Routing', () => {
   let mockRes;
   let mockGetCollection;
   let mockQuery;
@@ -42,7 +42,7 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
       write: writeMock,
       on: jest.fn(),
       emit: function (event) {
-        if (this.onCloseCallback && event === "close") {
+        if (this.onCloseCallback && event === 'close') {
           this.onCloseCallback();
         }
       },
@@ -50,33 +50,33 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
     };
     // Mock close event registration
     mockRes.on.mockImplementation((event, cb) => {
-      if (event === "close") {
+      if (event === 'close') {
         mockRes.onCloseCallback = cb;
       }
     });
 
     // Mock ChromaDB Client
     mockQuery = jest.fn().mockResolvedValue({
-      ids: [["id1", "id2"]],
+      ids: [['id1', 'id2']],
       distances: [[0.2, 0.4]], // Cosine distance 0.2 -> 0.8 similarity, 0.4 -> 0.6 similarity (0.6 is below 0.75 threshold)
-      documents: [["Strict Guideline 1", "Below Threshold Guideline 2"]],
-      metadatas: [[{ title: "Strict Match" }, { title: "Weak Match" }]],
+      documents: [['Strict Guideline 1', 'Below Threshold Guideline 2']],
+      metadatas: [[{ title: 'Strict Match' }, { title: 'Weak Match' }]],
     });
     mockGetCollection = jest.fn().mockResolvedValue({
       query: mockQuery,
       get: jest.fn().mockResolvedValue({
-        documents: ["Mocked Guideline from get"],
-        metadatas: [{ title: "Mocked Title" }],
+        documents: ['Mocked Guideline from get'],
+        metadatas: [{ title: 'Mocked Title' }],
       }),
     });
     ChromaClient.prototype.getCollection = mockGetCollection;
 
     // Mock Patient Context
     buildPatientContext.mockResolvedValue({
-      name: "John Doe",
+      name: 'John Doe',
       medications: [],
       today_status: {},
-      care_team: { name: "Prakash" },
+      care_team: { name: 'Prakash' },
       latest_interaction: null,
     });
 
@@ -84,29 +84,29 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
     AIChatLog.create.mockResolvedValue({});
 
     // Mock process.env
-    process.env.GROQ_API_KEY = "test-groq-key";
+    process.env.GROQ_API_KEY = 'test-groq-key';
   });
 
-  describe("Emergency Escalation Interceptor", () => {
-    it("should trigger emergency bypass without querying LLM", async () => {
+  describe('Emergency Escalation Interceptor', () => {
+    it('should trigger emergency bypass without querying LLM', async () => {
       await streamPoCResponse(
-        "patient-123",
-        "I have severe chest pain",
-        "en",
-        mockRes,
+        'patient-123',
+        'I have severe chest pain',
+        'en',
+        mockRes
       );
 
       // Assert that SSE response writes the emergency message
       expect(writeMock).toHaveBeenCalled();
       const calls = writeMock.mock.calls;
       const messages = calls.map((c) =>
-        JSON.parse(c[0].replace("data: ", "").trim()),
+        JSON.parse(c[0].replace('data: ', '').trim())
       );
 
-      const chunkMsg = messages.find((m) => m.type === "chunk");
-      expect(chunkMsg.text).toContain("urgent medical attention");
+      const chunkMsg = messages.find((m) => m.type === 'chunk');
+      expect(chunkMsg.text).toContain('urgent medical attention');
 
-      const doneMsg = messages.find((m) => m.type === "done");
+      const doneMsg = messages.find((m) => m.type === 'done');
       expect(doneMsg).toBeDefined();
 
       // Asserts that no external LLM was called
@@ -116,53 +116,53 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
       expect(AIChatLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           emergency_escalation_triggered: true,
-          provider: "esc-emergency",
-          model: "none",
+          provider: 'esc-emergency',
+          model: 'none',
           llm_latency_ms: 0,
-        }),
+        })
       );
     });
   });
 
-  describe("Groq Primary LLM Stream Flow (Success)", () => {
-    it("should stream tokens from Groq and log exact token telemetry", async () => {
+  describe('Groq Primary LLM Stream Flow (Success)', () => {
+    it('should stream tokens from Groq and log exact token telemetry', async () => {
       // Mock embedding request
       axios.post.mockImplementation((url, body) => {
-        if (url.includes("/api/embeddings")) {
+        if (url.includes('/api/embeddings')) {
           return Promise.resolve({
             data: { embedding: [0.1, 0.2] },
           });
         }
         // Mock Groq Stream response
-        if (url.includes("api.groq.com")) {
+        if (url.includes('api.groq.com')) {
           const mockStream = {
             on: jest.fn((event, cb) => {
-              if (event === "data") {
+              if (event === 'data') {
                 // Send content chunks
                 cb(
                   Buffer.from(
-                    "data: " +
+                    'data: ' +
                       JSON.stringify({
-                        choices: [{ delta: { content: "Hello patient." } }],
+                        choices: [{ delta: { content: 'Hello patient.' } }],
                       }) +
-                      "\n",
-                  ),
+                      '\n'
+                  )
                 );
                 cb(
                   Buffer.from(
-                    "data: " +
+                    'data: ' +
                       JSON.stringify({
                         choices: [
-                          { delta: { content: "\n>> What should I do next?" } },
+                          { delta: { content: '\n>> What should I do next?' } },
                         ],
                       }) +
-                      "\n",
-                  ),
+                      '\n'
+                  )
                 );
                 // Send usage statistics chunk
                 cb(
                   Buffer.from(
-                    "data: " +
+                    'data: ' +
                       JSON.stringify({
                         usage: {
                           prompt_tokens: 15,
@@ -170,114 +170,114 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
                           total_tokens: 40,
                         },
                       }) +
-                      "\n",
-                  ),
+                      '\n'
+                  )
                 );
-                cb(Buffer.from("data: [DONE]\n"));
+                cb(Buffer.from('data: [DONE]\n'));
               }
-              if (event === "end") {
+              if (event === 'end') {
                 cb();
               }
             }),
           };
           return Promise.resolve({ data: mockStream });
         }
-        return Promise.reject(new Error("Unexpected URL"));
+        return Promise.reject(new Error('Unexpected URL'));
       });
 
       await streamPoCResponse(
-        "patient-123",
-        "How is my glucose level?",
-        "en",
-        mockRes,
+        'patient-123',
+        'How is my glucose level?',
+        'en',
+        mockRes
       );
 
       // Assertions
       expect(writeMock).toHaveBeenCalled();
       const calls = writeMock.mock.calls;
       const messages = calls.map((c) =>
-        JSON.parse(c[0].replace("data: ", "").trim()),
+        JSON.parse(c[0].replace('data: ', '').trim())
       );
 
-      const chunkMsg = messages.find((m) => m.type === "chunk");
-      expect(chunkMsg.text).toContain("Hello patient.");
+      const chunkMsg = messages.find((m) => m.type === 'chunk');
+      expect(chunkMsg.text).toContain('Hello patient.');
 
-      const suggestionsMsg = messages.find((m) => m.type === "suggestions");
-      expect(suggestionsMsg.items).toContain("What should I do next?");
+      const suggestionsMsg = messages.find((m) => m.type === 'suggestions');
+      expect(suggestionsMsg.items).toContain('What should I do next?');
 
       // Verify AIChatLog telemetry stamp
       expect(AIChatLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          provider: "groq",
-          model: "llama-3.3-70b-versatile",
+          provider: 'groq',
+          model: 'llama-3.3-70b-versatile',
           is_fallback: false,
           prompt_tokens: 15,
           completion_tokens: 25,
           total_tokens: 40,
           retrieved_chunks_count: 1, // Only 1 matched threshold (0.8 >= 0.75)
           retrieval_similarity_avg: 0.8,
-        }),
+        })
       );
     });
   });
 
-  describe("Ollama Fallback Routing Flow", () => {
-    it("should fallback to local Ollama on Groq rate limit (429)", async () => {
+  describe('Ollama Fallback Routing Flow', () => {
+    it('should fallback to local Ollama on Groq rate limit (429)', async () => {
       // Mock Axios
       let embeddingCalled = false;
       let groqCalled = false;
       let ollamaCalled = false;
 
       axios.post.mockImplementation((url, body) => {
-        if (url.includes("/api/embeddings")) {
+        if (url.includes('/api/embeddings')) {
           embeddingCalled = true;
           return Promise.resolve({
             data: { embedding: [0.1, 0.2] },
           });
         }
-        if (url.includes("api.groq.com")) {
+        if (url.includes('api.groq.com')) {
           groqCalled = true;
-          const err = new Error("Rate limit exceeded");
+          const err = new Error('Rate limit exceeded');
           err.response = { status: 429 };
           return Promise.reject(err);
         }
-        if (url.includes("11434/api/chat")) {
+        if (url.includes('11434/api/chat')) {
           ollamaCalled = true;
           const mockStream = {
             on: jest.fn((event, cb) => {
-              if (event === "data") {
+              if (event === 'data') {
                 cb(
                   Buffer.from(
                     JSON.stringify({
-                      message: { content: "Fallback answer from Ollama." },
+                      message: { content: 'Fallback answer from Ollama.' },
                       done: false,
-                    }) + "\n",
-                  ),
+                    }) + '\n'
+                  )
                 );
                 cb(
                   Buffer.from(
                     JSON.stringify({
-                      message: { content: "\n>> Ask another" },
+                      message: { content: '\n>> Ask another' },
                       done: true,
-                    }) + "\n",
-                  ),
+                    }) + '\n'
+                  )
                 );
               }
-              if (event === "end") {
+              if (event === 'end') {
                 cb();
               }
             }),
           };
           return Promise.resolve({ data: mockStream });
         }
-        return Promise.reject(new Error("Unexpected URL"));
+        return Promise.reject(new Error('Unexpected URL'));
       });
 
       await streamPoCResponse(
-        "patient-123",
-        "My blood pressure query",
-        "en",
-        mockRes,
+        'patient-123',
+        'My blood pressure query',
+        'en',
+        mockRes
       );
 
       expect(groqCalled).toBe(true);
@@ -285,84 +285,84 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
 
       const calls = writeMock.mock.calls;
       const messages = calls.map((c) =>
-        JSON.parse(c[0].replace("data: ", "").trim()),
+        JSON.parse(c[0].replace('data: ', '').trim())
       );
-      const chunkMsg = messages.find((m) => m.type === "chunk");
-      expect(chunkMsg.text).toContain("Fallback answer from Ollama.");
+      const chunkMsg = messages.find((m) => m.type === 'chunk');
+      expect(chunkMsg.text).toContain('Fallback answer from Ollama.');
 
       // Verify AIChatLog fallback stamps
       expect(AIChatLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          provider: "ollama",
-          model: "llama3:8b",
+          provider: 'ollama',
+          model: 'llama3:8b',
           is_fallback: true,
-          fallback_reason: "rate_limit",
+          fallback_reason: 'rate_limit',
           retrieved_chunks_count: 1,
-        }),
+        })
       );
     });
 
-    it("should fallback to local Ollama on Groq timeout", async () => {
+    it('should fallback to local Ollama on Groq timeout', async () => {
       axios.post.mockImplementation((url, body) => {
-        if (url.includes("/api/embeddings")) {
+        if (url.includes('/api/embeddings')) {
           return Promise.resolve({
             data: { embedding: [0.1, 0.2] },
           });
         }
-        if (url.includes("api.groq.com")) {
-          const err = new Error("timeout of 15000ms exceeded");
-          err.code = "ECONNABORTED";
+        if (url.includes('api.groq.com')) {
+          const err = new Error('timeout of 15000ms exceeded');
+          err.code = 'ECONNABORTED';
           return Promise.reject(err);
         }
-        if (url.includes("11434/api/chat")) {
+        if (url.includes('11434/api/chat')) {
           const mockStream = {
             on: jest.fn((event, cb) => {
-              if (event === "data") {
+              if (event === 'data') {
                 cb(
                   Buffer.from(
                     JSON.stringify({
-                      message: { content: "Ollama answer" },
+                      message: { content: 'Ollama answer' },
                       done: true,
-                    }) + "\n",
-                  ),
+                    }) + '\n'
+                  )
                 );
               }
-              if (event === "end") {
+              if (event === 'end') {
                 cb();
               }
             }),
           };
           return Promise.resolve({ data: mockStream });
         }
-        return Promise.reject(new Error("Unexpected URL"));
+        return Promise.reject(new Error('Unexpected URL'));
       });
 
-      await streamPoCResponse("patient-123", "BP test", "en", mockRes);
+      await streamPoCResponse('patient-123', 'BP test', 'en', mockRes);
 
       expect(AIChatLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          provider: "ollama",
+          provider: 'ollama',
           is_fallback: true,
-          fallback_reason: "timeout",
-        }),
+          fallback_reason: 'timeout',
+        })
       );
     });
   });
 
-  describe("Client Connection Interruption Socket Cleanup", () => {
-    it("should abort active Axios stream requests when client disconnects", async () => {
+  describe('Client Connection Interruption Socket Cleanup', () => {
+    it('should abort active Axios stream requests when client disconnects', async () => {
       const mockAbort = jest.fn();
       let abortListener = null;
       global.AbortController = jest.fn().mockImplementation(() => {
         const signal = {
           aborted: false,
           addEventListener: jest.fn((event, cb) => {
-            if (event === "abort") {
+            if (event === 'abort') {
               abortListener = cb;
             }
           }),
           removeEventListener: jest.fn((event, cb) => {
-            if (event === "abort") {
+            if (event === 'abort') {
               abortListener = null;
             }
           }),
@@ -381,47 +381,47 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
 
       // Mock embedding
       axios.post.mockImplementation((url, body) => {
-        if (url.includes("/api/embeddings")) {
+        if (url.includes('/api/embeddings')) {
           return Promise.resolve({
             data: { embedding: [0.1, 0.2] },
           });
         }
-        if (url.includes("api.groq.com")) {
+        if (url.includes('api.groq.com')) {
           // Stream that doesn't end immediately, allowing client to close
           const mockStream = {
             on: jest.fn((event, cb) => {
-              if (event === "data") {
+              if (event === 'data') {
                 cb(
                   Buffer.from(
-                    "data: " +
+                    'data: ' +
                       JSON.stringify({
                         choices: [
                           {
-                            delta: { content: "Partially generated content." },
+                            delta: { content: 'Partially generated content.' },
                           },
                         ],
                       }) +
-                      "\n",
-                  ),
+                      '\n'
+                  )
                 );
               }
             }),
           };
           return Promise.resolve({ data: mockStream });
         }
-        return Promise.reject(new Error("Unexpected URL"));
+        return Promise.reject(new Error('Unexpected URL'));
       });
 
       // Trigger stream
       const streamPromise = streamPoCResponse(
-        "patient-123",
-        "Delayed query",
-        "en",
-        mockRes,
+        'patient-123',
+        'Delayed query',
+        'en',
+        mockRes
       );
 
       // Emit close event on client connection mid-stream
-      mockRes.emit("close");
+      mockRes.emit('close');
 
       await streamPromise;
 
@@ -430,19 +430,19 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
     });
   });
 
-  describe("generatePoCResponse (Non-streaming Fallback Path)", () => {
-    it("should use Groq as primary and record non-streaming logs", async () => {
+  describe('generatePoCResponse (Non-streaming Fallback Path)', () => {
+    it('should use Groq as primary and record non-streaming logs', async () => {
       axios.post.mockImplementation((url, body) => {
-        if (url.includes("/api/embeddings")) {
+        if (url.includes('/api/embeddings')) {
           return Promise.resolve({
             data: { embedding: [0.1, 0.2] },
           });
         }
-        if (url.includes("api.groq.com")) {
+        if (url.includes('api.groq.com')) {
           return Promise.resolve({
             data: {
               choices: [
-                { message: { content: "Non-streaming answer\n>> Question?" } },
+                { message: { content: 'Non-streaming answer\n>> Question?' } },
               ],
               usage: {
                 prompt_tokens: 10,
@@ -452,63 +452,63 @@ describe("AI Latency Telemetry & Fallback Model Routing", () => {
             },
           });
         }
-        return Promise.reject(new Error("Unexpected URL"));
+        return Promise.reject(new Error('Unexpected URL'));
       });
 
-      const result = await generatePoCResponse("patient-123", "BP level", "en");
+      const result = await generatePoCResponse('patient-123', 'BP level', 'en');
 
       expect(result.success).toBe(true);
-      expect(result.response).toBe("Non-streaming answer");
-      expect(result.suggestions).toContain("Question?");
+      expect(result.response).toBe('Non-streaming answer');
+      expect(result.suggestions).toContain('Question?');
 
       expect(AIChatLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          provider: "groq",
+          provider: 'groq',
           is_fallback: false,
           prompt_tokens: 10,
           completion_tokens: 20,
           total_tokens: 30,
-        }),
+        })
       );
     });
 
-    it("should fallback to Ollama if Groq fails in non-streaming mode", async () => {
+    it('should fallback to Ollama if Groq fails in non-streaming mode', async () => {
       axios.post.mockImplementation((url, body) => {
-        if (url.includes("/api/embeddings")) {
+        if (url.includes('/api/embeddings')) {
           return Promise.resolve({
             data: { embedding: [0.1, 0.2] },
           });
         }
-        if (url.includes("api.groq.com")) {
-          const err = new Error("Service Unavailable");
+        if (url.includes('api.groq.com')) {
+          const err = new Error('Service Unavailable');
           err.response = { status: 503 };
           return Promise.reject(err);
         }
-        if (url.includes("11434/api/chat")) {
+        if (url.includes('11434/api/chat')) {
           return Promise.resolve({
             data: {
-              message: { content: "Non-streaming fallback from Ollama" },
+              message: { content: 'Non-streaming fallback from Ollama' },
             },
           });
         }
-        return Promise.reject(new Error("Unexpected URL"));
+        return Promise.reject(new Error('Unexpected URL'));
       });
 
       const result = await generatePoCResponse(
-        "patient-123",
-        "BP level fallback",
-        "en",
+        'patient-123',
+        'BP level fallback',
+        'en'
       );
 
       expect(result.success).toBe(true);
-      expect(result.response).toBe("Non-streaming fallback from Ollama");
+      expect(result.response).toBe('Non-streaming fallback from Ollama');
 
       expect(AIChatLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          provider: "ollama",
+          provider: 'ollama',
           is_fallback: true,
-          fallback_reason: "provider_unavailable",
-        }),
+          fallback_reason: 'provider_unavailable',
+        })
       );
     });
   });

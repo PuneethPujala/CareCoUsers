@@ -1,39 +1,39 @@
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const { createClient } = require("@supabase/supabase-js");
-const Profile = require("../models/Profile");
-const Patient = require("../models/Patient");
-const Caller = require("../models/Caller");
-const Organization = require("../models/Organization");
-const RefreshToken = require("../models/RefreshToken");
-const { ROLE_LABELS, CREATION_HIERARCHY } = require("../constants/auth");
-const { logEvent, logSecurityEvent } = require("./auditService");
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const { createClient } = require('@supabase/supabase-js');
+const Profile = require('../models/Profile');
+const Patient = require('../models/Patient');
+const Caller = require('../models/Caller');
+const Organization = require('../models/Organization');
+const RefreshToken = require('../models/RefreshToken');
+const { ROLE_LABELS, CREATION_HIERARCHY } = require('../constants/auth');
+const { logEvent, logSecurityEvent } = require('./auditService');
 const {
   sendTempPasswordEmail,
   sendPasswordChangedEmail,
   sendPasswordResetEmail,
-} = require("./emailService");
-const { createOTP, verifyOTP } = require("./otpService");
-const passwordService = require("./passwordService");
-const tokenService = require("./tokenService");
+} = require('./emailService');
+const { createOTP, verifyOTP } = require('./otpService');
+const passwordService = require('./passwordService');
+const tokenService = require('./tokenService');
 
 function generateTempPassword() {
-  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const digits = "0123456789";
-  let pwd = "";
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+  let pwd = '';
   for (let i = 0; i < 4; i++)
     pwd += upper[Math.floor(Math.random() * upper.length)];
   for (let i = 0; i < 4; i++)
     pwd += digits[Math.floor(Math.random() * digits.length)];
   return pwd
-    .split("")
+    .split('')
     .sort(() => Math.random() - 0.5)
-    .join("");
+    .join('');
 }
 
 let supabaseFallbackClient = null;
 function getSupabaseFallback() {
-  if (process.env.AUTH_ENABLE_SUPABASE_FALLBACK !== "true") return null;
+  if (process.env.AUTH_ENABLE_SUPABASE_FALLBACK !== 'true') return null;
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)
     return null;
   if (!supabaseFallbackClient) {
@@ -42,7 +42,7 @@ function getSupabaseFallback() {
       process.env.SUPABASE_SERVICE_ROLE_KEY,
       {
         auth: { autoRefreshToken: false, persistSession: false },
-      },
+      }
     );
   }
   return supabaseFallbackClient;
@@ -61,32 +61,32 @@ function resolveIdentity(
   deactivated,
   profile,
   companion,
-  requestedRole = null,
+  requestedRole = null
 ) {
   // Priority 1: If a requestedRole was provided, let it guide the choice when matches exist (supports patient, companion, and staff separation)
   if (requestedRole) {
-    if (requestedRole === "patient") {
+    if (requestedRole === 'patient') {
       if (patient) {
         return { account: patient, isPatient: true };
       }
       if (companion) {
         return { account: companion, isPatient: false, isCompanion: true };
       }
-      if (profile && profile.role === "companion") {
+      if (profile && profile.role === 'companion') {
         return { account: profile, isPatient: false };
       }
       return { account: null, isPatient: false, roleMismatch: true };
     }
-    if (requestedRole === "companion") {
+    if (requestedRole === 'companion') {
       if (companion) {
         return { account: companion, isPatient: false, isCompanion: true };
       }
-      if (profile && profile.role === "companion") {
+      if (profile && profile.role === 'companion') {
         return { account: profile, isPatient: false };
       }
       return { account: null, isPatient: false, roleMismatch: true };
     }
-    if (requestedRole !== "patient" && requestedRole !== "companion") {
+    if (requestedRole !== 'patient' && requestedRole !== 'companion') {
       if (profile) {
         return { account: profile, isPatient: false };
       }
@@ -100,7 +100,7 @@ function resolveIdentity(
   }
 
   // Priority 2b: Legacy fallback for companion role in profiles
-  if (profile && profile.role === "companion") {
+  if (profile && profile.role === 'companion') {
     return { account: profile, isPatient: false };
   }
 
@@ -119,7 +119,7 @@ function resolveIdentity(
 
 async function getWorkspaceCapabilities(email) {
   const emailNorm = email.toLowerCase().trim();
-  const Companion = require("../models/Companion");
+  const Companion = require('../models/Companion');
   const [patient, companion, profile] = await Promise.all([
     Patient.findOne({ email: emailNorm, is_active: true }),
     Companion.findOne({ email: emailNorm, isActive: true }),
@@ -129,40 +129,40 @@ async function getWorkspaceCapabilities(email) {
   const workspaces = [];
   if (patient) {
     workspaces.push({
-      id: "patient",
-      label: "Patient",
-      description: "Track your health and vitals",
+      id: 'patient',
+      label: 'Patient',
+      description: 'Track your health and vitals',
     });
   }
   if (companion) {
     workspaces.push({
-      id: "companion",
-      label: "Caregiver",
-      description: "Care for linked family members",
+      id: 'companion',
+      label: 'Caregiver',
+      description: 'Care for linked family members',
     });
   }
   if (profile && profile.role) {
     const roleId = profile.role;
-    if (roleId === "companion") {
-      if (!workspaces.some((w) => w.id === "companion")) {
+    if (roleId === 'companion') {
+      if (!workspaces.some((w) => w.id === 'companion')) {
         workspaces.push({
-          id: "companion",
-          label: "Caregiver",
-          description: "Care for linked family members",
+          id: 'companion',
+          label: 'Caregiver',
+          description: 'Care for linked family members',
         });
       }
-    } else if (typeof roleId === "string" && roleId.length > 0) {
+    } else if (typeof roleId === 'string' && roleId.length > 0) {
       workspaces.push({
         id: roleId,
         label: roleId.charAt(0).toUpperCase() + roleId.slice(1),
-        description: "Staff workspace",
+        description: 'Staff workspace',
       });
     }
   }
 
-  let defaultRole = "patient";
+  let defaultRole = 'patient';
   const hasPatient = !!patient;
-  const hasCompanion = workspaces.some((w) => w.id === "companion");
+  const hasCompanion = workspaces.some((w) => w.id === 'companion');
 
   if (hasPatient && hasCompanion) {
     // Dual-role user: resolve defaultRole from database preferences
@@ -170,11 +170,11 @@ async function getWorkspaceCapabilities(email) {
       (patient && patient.lastWorkspace) ||
       (companion && companion.lastWorkspace) ||
       (profile && profile.lastWorkspace);
-    if (lastPref === "companion" || lastPref === "patient") {
+    if (lastPref === 'companion' || lastPref === 'patient') {
       defaultRole = lastPref;
     }
   } else if (hasCompanion) {
-    defaultRole = "companion";
+    defaultRole = 'companion';
   } else if (profile) {
     defaultRole = profile.role;
   }
@@ -183,8 +183,8 @@ async function getWorkspaceCapabilities(email) {
 }
 
 async function switchRole(targetRole, req, currentProfile) {
-  if (targetRole !== "patient" && targetRole !== "companion") {
-    const err = new Error("Invalid target role");
+  if (targetRole !== 'patient' && targetRole !== 'companion') {
+    const err = new Error('Invalid target role');
     err.status = 400;
     throw err;
   }
@@ -194,7 +194,7 @@ async function switchRole(targetRole, req, currentProfile) {
 
   if (!caps.workspaces.some((w) => w.id === targetRole)) {
     const err = new Error(
-      `Target role "${targetRole}" is not available for this account`,
+      `Target role "${targetRole}" is not available for this account`
     );
     err.status = 400;
     throw err;
@@ -202,7 +202,7 @@ async function switchRole(targetRole, req, currentProfile) {
 
   // Find the target account
   let targetAccount = null;
-  let isPatient = targetRole === "patient";
+  let isPatient = targetRole === 'patient';
 
   if (isPatient) {
     targetAccount = await Patient.findOne({
@@ -210,7 +210,7 @@ async function switchRole(targetRole, req, currentProfile) {
       is_active: true,
     });
   } else {
-    const Companion = require("../models/Companion");
+    const Companion = require('../models/Companion');
     targetAccount = await Companion.findOne({
       email: emailNorm,
       isActive: true,
@@ -218,7 +218,7 @@ async function switchRole(targetRole, req, currentProfile) {
     if (!targetAccount) {
       targetAccount = await Profile.findOne({
         email: emailNorm,
-        role: "companion",
+        role: 'companion',
         isActive: true,
       });
     }
@@ -231,7 +231,7 @@ async function switchRole(targetRole, req, currentProfile) {
   }
 
   // Update server-side lastWorkspace preference on all documents in parallel
-  const Companion = require("../models/Companion");
+  const Companion = require('../models/Companion');
   const [patient, companion, profile] = await Promise.all([
     Patient.findOne({ email: emailNorm, is_active: true }),
     Companion.findOne({ email: emailNorm, isActive: true }),
@@ -255,10 +255,10 @@ async function switchRole(targetRole, req, currentProfile) {
     ? targetAccount.supabase_uid
     : targetAccount.supabaseUid;
   const userType = isPatient
-    ? "Patient"
-    : targetRole === "companion" && targetAccount.role === "companion"
-      ? "Companion"
-      : "Profile";
+    ? 'Patient'
+    : targetRole === 'companion' && targetAccount.role === 'companion'
+      ? 'Companion'
+      : 'Profile';
 
   const tokens = await tokenService.issueTokenPair(
     {
@@ -269,11 +269,11 @@ async function switchRole(targetRole, req, currentProfile) {
       email: emailNorm,
       emailVerified: targetAccount.emailVerified,
     },
-    req,
+    req
   );
 
   return {
-    message: "Role switched successfully",
+    message: 'Role switched successfully',
     session: {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
@@ -289,38 +289,38 @@ async function assertGlobalUniqueEmail(
   email,
   ignoreId = null,
   ignoreModel = null,
-  skipModels = [],
+  skipModels = []
 ) {
   const emailNorm = email.toLowerCase().trim();
 
   // 1. Check Patient collection
-  if (!skipModels.includes("Patient")) {
+  if (!skipModels.includes('Patient')) {
     const patient = await Patient.findOne({ email: emailNorm });
     if (
       patient &&
-      !(ignoreModel === "Patient" && patient._id.equals(ignoreId))
+      !(ignoreModel === 'Patient' && patient._id.equals(ignoreId))
     ) {
       const err = new Error(
-        `An account with the email "${email}" already exists.`,
+        `An account with the email "${email}" already exists.`
       );
       err.status = 400;
-      err.code = "EMAIL_ALREADY_EXISTS";
+      err.code = 'EMAIL_ALREADY_EXISTS';
       throw err;
     }
   }
 
   // 2. Check Profile collection (staff accounts)
-  if (!skipModels.includes("Profile")) {
+  if (!skipModels.includes('Profile')) {
     const profile = await Profile.findOne({ email: emailNorm });
     if (
       profile &&
-      !(ignoreModel === "Profile" && profile._id.equals(ignoreId))
+      !(ignoreModel === 'Profile' && profile._id.equals(ignoreId))
     ) {
       const err = new Error(
-        `An account with the email "${email}" already exists.`,
+        `An account with the email "${email}" already exists.`
       );
       err.status = 400;
-      err.code = "EMAIL_ALREADY_EXISTS";
+      err.code = 'EMAIL_ALREADY_EXISTS';
       throw err;
     }
   }
@@ -328,18 +328,18 @@ async function assertGlobalUniqueEmail(
   // 3. Check Companion collection
   // NOTE: Patients and Companions are allowed to share emails (dual-role users),
   // so callers should pass skipModels: ['Companion'] when registering a Patient.
-  if (!skipModels.includes("Companion")) {
-    const Companion = require("../models/Companion");
+  if (!skipModels.includes('Companion')) {
+    const Companion = require('../models/Companion');
     const companion = await Companion.findOne({ email: emailNorm });
     if (
       companion &&
-      !(ignoreModel === "Companion" && companion._id.equals(ignoreId))
+      !(ignoreModel === 'Companion' && companion._id.equals(ignoreId))
     ) {
       const err = new Error(
-        `An account with the email "${email}" already exists.`,
+        `An account with the email "${email}" already exists.`
       );
       err.status = 400;
-      err.code = "EMAIL_ALREADY_EXISTS";
+      err.code = 'EMAIL_ALREADY_EXISTS';
       throw err;
     }
   }
@@ -349,13 +349,13 @@ function buildLoginProfile(account, isPatient, workspaces = []) {
   const accountId = account._id;
   let subscriptionStatus = null;
   if (isPatient) {
-    subscriptionStatus = account.subscription?.status || "pending_payment";
+    subscriptionStatus = account.subscription?.status || 'pending_payment';
   }
   return {
     id: accountId,
     email: account.email,
     fullName: isPatient ? account.name : account.fullName,
-    role: isPatient ? "patient" : account.role,
+    role: isPatient ? 'patient' : account.role,
     organizationId: isPatient
       ? account.organization_id
       : account.organizationId,
@@ -363,7 +363,7 @@ function buildLoginProfile(account, isPatient, workspaces = []) {
     emailVerified: account.emailVerified,
     mustChangePassword: account.mustChangePassword || false,
     subscription_status: subscriptionStatus,
-    currentWorkspace: isPatient ? "patient" : account.role,
+    currentWorkspace: isPatient ? 'patient' : account.role,
     workspaces: workspaces,
   };
 }
@@ -382,27 +382,27 @@ async function registerPatient(body, req) {
     acceptedAt,
   } = body;
   if (!email || !fullName) {
-    const err = new Error("Missing required fields: email, fullName");
+    const err = new Error('Missing required fields: email, fullName');
     err.status = 400;
-    err.code = "VALIDATION";
+    err.code = 'VALIDATION';
     throw err;
   }
 
   // Google OAuth users register without a password; email-password users must provide one
   const isOAuth = !!supabaseUid;
   if (!isOAuth && !password) {
-    const err = new Error("Password is required");
+    const err = new Error('Password is required');
     err.status = 400;
-    err.code = "VALIDATION";
+    err.code = 'VALIDATION';
     throw err;
   }
 
   if (password) {
     const pwErrors = passwordService.validatePasswordComplexity(password);
     if (pwErrors.length) {
-      const err = new Error("Password does not meet requirements");
+      const err = new Error('Password does not meet requirements');
       err.status = 400;
-      err.code = "PASSWORD_POLICY";
+      err.code = 'PASSWORD_POLICY';
       err.details = pwErrors;
       throw err;
     }
@@ -413,7 +413,7 @@ async function registerPatient(body, req) {
   // Find existing documents in both collections for robust cross-collection identity check
   const existingPatient = await Patient.findOne({ email: emailNorm });
   const existingProfile = await Profile.findOne({ email: emailNorm });
-  const Companion = require("../models/Companion");
+  const Companion = require('../models/Companion');
   const existingCompanion = await Companion.findOne({ email: emailNorm });
 
   // 2. Resolve conflicts / link OAuth for existing Patient
@@ -427,10 +427,10 @@ async function registerPatient(body, req) {
         !isPlaceholder
       ) {
         const err = new Error(
-          "This account is already linked to a different Google identity.",
+          'This account is already linked to a different Google identity.'
         );
         err.status = 400;
-        err.code = "OAUTH_LINK_CONFLICT";
+        err.code = 'OAUTH_LINK_CONFLICT';
         throw err;
       }
 
@@ -438,7 +438,7 @@ async function registerPatient(body, req) {
       if (fullName && !existingPatient.name) existingPatient.name = fullName;
       if (
         !existingPatient.is_active &&
-        existingPatient.deactivated_reason === "user_requested"
+        existingPatient.deactivated_reason === 'user_requested'
       ) {
         existingPatient.is_active = true;
         existingPatient.deactivated_at = undefined;
@@ -448,32 +448,32 @@ async function registerPatient(body, req) {
 
       await logEvent(
         supabaseUid,
-        "patient_oauth_linked",
-        "patient",
+        'patient_oauth_linked',
+        'patient',
         existingPatient._id,
         req,
         {
           email: emailNorm,
-        },
+        }
       );
 
       const [tokens, caps] = await Promise.all([
         tokenService.issueTokenPair(
           {
             userId: existingPatient._id,
-            userType: "Patient",
+            userType: 'Patient',
             subject: supabaseUid,
-            role: "patient",
+            role: 'patient',
             email: existingPatient.email,
             emailVerified: existingPatient.emailVerified,
           },
-          req,
+          req
         ),
         getWorkspaceCapabilities(emailNorm),
       ]);
 
       return {
-        message: "Account linked successfully",
+        message: 'Account linked successfully',
         user: { id: supabaseUid, email: emailNorm },
         session: {
           access_token: tokens.access_token,
@@ -483,7 +483,7 @@ async function registerPatient(body, req) {
           user: buildSessionUser(
             supabaseUid,
             emailNorm,
-            existingPatient.emailVerified,
+            existingPatient.emailVerified
           ),
         },
         profile: buildLoginProfile(existingPatient, true, caps.workspaces),
@@ -492,23 +492,23 @@ async function registerPatient(body, req) {
 
     if (
       !existingPatient.is_active &&
-      existingPatient.deactivated_reason === "user_requested"
+      existingPatient.deactivated_reason === 'user_requested'
     ) {
       const err = new Error(
-        "Your account was deactivated. Please log in with your credentials to reactivate it.",
+        'Your account was deactivated. Please log in with your credentials to reactivate it.'
       );
       err.status = 400;
-      err.code = "ACCOUNT_DEACTIVATED";
+      err.code = 'ACCOUNT_DEACTIVATED';
       err.hint =
-        "Log in with your existing credentials to reactivate your account.";
+        'Log in with your existing credentials to reactivate your account.';
       throw err;
     }
 
     const err = new Error(
-      `An account with the email "${email}" already exists. Please log in instead.`,
+      `An account with the email "${email}" already exists. Please log in instead.`
     );
     err.status = 400;
-    err.code = "EMAIL_ALREADY_EXISTS";
+    err.code = 'EMAIL_ALREADY_EXISTS';
     throw err;
   }
 
@@ -526,7 +526,7 @@ async function registerPatient(body, req) {
     const defaultOrg = await Organization.findOne({ isActive: true });
     if (!defaultOrg) {
       const err = new Error(
-        "No active organization available for registration",
+        'No active organization available for registration'
       );
       err.status = 400;
       throw err;
@@ -536,15 +536,15 @@ async function registerPatient(body, req) {
 
   const org = await Organization.findById(targetOrgId);
   if (!org || !org.isActive) {
-    const err = new Error("Invalid or inactive organization");
+    const err = new Error('Invalid or inactive organization');
     err.status = 400;
     throw err;
   }
   // Defensive: canAdd may fail if counts field is undefined on the org doc
   try {
-    if (typeof org.canAdd === "function" && !org.canAdd("patient")) {
+    if (typeof org.canAdd === 'function' && !org.canAdd('patient')) {
       const err = new Error(
-        "This organisation has reached its patient capacity. Please contact support.",
+        'This organisation has reached its patient capacity. Please contact support.'
       );
       err.status = 400;
       throw err;
@@ -552,8 +552,8 @@ async function registerPatient(body, req) {
   } catch (capacityErr) {
     if (capacityErr.status === 400) throw capacityErr;
     console.warn(
-      "[Auth] org.canAdd() check failed, allowing registration:",
-      capacityErr.message,
+      '[Auth] org.canAdd() check failed, allowing registration:',
+      capacityErr.message
     );
   }
 
@@ -570,7 +570,7 @@ async function registerPatient(body, req) {
     city: city || null,
     organization_id: targetOrgId,
     phone: phone || null,
-    role: "patient",
+    role: 'patient',
     emailVerified: true,
     acceptedTermsVersion,
     acceptedPrivacyVersion,
@@ -584,28 +584,28 @@ async function registerPatient(body, req) {
   } catch (e) {
     if (e && e.code === 11000) {
       const err = new Error(
-        `An account with the email "${email}" already exists. Please log in instead.`,
+        `An account with the email "${email}" already exists. Please log in instead.`
       );
       err.status = 400;
-      err.code = "EMAIL_ALREADY_EXISTS";
+      err.code = 'EMAIL_ALREADY_EXISTS';
       throw err;
     }
     throw e;
   }
 
   await Organization.findByIdAndUpdate(targetOrgId, {
-    $inc: { "counts.patients": 1 },
+    $inc: { 'counts.patients': 1 },
   });
 
-  await logEvent(subject, "patient_created", "patient", patient._id, req, {
+  await logEvent(subject, 'patient_created', 'patient', patient._id, req, {
     email: emailNorm,
-    role: "patient",
+    role: 'patient',
     organizationId: targetOrgId,
-    authMethod: isOAuth ? "google_oauth" : "email_password",
+    authMethod: isOAuth ? 'google_oauth' : 'email_password',
   });
 
   const result = {
-    message: "Registration successful",
+    message: 'Registration successful',
     user: { id: subject, email: emailNorm },
     profile: {
       id: patient._id,
@@ -624,13 +624,13 @@ async function registerPatient(body, req) {
       tokenService.issueTokenPair(
         {
           userId: patient._id,
-          userType: "Patient",
+          userType: 'Patient',
           subject,
-          role: "patient",
+          role: 'patient',
           email: emailNorm,
           emailVerified: true,
         },
-        req,
+        req
       ),
       getWorkspaceCapabilities(emailNorm),
     ]);
@@ -641,7 +641,7 @@ async function registerPatient(body, req) {
       expires_at: tokens.expires_at,
       user: buildSessionUser(subject, emailNorm, true),
     };
-    result.profile.currentWorkspace = "patient";
+    result.profile.currentWorkspace = 'patient';
     result.profile.workspaces = caps.workspaces;
   }
 
@@ -650,9 +650,9 @@ async function registerPatient(body, req) {
 
 async function login({ email, password, role }, req) {
   if (!email || !password) {
-    const err = new Error("Email and password are required");
+    const err = new Error('Email and password are required');
     err.status = 400;
-    err.code = "VALIDATION";
+    err.code = 'VALIDATION';
     throw err;
   }
 
@@ -663,30 +663,30 @@ async function login({ email, password, role }, req) {
 
   // Query all potential matches in parallel for optimal timing normalization and constant performance
   let patientQuery = Patient.findOne({ email: emailNorm, is_active: true });
-  if (patientQuery && typeof patientQuery.select === "function") {
-    patientQuery = patientQuery.select("+passwordHash");
+  if (patientQuery && typeof patientQuery.select === 'function') {
+    patientQuery = patientQuery.select('+passwordHash');
   }
 
   let deactivatedQuery = Patient.findOne({
     email: emailNorm,
     is_active: false,
   });
-  if (deactivatedQuery && typeof deactivatedQuery.select === "function") {
-    deactivatedQuery = deactivatedQuery.select("+passwordHash");
+  if (deactivatedQuery && typeof deactivatedQuery.select === 'function') {
+    deactivatedQuery = deactivatedQuery.select('+passwordHash');
   }
 
   let profileQuery = Profile.findOne({ email: emailNorm, isActive: true });
-  if (profileQuery && typeof profileQuery.select === "function") {
-    profileQuery = profileQuery.select("+passwordHash");
+  if (profileQuery && typeof profileQuery.select === 'function') {
+    profileQuery = profileQuery.select('+passwordHash');
   }
-  if (profileQuery && typeof profileQuery.populate === "function") {
-    profileQuery = profileQuery.populate("organizationId", "name city");
+  if (profileQuery && typeof profileQuery.populate === 'function') {
+    profileQuery = profileQuery.populate('organizationId', 'name city');
   }
 
-  const Companion = require("../models/Companion");
+  const Companion = require('../models/Companion');
   let companionQuery = Companion.findOne({ email: emailNorm, isActive: true });
-  if (companionQuery && typeof companionQuery.select === "function") {
-    companionQuery = companionQuery.select("+passwordHash");
+  if (companionQuery && typeof companionQuery.select === 'function') {
+    companionQuery = companionQuery.select('+passwordHash');
   }
 
   let [patient, deactivated, profile, companion, caps] = await Promise.all([
@@ -701,7 +701,7 @@ async function login({ email, password, role }, req) {
   if (
     !patient &&
     deactivated &&
-    deactivated.deactivated_reason === "user_requested"
+    deactivated.deactivated_reason === 'user_requested'
   ) {
     deactivated.is_active = true;
     deactivated.deactivated_at = undefined;
@@ -710,13 +710,13 @@ async function login({ email, password, role }, req) {
     patient = deactivated;
     await logEvent(
       deactivated.supabase_uid,
-      "account_reactivated",
-      "patient",
+      'account_reactivated',
+      'patient',
       deactivated._id,
       req,
       {
-        method: "login",
-      },
+        method: 'login',
+      }
     );
   }
 
@@ -727,7 +727,7 @@ async function login({ email, password, role }, req) {
     deactivated,
     profile,
     companion,
-    activeRole,
+    activeRole
   );
   const account = resolved.account;
   const isPatient = resolved.isPatient;
@@ -737,23 +737,23 @@ async function login({ email, password, role }, req) {
   // We still perform a dummy bcrypt compare to keep response time constant.
   if (!account) {
     await passwordService.safeComparePassword(password, null);
-    const err = new Error("Invalid email or password");
+    const err = new Error('Invalid email or password');
     err.status = 401;
-    err.code = "INVALID_CREDENTIALS";
+    err.code = 'INVALID_CREDENTIALS';
     throw err;
   }
 
   if (account.isLocked) {
     await logSecurityEvent(
       isPatient ? account.supabase_uid : account.supabaseUid,
-      "login_failed",
-      "high",
-      "Account is locked",
-      req,
+      'login_failed',
+      'high',
+      'Account is locked',
+      req
     );
-    const err = new Error("Account is temporarily locked");
+    const err = new Error('Account is temporarily locked');
     err.status = 423;
-    err.code = "ACCOUNT_LOCKED";
+    err.code = 'ACCOUNT_LOCKED';
     err.lockedUntil = account.accountLockedUntil;
     throw err;
   }
@@ -764,7 +764,7 @@ async function login({ email, password, role }, req) {
   if (account.passwordHash) {
     passwordValid = await passwordService.verifyPassword(
       password,
-      account.passwordHash,
+      account.passwordHash
     );
   } else if (supabase) {
     const res = await supabase.auth.signInWithPassword({
@@ -785,22 +785,22 @@ async function login({ email, password, role }, req) {
     // SEC-FIX-1: Differentiate Google-only accounts with a specific code
     // so the mobile app can show a helpful message, but the error text stays generic.
     if (!account.passwordHash) {
-      const err = new Error("Invalid email or password");
+      const err = new Error('Invalid email or password');
       err.status = 401;
-      err.code = "NO_PASSWORD_SET";
+      err.code = 'NO_PASSWORD_SET';
       throw err;
     }
     await account.incrementFailedLogin();
     await logSecurityEvent(
-      "anonymous",
-      "login_failed",
-      "medium",
-      "Failed login attempt",
-      req,
+      'anonymous',
+      'login_failed',
+      'medium',
+      'Failed login attempt',
+      req
     );
-    const err = new Error("Invalid email or password");
+    const err = new Error('Invalid email or password');
     err.status = 401;
-    err.code = "INVALID_CREDENTIALS";
+    err.code = 'INVALID_CREDENTIALS';
     throw err;
   }
 
@@ -810,45 +810,45 @@ async function login({ email, password, role }, req) {
 
   const subject = isPatient ? account.supabase_uid : account.supabaseUid;
   const userType = isPatient
-    ? "Patient"
+    ? 'Patient'
     : isCompanion
-      ? "Companion"
-      : "Profile";
+      ? 'Companion'
+      : 'Profile';
 
   // ── MFA Challenge Gate (Audit 2.1-2.4, 2.8) ─────────────────────────────
   // If MFA is enabled, do NOT issue full tokens yet.
   // Instead, issue a short-lived mfa_token the client must exchange
   // via POST /api/auth/mfa/verify with a valid TOTP code.
   if (account.mfaEnabled) {
-    const jwtConfig = require("../config/jwt");
+    const jwtConfig = require('../config/jwt');
     const mfaToken = jwt.sign(
       {
-        purpose: "mfa_challenge",
+        purpose: 'mfa_challenge',
         userId: account._id.toString(),
         userType,
         subject,
-        role: isPatient ? "patient" : account.role,
+        role: isPatient ? 'patient' : account.role,
         email: account.email,
         emailVerified: account.emailVerified,
         profileSnapshot: buildLoginProfile(account, isPatient, caps.workspaces),
       },
       jwtConfig.secret,
-      { expiresIn: "5m" },
+      { expiresIn: '5m' }
     );
 
     await logEvent(
       subject,
-      "login_mfa_required",
-      isPatient ? "patient" : "profile",
+      'login_mfa_required',
+      isPatient ? 'patient' : 'profile',
       account._id,
       req,
       {
-        role: isPatient ? "patient" : account.role,
-      },
+        role: isPatient ? 'patient' : account.role,
+      }
     );
 
     return {
-      message: "MFA verification required",
+      message: 'MFA verification required',
       requireMfa: true,
       mfa_token: mfaToken,
       profile: buildLoginProfile(account, isPatient, caps.workspaces),
@@ -860,29 +860,29 @@ async function login({ email, password, role }, req) {
       userId: account._id,
       userType,
       subject,
-      role: isPatient ? "patient" : account.role,
+      role: isPatient ? 'patient' : account.role,
       email: account.email,
       emailVerified: account.emailVerified,
     },
-    req,
+    req
   );
 
   await logEvent(
     subject,
-    "login",
-    isPatient ? "patient" : "profile",
+    'login',
+    isPatient ? 'patient' : 'profile',
     account._id,
     req,
     {
-      role: isPatient ? "patient" : account.role,
+      role: isPatient ? 'patient' : account.role,
       organizationId: isPatient
         ? account.organization_id
         : account.organizationId?._id,
-    },
+    }
   );
 
   return {
-    message: "Login successful",
+    message: 'Login successful',
     session: {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
@@ -896,7 +896,7 @@ async function login({ email, password, role }, req) {
 
 async function refreshSession(rawRefresh, req) {
   if (!rawRefresh) {
-    const err = new Error("Refresh token is required");
+    const err = new Error('Refresh token is required');
     err.status = 400;
     throw err;
   }
@@ -908,9 +908,9 @@ async function refreshSession(rawRefresh, req) {
   });
 
   if (!doc) {
-    const err = new Error("Invalid or expired refresh token");
+    const err = new Error('Invalid or expired refresh token');
     err.status = 401;
-    err.code = "INVALID_REFRESH_TOKEN";
+    err.code = 'INVALID_REFRESH_TOKEN';
     throw err;
   }
 
@@ -918,47 +918,47 @@ async function refreshSession(rawRefresh, req) {
   if (doc.revokedAt != null) {
     await tokenService.revokeAllForUser(doc.userId, doc.userType);
     await logSecurityEvent(
-      "anonymous",
-      "refresh_token_reuse",
-      "critical",
-      "Attempted reuse of revoked refresh token",
-      req,
+      'anonymous',
+      'refresh_token_reuse',
+      'critical',
+      'Attempted reuse of revoked refresh token',
+      req
     );
     const err = new Error(
-      "Security alert: Token reuse detected. All sessions revoked.",
+      'Security alert: Token reuse detected. All sessions revoked.'
     );
     err.status = 401;
-    err.code = "TOKEN_REUSE_DETECTED";
+    err.code = 'TOKEN_REUSE_DETECTED';
     throw err;
   }
 
   let account;
-  let isPatient = doc.userType === "Patient";
-  let isCompanion = doc.userType === "Companion";
+  let isPatient = doc.userType === 'Patient';
+  let isCompanion = doc.userType === 'Companion';
 
   if (isPatient) {
     account = await Patient.findById(doc.userId);
   } else if (isCompanion) {
-    const Companion = require("../models/Companion");
+    const Companion = require('../models/Companion');
     account = await Companion.findById(doc.userId);
   } else {
     account = await Profile.findById(doc.userId).populate(
-      "organizationId",
-      "name city",
+      'organizationId',
+      'name city'
     );
   }
 
   if (!account || (isPatient ? !account.is_active : !account.isActive)) {
-    const err = new Error("Profile not found or account deactivated");
+    const err = new Error('Profile not found or account deactivated');
     err.status = 403;
-    err.code = "PROFILE_NOT_FOUND";
+    err.code = 'PROFILE_NOT_FOUND';
     throw err;
   }
 
   if (account.isLocked) {
-    const err = new Error("Account is temporarily locked");
+    const err = new Error('Account is temporarily locked');
     err.status = 423;
-    err.code = "ACCOUNT_LOCKED";
+    err.code = 'ACCOUNT_LOCKED';
     err.lockedUntil = account.accountLockedUntil;
     throw err;
   }
@@ -970,17 +970,17 @@ async function refreshSession(rawRefresh, req) {
   const tokens = await tokenService.issueTokenPair(
     {
       userId: account._id,
-      userType: isPatient ? "Patient" : isCompanion ? "Companion" : "Profile",
+      userType: isPatient ? 'Patient' : isCompanion ? 'Companion' : 'Profile',
       subject,
-      role: isPatient ? "patient" : account.role,
+      role: isPatient ? 'patient' : account.role,
       email: account.email,
       emailVerified: account.emailVerified,
     },
-    req,
+    req
   );
 
   return {
-    message: "Token refreshed successfully",
+    message: 'Token refreshed successfully',
     session: {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
@@ -994,20 +994,20 @@ async function refreshSession(rawRefresh, req) {
 
 async function logout(subject, userId, userType, req) {
   const authHeader = req.headers?.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    const token = authHeader.split(" ")[1];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
     await tokenService.denylistAccessToken(token);
   }
   await tokenService.revokeAllForUser(userId, userType);
 
   // Clear push token so logged out devices stop receiving notifications
   try {
-    if (userType === "Patient") {
+    if (userType === 'Patient') {
       await Patient.findByIdAndUpdate(userId, { expo_push_token: null });
-    } else if (userType === "Companion") {
-      const Companion = require("../models/Companion");
+    } else if (userType === 'Companion') {
+      const Companion = require('../models/Companion');
       await Companion.findByIdAndUpdate(userId, { expo_push_token: null });
-    } else if (userType === "Profile") {
+    } else if (userType === 'Profile') {
       await Profile.findByIdAndUpdate(userId, { expo_push_token: null });
     }
   } catch (err) {
@@ -1016,10 +1016,10 @@ async function logout(subject, userId, userType, req) {
 
   await logEvent(
     subject,
-    "logout",
-    userType === "Patient" ? "patient" : "profile",
+    'logout',
+    userType === 'Patient' ? 'patient' : 'profile',
     userId,
-    req,
+    req
   );
 }
 
@@ -1027,7 +1027,7 @@ async function requestPasswordReset(email, req) {
   const emailNorm = email.toLowerCase().trim();
   const genericResponse = {
     message:
-      "If an account with this email exists, a password reset code has been sent",
+      'If an account with this email exists, a password reset code has been sent',
   };
 
   const profile = await Profile.findOne({ email: emailNorm, isActive: true });
@@ -1036,17 +1036,17 @@ async function requestPasswordReset(email, req) {
 
   const otp = await createOTP(`reset:${emailNorm}`);
   sendPasswordResetEmail(email, otp).catch((err) =>
-    console.error("Reset email failed:", err.message),
+    console.error('Reset email failed:', err.message)
   );
 
   const uid = profile ? profile.supabaseUid : patient.supabase_uid;
   const docId = profile ? profile._id : patient._id;
   await logEvent(
     uid,
-    "password_reset_requested",
-    profile ? "profile" : "patient",
+    'password_reset_requested',
+    profile ? 'profile' : 'patient',
     docId,
-    req,
+    req
   );
 
   return genericResponse;
@@ -1057,7 +1057,7 @@ async function verifyPasswordReset({ email, otp, newPassword }, req) {
   const complexityErrors =
     passwordService.validatePasswordComplexity(newPassword);
   if (complexityErrors.length) {
-    const err = new Error("Password does not meet requirements");
+    const err = new Error('Password does not meet requirements');
     err.status = 400;
     err.details = complexityErrors;
     throw err;
@@ -1065,7 +1065,7 @@ async function verifyPasswordReset({ email, otp, newPassword }, req) {
 
   const result = await verifyOTP(`reset:${emailNorm}`, otp);
   if (!result.valid) {
-    const err = new Error(result.reason || "Invalid code");
+    const err = new Error(result.reason || 'Invalid code');
     err.status = 400;
     throw err;
   }
@@ -1073,14 +1073,14 @@ async function verifyPasswordReset({ email, otp, newPassword }, req) {
   const profile = await Profile.findOne({
     email: emailNorm,
     isActive: true,
-  }).select("+passwordHash");
+  }).select('+passwordHash');
   const patient = await Patient.findOne({
     email: emailNorm,
     is_active: true,
-  }).select("+passwordHash");
+  }).select('+passwordHash');
 
   if (!profile && !patient) {
-    const err = new Error("Account not found");
+    const err = new Error('Account not found');
     err.status = 404;
     throw err;
   }
@@ -1090,13 +1090,13 @@ async function verifyPasswordReset({ email, otp, newPassword }, req) {
     profile.passwordHash = hash;
     profile.mustChangePassword = false;
     await profile.save();
-    await tokenService.revokeAllForUser(profile._id, "Profile");
+    await tokenService.revokeAllForUser(profile._id, 'Profile');
     await tokenService.revokeAllSessionsGlobally(profile.supabaseUid);
   }
   if (patient) {
     patient.passwordHash = hash;
     await patient.save();
-    await tokenService.revokeAllForUser(patient._id, "Patient");
+    await tokenService.revokeAllForUser(patient._id, 'Patient');
     await tokenService.revokeAllSessionsGlobally(patient.supabase_uid);
   }
 
@@ -1106,15 +1106,15 @@ async function verifyPasswordReset({ email, otp, newPassword }, req) {
   const uid = profile ? profile.supabaseUid : patient.supabase_uid;
   await logEvent(
     uid,
-    "password_reset_completed",
-    profile ? "profile" : "patient",
+    'password_reset_completed',
+    profile ? 'profile' : 'patient',
     profile ? profile._id : patient._id,
-    req,
+    req
   );
 
   return {
     message:
-      "Password has been reset successfully. Please log in with your new password.",
+      'Password has been reset successfully. Please log in with your new password.',
   };
 }
 
@@ -1123,7 +1123,7 @@ async function createStaffUser(body, req, actorProfile) {
   const callerRole = actorProfile.role;
 
   if (!email || !fullName || !role) {
-    const err = new Error("Missing required fields: email, fullName, role");
+    const err = new Error('Missing required fields: email, fullName, role');
     err.status = 400;
     throw err;
   }
@@ -1132,13 +1132,13 @@ async function createStaffUser(body, req, actorProfile) {
   if (!allowedTargetRoles || !allowedTargetRoles.includes(role)) {
     const err = new Error(`Role '${callerRole}' cannot create role '${role}'`);
     err.status = 403;
-    err.code = "ROLE_HIERARCHY_VIOLATION";
+    err.code = 'ROLE_HIERARCHY_VIOLATION';
     throw err;
   }
 
   const targetOrgId = organizationId || actorProfile.organizationId || null;
-  if (["care_manager", "caller"].includes(role) && !targetOrgId) {
-    const err = new Error("organizationId is required for this role");
+  if (['care_manager', 'caller'].includes(role) && !targetOrgId) {
+    const err = new Error('organizationId is required for this role');
     err.status = 400;
     throw err;
   }
@@ -1146,14 +1146,14 @@ async function createStaffUser(body, req, actorProfile) {
   if (targetOrgId) {
     const org = await Organization.findById(targetOrgId);
     if (!org || !org.isActive) {
-      const err = new Error("Invalid or inactive organization");
+      const err = new Error('Invalid or inactive organization');
       err.status = 400;
       throw err;
     }
     if (!org.canAdd(role)) {
       const err = new Error(`Organisation has reached its ${role} capacity`);
       err.status = 400;
-      err.code = "CAPACITY_LIMIT_REACHED";
+      err.code = 'CAPACITY_LIMIT_REACHED';
       throw err;
     }
   }
@@ -1187,10 +1187,10 @@ async function createStaffUser(body, req, actorProfile) {
 
   if (targetOrgId) {
     const incField =
-      role === "caller"
-        ? "counts.callers"
-        : role === "care_manager"
-          ? "counts.managers"
+      role === 'caller'
+        ? 'counts.callers'
+        : role === 'care_manager'
+          ? 'counts.managers'
           : null;
     if (incField) {
       await Organization.findByIdAndUpdate(targetOrgId, {
@@ -1203,20 +1203,20 @@ async function createStaffUser(body, req, actorProfile) {
     email,
     fullName,
     tempPassword,
-    ROLE_LABELS[role] || role,
+    ROLE_LABELS[role] || role
   );
 
   await logEvent(
     actorProfile.supabaseUid,
-    "create_user",
-    "profile",
+    'create_user',
+    'profile',
     profile._id,
     req,
     {
       targetEmail: emailNorm,
       targetRole: role,
       createdByRole: callerRole,
-    },
+    }
   );
 
   return {
@@ -1235,10 +1235,10 @@ async function changePassword(
   { currentPassword, newPassword },
   req,
   profile,
-  userSubject,
+  userSubject
 ) {
   if (!currentPassword || !newPassword) {
-    const err = new Error("currentPassword and newPassword are required");
+    const err = new Error('currentPassword and newPassword are required');
     err.status = 400;
     throw err;
   }
@@ -1246,16 +1246,16 @@ async function changePassword(
   const complexityErrors =
     passwordService.validatePasswordComplexity(newPassword);
   if (complexityErrors.length) {
-    const err = new Error("Password does not meet requirements");
+    const err = new Error('Password does not meet requirements');
     err.status = 400;
     err.details = complexityErrors;
     throw err;
   }
 
-  const isPatient = profile.role === "patient";
+  const isPatient = profile.role === 'patient';
   const Model = isPatient ? Patient : Profile;
   const account = await Model.findById(profile._id).select(
-    "+passwordHash +passwordHistory",
+    '+passwordHash +passwordHistory'
   );
 
   let currentOk = false;
@@ -1263,7 +1263,7 @@ async function changePassword(
   if (account.passwordHash) {
     currentOk = await passwordService.verifyPassword(
       currentPassword,
-      account.passwordHash,
+      account.passwordHash
     );
   } else if (supabase) {
     const { error } = await supabase.auth.signInWithPassword({
@@ -1278,20 +1278,20 @@ async function changePassword(
   if (!currentOk) {
     await logSecurityEvent(
       userSubject,
-      "password_change_failed",
-      "medium",
-      "Incorrect current password during password change",
-      req,
+      'password_change_failed',
+      'medium',
+      'Incorrect current password during password change',
+      req
     );
-    const err = new Error("Current password is incorrect");
+    const err = new Error('Current password is incorrect');
     err.status = 401;
-    err.code = "INVALID_CURRENT_PASSWORD";
+    err.code = 'INVALID_CURRENT_PASSWORD';
     throw err;
   }
 
   if (currentPassword === newPassword) {
     const err = new Error(
-      "New password must be different from current password",
+      'New password must be different from current password'
     );
     err.status = 400;
     throw err;
@@ -1301,12 +1301,12 @@ async function changePassword(
     for (const oldHash of account.passwordHistory) {
       const matches = await passwordService.verifyPassword(
         newPassword,
-        oldHash,
+        oldHash
       );
       if (matches) {
-        const err = new Error("Cannot reuse any of your last 3 passwords");
+        const err = new Error('Cannot reuse any of your last 3 passwords');
         err.status = 400;
-        err.code = "PASSWORD_REUSE";
+        err.code = 'PASSWORD_REUSE';
         throw err;
       }
     }
@@ -1327,7 +1327,7 @@ async function changePassword(
 
   await tokenService.revokeAllForUser(
     account._id,
-    isPatient ? "Patient" : "Profile",
+    isPatient ? 'Patient' : 'Profile'
   );
   await tokenService.revokeAllSessionsGlobally(userSubject);
 
@@ -1336,39 +1336,39 @@ async function changePassword(
 
   await logEvent(
     userSubject,
-    "password_changed",
-    isPatient ? "patient" : "profile",
+    'password_changed',
+    isPatient ? 'patient' : 'profile',
     account._id,
     req,
     {
       forced: profile.mustChangePassword,
-    },
+    }
   );
 
-  return { message: "Password changed successfully. Please log in again." };
+  return { message: 'Password changed successfully. Please log in again.' };
 }
 
 async function setPassword(newPassword, req, profile, userSubject) {
   const complexityErrors =
     passwordService.validatePasswordComplexity(newPassword);
   if (complexityErrors.length) {
-    const err = new Error("Password does not meet requirements");
+    const err = new Error('Password does not meet requirements');
     err.status = 400;
     err.details = complexityErrors;
     throw err;
   }
 
-  const isPatient = profile.role === "patient";
+  const isPatient = profile.role === 'patient';
   const Model = isPatient ? Patient : Profile;
-  const account = await Model.findById(profile._id).select("+passwordHash");
+  const account = await Model.findById(profile._id).select('+passwordHash');
 
   // Security: prevent overwriting an existing password without current-password verification
   if (account.passwordHash) {
     const err = new Error(
-      'A password is already set on this account. Use "Change Password" instead.',
+      'A password is already set on this account. Use "Change Password" instead.'
     );
     err.status = 400;
-    err.code = "PASSWORD_ALREADY_SET";
+    err.code = 'PASSWORD_ALREADY_SET';
     throw err;
   }
 
@@ -1380,15 +1380,15 @@ async function setPassword(newPassword, req, profile, userSubject) {
 
   await logEvent(
     userSubject,
-    "password_set",
-    isPatient ? "patient" : "profile",
+    'password_set',
+    isPatient ? 'patient' : 'profile',
     account._id,
-    req,
+    req
   );
 
   return {
     message:
-      "Password set successfully. You can now log in with email and password.",
+      'Password set successfully. You can now log in with email and password.',
   };
 }
 

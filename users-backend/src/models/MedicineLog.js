@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const MedicineLogSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
@@ -18,7 +18,7 @@ const MedicineLogSchema = new mongoose.Schema(
         medicine_name: { type: String, required: true },
         scheduled_time: {
           type: String,
-          enum: ["morning", "afternoon", "evening", "night", "as_needed"],
+          enum: ['morning', 'afternoon', 'evening', 'night', 'as_needed'],
           required: true,
         },
         taken: {
@@ -28,8 +28,8 @@ const MedicineLogSchema = new mongoose.Schema(
         taken_at: Date,
         marked_by: {
           type: String,
-          enum: ["patient", "caller", "system"],
-          default: "patient",
+          enum: ['patient', 'caller', 'system'],
+          default: 'patient',
         },
         is_active: {
           type: Boolean,
@@ -39,11 +39,11 @@ const MedicineLogSchema = new mongoose.Schema(
     ],
   },
   {
-    timestamps: { createdAt: "created_at" },
-  },
+    timestamps: { createdAt: 'created_at' },
+  }
 );
 
 // Compound index for daily lookups
 MedicineLogSchema.index({ patient_id: 1, date: -1 });
 
-module.exports = mongoose.model("MedicineLog", MedicineLogSchema);
+module.exports = mongoose.model('MedicineLog', MedicineLogSchema);

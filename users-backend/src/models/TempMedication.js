@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 /**
  * TempMedication — Temporary/OTC medicines added by callers or patients.
@@ -10,12 +10,12 @@ const TempMedicationSchema = new mongoose.Schema(
   {
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
       required: true,
     },
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
+      ref: 'Organization',
       required: true,
     },
 
@@ -30,58 +30,58 @@ const TempMedicationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 100,
-      default: "",
+      default: '',
     },
     frequency: {
       type: String,
       trim: true,
       maxlength: 100,
-      default: "As needed",
+      default: 'As needed',
     },
     shift: {
       type: String,
-      enum: ["morning", "afternoon", "night"],
+      enum: ['morning', 'afternoon', 'night'],
       required: true,
     },
     reason: {
       type: String,
       trim: true,
       maxlength: 500,
-      default: "",
+      default: '',
     },
 
     // ── Who added it ─────────────────────────────────────────────
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
     },
     addedByRole: {
       type: String,
-      enum: ["caller", "patient", "care_manager", "org_admin", "super_admin"],
-      default: "caller",
+      enum: ['caller', 'patient', 'care_manager', 'org_admin', 'super_admin'],
+      default: 'caller',
     },
     addedByName: {
       type: String,
       trim: true,
-      default: "",
+      default: '',
     },
 
     // ── AI Safety Classification ─────────────────────────────────
     riskTier: {
       type: String,
-      enum: ["safe", "caution", "restricted"],
-      default: "caution",
+      enum: ['safe', 'caution', 'restricted'],
+      default: 'caution',
     },
     genericName: {
       type: String,
       trim: true,
-      default: "",
+      default: '',
     },
     aiSummary: {
       type: String,
       trim: true,
       maxlength: 1000,
-      default: "",
+      default: '',
     },
     sideEffects: [
       {
@@ -110,7 +110,7 @@ const TempMedicationSchema = new mongoose.Schema(
     },
     deletedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
     },
     deletedAt: {
       type: Date,
@@ -120,7 +120,7 @@ const TempMedicationSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // ── Indexes ────────────────────────────────────────────────────
@@ -132,4 +132,4 @@ TempMedicationSchema.statics.findActiveByPatient = function (patientId) {
   return this.find({ patientId, isActive: true }).sort({ createdAt: -1 });
 };
 
-module.exports = mongoose.model("TempMedication", TempMedicationSchema);
+module.exports = mongoose.model('TempMedication', TempMedicationSchema);

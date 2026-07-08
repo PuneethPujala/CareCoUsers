@@ -1,10 +1,10 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const Organization = require("../models/Organization");
-const Profile = require("../models/Profile");
-const { authenticate, requireRole } = require("../middleware/authenticate");
-const { authorize } = require("../middleware/authorize");
-const { logEvent, autoLogAccess } = require("../services/auditService");
+const express = require('express');
+const mongoose = require('mongoose');
+const Organization = require('../models/Organization');
+const Profile = require('../models/Profile');
+const { authenticate, requireRole } = require('../middleware/authenticate');
+const { authorize } = require('../middleware/authorize');
+const { logEvent, autoLogAccess } = require('../services/auditService');
 
 const router = express.Router();
 
@@ -13,11 +13,11 @@ const router = express.Router();
  * Get all organizations — super_admin only
  */
 router.get(
-  "/",
+  '/',
   authenticate,
-  requireRole("super_admin"),
-  authorize("organizations", "read"),
-  autoLogAccess("organizations", "read"),
+  requireRole('super_admin'),
+  authorize('organizations', 'read'),
+  autoLogAccess('organizations', 'read'),
   async (req, res) => {
     try {
       const {
@@ -27,25 +27,25 @@ router.get(
         city,
         subscriptionPlan,
         isActive = true,
-        sortBy = "createdAt",
-        sortOrder = "desc",
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
       } = req.query;
 
       const query = {};
-      if (city) query.city = { $regex: city, $options: "i" };
+      if (city) query.city = { $regex: city, $options: 'i' };
       if (subscriptionPlan) query.subscriptionPlan = subscriptionPlan;
-      if (isActive !== undefined) query.isActive = isActive === "true";
+      if (isActive !== undefined) query.isActive = isActive === 'true';
 
       if (search) {
         query.$or = [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-          { city: { $regex: search, $options: "i" } },
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { city: { $regex: search, $options: 'i' } },
         ];
       }
 
       const sort = {};
-      sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
       const [organizations, total] = await Promise.all([
         Organization.find(query)
@@ -65,12 +65,12 @@ router.get(
         },
       });
     } catch (error) {
-      console.error("Get organizations error:", error);
+      console.error('Get organizations error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get organizations", details: error.message });
+        .json({ error: 'Failed to get organizations', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -78,39 +78,39 @@ router.get(
  * Get specific organization
  */
 router.get(
-  "/:id",
+  '/:id',
   authenticate,
-  authorize("organizations", "read"),
-  autoLogAccess("organizations", "read"),
+  authorize('organizations', 'read'),
+  autoLogAccess('organizations', 'read'),
   async (req, res) => {
     try {
       const { role } = req.profile;
 
       // Super admin sees all; org_admin and care_manager see only their own
-      if (!["super_admin"].includes(role)) {
+      if (!['super_admin'].includes(role)) {
         if (
           !req.profile.organizationId ||
           !req.profile.organizationId.equals(req.params.id)
         ) {
           return res
             .status(403)
-            .json({ error: "Access denied to this organization" });
+            .json({ error: 'Access denied to this organization' });
         }
       }
 
       const organization = await Organization.findById(req.params.id);
       if (!organization) {
-        return res.status(404).json({ error: "Organization not found" });
+        return res.status(404).json({ error: 'Organization not found' });
       }
 
       res.json(organization);
     } catch (error) {
-      console.error("Get organization error:", error);
+      console.error('Get organization error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get organization", details: error.message });
+        .json({ error: 'Failed to get organization', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -118,11 +118,11 @@ router.get(
  * Create new organization — super_admin only
  */
 router.post(
-  "/",
+  '/',
   authenticate,
-  requireRole("super_admin"),
-  authorize("organizations", "create"),
-  autoLogAccess("organizations", "create"),
+  requireRole('super_admin'),
+  authorize('organizations', 'create'),
+  autoLogAccess('organizations', 'create'),
   async (req, res) => {
     try {
       const {
@@ -131,7 +131,7 @@ router.post(
         state,
         country,
         timezone,
-        subscriptionPlan = "starter",
+        subscriptionPlan = 'starter',
         limits,
         phone,
         email,
@@ -143,7 +143,7 @@ router.post(
       if (!name || !city) {
         return res
           .status(400)
-          .json({ error: "Missing required fields: name, city" });
+          .json({ error: 'Missing required fields: name, city' });
       }
 
       // Each city should have only one active organisation
@@ -174,24 +174,24 @@ router.post(
 
       await logEvent(
         req.profile.supabaseUid,
-        "organization_created",
-        "organization",
+        'organization_created',
+        'organization',
         organization._id,
         req,
-        { organizationName: name, city, subscriptionPlan },
+        { organizationName: name, city, subscriptionPlan }
       );
 
       res
         .status(201)
-        .json({ message: "Organization created successfully", organization });
+        .json({ message: 'Organization created successfully', organization });
     } catch (error) {
-      console.error("Create organization error:", error);
+      console.error('Create organization error:', error);
       res.status(500).json({
-        error: "Failed to create organization",
+        error: 'Failed to create organization',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -199,10 +199,10 @@ router.post(
  * Update organization
  */
 router.put(
-  "/:id",
+  '/:id',
   authenticate,
-  authorize("organizations", "update"),
-  autoLogAccess("organizations", "update"),
+  authorize('organizations', 'update'),
+  autoLogAccess('organizations', 'update'),
   async (req, res) => {
     try {
       const { role } = req.profile;
@@ -210,36 +210,36 @@ router.put(
       let canUpdate = false;
       let allowedFields = [];
 
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         canUpdate = true;
         // Super admin can update everything except createdBy and counts
         allowedFields = [
-          "name",
-          "city",
-          "state",
-          "country",
-          "timezone",
-          "subscriptionPlan",
-          "limits",
-          "phone",
-          "email",
-          "licenseNumber",
-          "licenseExpiryDate",
-          "settings",
-          "isActive",
+          'name',
+          'city',
+          'state',
+          'country',
+          'timezone',
+          'subscriptionPlan',
+          'limits',
+          'phone',
+          'email',
+          'licenseNumber',
+          'licenseExpiryDate',
+          'settings',
+          'isActive',
         ];
-      } else if (role === "org_admin") {
+      } else if (role === 'org_admin') {
         canUpdate =
           req.profile.organizationId &&
           req.profile.organizationId.equals(organizationId);
         // Org admin can only update contact and settings
-        allowedFields = ["phone", "email", "settings"];
+        allowedFields = ['phone', 'email', 'settings'];
       }
 
       if (!canUpdate) {
         return res
           .status(403)
-          .json({ error: "Access denied to update this organization" });
+          .json({ error: 'Access denied to update this organization' });
       }
 
       const updateData = {};
@@ -250,34 +250,34 @@ router.put(
       const updatedOrganization = await Organization.findByIdAndUpdate(
         organizationId,
         updateData,
-        { new: true, runValidators: true },
+        { new: true, runValidators: true }
       );
 
       if (!updatedOrganization) {
-        return res.status(404).json({ error: "Organization not found" });
+        return res.status(404).json({ error: 'Organization not found' });
       }
 
       await logEvent(
         req.profile.supabaseUid,
-        "organization_updated",
-        "organization",
+        'organization_updated',
+        'organization',
         organizationId,
         req,
-        { updatedFields: Object.keys(updateData) },
+        { updatedFields: Object.keys(updateData) }
       );
 
       res.json({
-        message: "Organization updated successfully",
+        message: 'Organization updated successfully',
         organization: updatedOrganization,
       });
     } catch (error) {
-      console.error("Update organization error:", error);
+      console.error('Update organization error:', error);
       res.status(500).json({
-        error: "Failed to update organization",
+        error: 'Failed to update organization',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -285,16 +285,16 @@ router.put(
  * Soft-delete (deactivate) organization — super_admin only
  */
 router.delete(
-  "/:id",
+  '/:id',
   authenticate,
-  requireRole("super_admin"),
-  authorize("organizations", "delete"),
-  autoLogAccess("organizations", "delete"),
+  requireRole('super_admin'),
+  authorize('organizations', 'delete'),
+  autoLogAccess('organizations', 'delete'),
   async (req, res) => {
     try {
       const organization = await Organization.findById(req.params.id);
       if (!organization) {
-        return res.status(404).json({ error: "Organization not found" });
+        return res.status(404).json({ error: 'Organization not found' });
       }
 
       // Block deletion if active users still exist
@@ -314,15 +314,15 @@ router.delete(
 
       await logEvent(
         req.profile.supabaseUid,
-        "organization_deleted",
-        "organization",
+        'organization_deleted',
+        'organization',
         req.params.id,
         req,
-        { organizationName: organization.name, city: organization.city },
+        { organizationName: organization.name, city: organization.city }
       );
 
       res.json({
-        message: "Organization deactivated successfully",
+        message: 'Organization deactivated successfully',
         organization: {
           id: organization._id,
           name: organization.name,
@@ -331,13 +331,13 @@ router.delete(
         },
       });
     } catch (error) {
-      console.error("Delete organization error:", error);
+      console.error('Delete organization error:', error);
       res.status(500).json({
-        error: "Failed to delete organization",
+        error: 'Failed to delete organization',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -345,23 +345,23 @@ router.delete(
  * Get all users in an organization with pagination + filtering
  */
 router.get(
-  "/:id/users",
+  '/:id/users',
   authenticate,
-  authorize("organizations", "read"),
-  autoLogAccess("organizations", "read"),
+  authorize('organizations', 'read'),
+  autoLogAccess('organizations', 'read'),
   async (req, res) => {
     try {
       const { role } = req.profile;
       const organizationId = req.params.id;
 
-      if (role !== "super_admin") {
+      if (role !== 'super_admin') {
         if (
           !req.profile.organizationId ||
           !req.profile.organizationId.equals(organizationId)
         ) {
           return res
             .status(403)
-            .json({ error: "Access denied to this organization" });
+            .json({ error: 'Access denied to this organization' });
         }
       }
 
@@ -375,12 +375,12 @@ router.get(
 
       const query = { organizationId };
       if (roleFilter) query.role = roleFilter;
-      if (isActive !== undefined) query.isActive = isActive === "true";
+      if (isActive !== undefined) query.isActive = isActive === 'true';
 
       if (search) {
         query.$or = [
-          { fullName: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
+          { fullName: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
         ];
       }
 
@@ -402,13 +402,13 @@ router.get(
         },
       });
     } catch (error) {
-      console.error("Get organization users error:", error);
+      console.error('Get organization users error:', error);
       res.status(500).json({
-        error: "Failed to get organization users",
+        error: 'Failed to get organization users',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -416,29 +416,29 @@ router.get(
  * Get live statistics for an organization
  */
 router.get(
-  "/:id/stats",
+  '/:id/stats',
   authenticate,
-  authorize("organizations", "read"),
-  autoLogAccess("organizations", "read"),
+  authorize('organizations', 'read'),
+  autoLogAccess('organizations', 'read'),
   async (req, res) => {
     try {
       const { role } = req.profile;
       const organizationId = req.params.id;
 
-      if (role !== "super_admin") {
+      if (role !== 'super_admin') {
         if (
           !req.profile.organizationId ||
           !req.profile.organizationId.equals(organizationId)
         ) {
           return res
             .status(403)
-            .json({ error: "Access denied to this organization" });
+            .json({ error: 'Access denied to this organization' });
         }
       }
 
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ error: "Organization not found" });
+        return res.status(404).json({ error: 'Organization not found' });
       }
 
       // Live role breakdown from Profile collection
@@ -448,7 +448,7 @@ router.get(
             organizationId: new mongoose.Types.ObjectId(organizationId),
           },
         },
-        { $group: { _id: "$role", count: { $sum: 1 } } },
+        { $group: { _id: '$role', count: { $sum: 1 } } },
       ]);
 
       const statsByRole = userStats.reduce((acc, s) => {
@@ -474,13 +474,13 @@ router.get(
         userStats: statsByRole,
       });
     } catch (error) {
-      console.error("Get organization stats error:", error);
+      console.error('Get organization stats error:', error);
       res.status(500).json({
-        error: "Failed to get organization statistics",
+        error: 'Failed to get organization statistics',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 module.exports = router;

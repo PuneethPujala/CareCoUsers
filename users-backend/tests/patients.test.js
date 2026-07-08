@@ -1,4 +1,4 @@
-process.env.NODE_ENV = "test";
+process.env.NODE_ENV = 'test';
 
 /**
  * patients.test.js — rewritten against actual route
@@ -33,18 +33,18 @@ function fakeId(val) {
 // ─── Shared mutable auth state ────────────────────────────────────────────────
 
 const mockAuthState = {
-  user: { id: "cm-user", supabaseUid: "cm-user" },
+  user: { id: 'cm-user', supabaseUid: 'cm-user' },
   profile: {
-    _id: fakeId("cm-profile"),
-    supabaseUid: "cm-user",
-    role: "care_manager",
-    organizationId: fakeId("org123"),
+    _id: fakeId('cm-profile'),
+    supabaseUid: 'cm-user',
+    role: 'care_manager',
+    organizationId: fakeId('org123'),
   },
 };
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock("../src/middleware/authenticate", () => ({
+jest.mock('../src/middleware/authenticate', () => ({
   authenticate: (req, res, next) => {
     req.user = mockAuthState.user;
     req.profile = mockAuthState.profile;
@@ -60,28 +60,28 @@ jest.mock("../src/middleware/authenticate", () => ({
     (req, res, next) => {
       if (!allowed.includes(req.profile.role))
         return res.status(403).json({
-          error: "Insufficient role permissions",
-          code: "INSUFFICIENT_ROLE",
+          error: 'Insufficient role permissions',
+          code: 'INSUFFICIENT_ROLE',
         });
       next();
     },
 }));
 
-jest.mock("../src/middleware/authorize", () => ({
+jest.mock('../src/middleware/authorize', () => ({
   authorize: () => (req, res, next) => next(),
   authorizeResource: () => (req, res, next) => next(),
   authorizeAny: () => (req, res, next) => next(),
   authorizeAll: () => (req, res, next) => next(),
 }));
 
-jest.mock("../src/middleware/scopeFilter", () => ({
+jest.mock('../src/middleware/scopeFilter', () => ({
   scopeFilter: () => (req, res, next) => {
     req.scopeFilter = {};
     next();
   },
 }));
 
-jest.mock("../src/services/auditService", () => ({
+jest.mock('../src/services/auditService', () => ({
   logEvent: jest.fn().mockResolvedValue(undefined),
   logSecurityEvent: jest.fn().mockResolvedValue(undefined),
   autoLogAccess: jest.fn(() => (req, res, next) => next()),
@@ -89,17 +89,17 @@ jest.mock("../src/services/auditService", () => ({
   getSecurityIncidents: jest.fn(),
 }));
 
-jest.mock("../src/models/Patient");
-jest.mock("../src/models/Organization");
+jest.mock('../src/models/Patient');
+jest.mock('../src/models/Organization');
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
-const request = require("supertest");
-const app = require("../src/server");
-const Patient = require("../src/models/Patient");
-const Organization = require("../src/models/Organization");
-const { logEvent } = require("../src/services/auditService");
-const { mockPatient, mockOrganization } = require("./helpers/mockModels");
+const request = require('supertest');
+const app = require('../src/server');
+const Patient = require('../src/models/Patient');
+const Organization = require('../src/models/Organization');
+const { logEvent } = require('../src/services/auditService');
+const { mockPatient, mockOrganization } = require('./helpers/mockModels');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -108,8 +108,8 @@ const { mockPatient, mockOrganization } = require("./helpers/mockModels");
  * so canReadPatient() works correctly.
  */
 function makePatient(overrides = {}) {
-  const orgId = overrides.organization_id || "org123";
-  const callerId = overrides.assigned_caller_id || "cm-profile";
+  const orgId = overrides.organization_id || 'org123';
+  const callerId = overrides.assigned_caller_id || 'cm-profile';
   const base = mockPatient({ ...overrides });
   return {
     ...base,
@@ -150,175 +150,175 @@ function makeUpdateChain(patient) {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("Patients Routes", () => {
+describe('Patients Routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAuthState.user = { id: "cm-user", supabaseUid: "cm-user" };
+    mockAuthState.user = { id: 'cm-user', supabaseUid: 'cm-user' };
     mockAuthState.profile = {
-      _id: fakeId("cm-profile"),
-      supabaseUid: "cm-user",
-      role: "care_manager",
-      organizationId: fakeId("org123"),
+      _id: fakeId('cm-profile'),
+      supabaseUid: 'cm-user',
+      role: 'care_manager',
+      organizationId: fakeId('org123'),
     };
   });
 
   // ── GET /api/patients ──────────────────────────────────────────────────────
 
-  describe("GET /api/patients", () => {
-    it("returns paginated list for care_manager", async () => {
-      const patients = [makePatient({ _id: "p1" }), makePatient({ _id: "p2" })];
+  describe('GET /api/patients', () => {
+    it('returns paginated list for care_manager', async () => {
+      const patients = [makePatient({ _id: 'p1' }), makePatient({ _id: 'p2' })];
       Patient.find = jest.fn().mockReturnValue(makeListChain(patients));
       Patient.countDocuments = jest.fn().mockResolvedValue(2);
 
       const res = await request(app)
-        .get("/api/patients")
+        .get('/api/patients')
         .query({ page: 1, limit: 20 });
 
       expect(res.status).toBe(200);
       expect(res.body.patients).toHaveLength(2);
     });
 
-    it("returns scoped list for caller (assigned patients only)", async () => {
+    it('returns scoped list for caller (assigned patients only)', async () => {
       mockAuthState.profile = {
-        _id: fakeId("caller-profile"),
-        supabaseUid: "caller-user",
-        role: "caller",
-        organizationId: fakeId("org123"),
+        _id: fakeId('caller-profile'),
+        supabaseUid: 'caller-user',
+        role: 'caller',
+        organizationId: fakeId('org123'),
       };
-      const patients = [makePatient({ assigned_caller_id: "caller-profile" })];
+      const patients = [makePatient({ assigned_caller_id: 'caller-profile' })];
       Patient.find = jest.fn().mockReturnValue(makeListChain(patients));
       Patient.countDocuments = jest.fn().mockResolvedValue(1);
 
-      const res = await request(app).get("/api/patients");
+      const res = await request(app).get('/api/patients');
 
       expect(res.status).toBe(200);
       expect(Patient.find).toHaveBeenCalledWith(
-        expect.objectContaining({ assigned_caller_id: expect.anything() }),
+        expect.objectContaining({ assigned_caller_id: expect.anything() })
       );
     });
 
-    it("applies search filter across name, email, phone, city", async () => {
+    it('applies search filter across name, email, phone, city', async () => {
       Patient.find = jest.fn().mockReturnValue(makeListChain([]));
       Patient.countDocuments = jest.fn().mockResolvedValue(0);
 
-      await request(app).get("/api/patients").query({ search: "Ravi" });
+      await request(app).get('/api/patients').query({ search: 'Ravi' });
 
       expect(Patient.find).toHaveBeenCalledWith(
         expect.objectContaining({
           $or: [
-            { name: { $regex: "Ravi", $options: "i" } },
-            { email: { $regex: "Ravi", $options: "i" } },
-            { phone: { $regex: "Ravi", $options: "i" } },
-            { city: { $regex: "Ravi", $options: "i" } },
+            { name: { $regex: 'Ravi', $options: 'i' } },
+            { email: { $regex: 'Ravi', $options: 'i' } },
+            { phone: { $regex: 'Ravi', $options: 'i' } },
+            { city: { $regex: 'Ravi', $options: 'i' } },
           ],
-        }),
+        })
       );
     });
 
-    it("applies risk_level filter", async () => {
+    it('applies risk_level filter', async () => {
       Patient.find = jest.fn().mockReturnValue(makeListChain([]));
       Patient.countDocuments = jest.fn().mockResolvedValue(0);
 
-      await request(app).get("/api/patients").query({ risk_level: "high" });
+      await request(app).get('/api/patients').query({ risk_level: 'high' });
 
       expect(Patient.find).toHaveBeenCalledWith(
-        expect.objectContaining({ risk_level: "high" }),
+        expect.objectContaining({ risk_level: 'high' })
       );
     });
   });
 
   // ── GET /api/patients/:id ──────────────────────────────────────────────────
 
-  describe("GET /api/patients/:id", () => {
-    it("allows super_admin to read any patient", async () => {
+  describe('GET /api/patients/:id', () => {
+    it('allows super_admin to read any patient', async () => {
       mockAuthState.profile = {
-        _id: fakeId("super"),
-        supabaseUid: "super",
-        role: "super_admin",
+        _id: fakeId('super'),
+        supabaseUid: 'super',
+        role: 'super_admin',
         organizationId: null,
       };
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "other-org",
+        _id: 'patient123',
+        organization_id: 'other-org',
       });
       Patient.findById = jest.fn().mockReturnValue(makeFindByIdChain(patient));
 
-      const res = await request(app).get("/api/patients/patient123");
+      const res = await request(app).get('/api/patients/patient123');
       expect(res.status).toBe(200);
     });
 
-    it("allows org_admin to read a patient in their org", async () => {
+    it('allows org_admin to read a patient in their org', async () => {
       mockAuthState.profile = {
-        _id: fakeId("admin"),
-        supabaseUid: "admin",
-        role: "org_admin",
-        organizationId: fakeId("org123"),
+        _id: fakeId('admin'),
+        supabaseUid: 'admin',
+        role: 'org_admin',
+        organizationId: fakeId('org123'),
       };
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
+        _id: 'patient123',
+        organization_id: 'org123',
       });
       Patient.findById = jest.fn().mockReturnValue(makeFindByIdChain(patient));
 
-      const res = await request(app).get("/api/patients/patient123");
+      const res = await request(app).get('/api/patients/patient123');
       expect(res.status).toBe(200);
     });
 
-    it("allows caller to read their assigned patient", async () => {
+    it('allows caller to read their assigned patient', async () => {
       mockAuthState.profile = {
-        _id: fakeId("caller-id"),
-        supabaseUid: "caller",
-        role: "caller",
-        organizationId: fakeId("org123"),
+        _id: fakeId('caller-id'),
+        supabaseUid: 'caller',
+        role: 'caller',
+        organizationId: fakeId('org123'),
       };
       const patient = makePatient({
-        _id: "patient123",
-        assigned_caller_id: "caller-id",
+        _id: 'patient123',
+        assigned_caller_id: 'caller-id',
       });
       Patient.findById = jest.fn().mockReturnValue(makeFindByIdChain(patient));
 
-      const res = await request(app).get("/api/patients/patient123");
+      const res = await request(app).get('/api/patients/patient123');
       expect(res.status).toBe(200);
     });
 
-    it("returns 403 when caller tries to read an unassigned patient", async () => {
+    it('returns 403 when caller tries to read an unassigned patient', async () => {
       mockAuthState.profile = {
-        _id: fakeId("caller-id"),
-        supabaseUid: "caller",
-        role: "caller",
-        organizationId: fakeId("org123"),
+        _id: fakeId('caller-id'),
+        supabaseUid: 'caller',
+        role: 'caller',
+        organizationId: fakeId('org123'),
       };
       // assigned to a different caller
       const patient = makePatient({
-        _id: "patient123",
-        assigned_caller_id: "other-caller",
+        _id: 'patient123',
+        assigned_caller_id: 'other-caller',
       });
       Patient.findById = jest.fn().mockReturnValue(makeFindByIdChain(patient));
 
-      const res = await request(app).get("/api/patients/patient123");
+      const res = await request(app).get('/api/patients/patient123');
       expect(res.status).toBe(403);
     });
 
-    it("returns 404 when patient does not exist", async () => {
+    it('returns 404 when patient does not exist', async () => {
       Patient.findById = jest.fn().mockReturnValue(makeFindByIdChain(null));
-      const res = await request(app).get("/api/patients/nonexistent");
+      const res = await request(app).get('/api/patients/nonexistent');
       expect(res.status).toBe(404);
     });
   });
 
   // ── PUT /api/patients/:id ──────────────────────────────────────────────────
 
-  describe("PUT /api/patients/:id", () => {
-    it("allows care_manager to update permitted fields", async () => {
+  describe('PUT /api/patients/:id', () => {
+    it('allows care_manager to update permitted fields', async () => {
       // care_manager allowed: risk_level, notes, care_instructions, assigned_caller_id, preferred_call_times, call_frequency_days
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
+        _id: 'patient123',
+        organization_id: 'org123',
       });
       const updated = makePatient({
-        _id: "patient123",
-        risk_level: "high",
-        notes: "Needs attention",
+        _id: 'patient123',
+        risk_level: 'high',
+        notes: 'Needs attention',
       });
 
       // PUT route: findById (plain) then findByIdAndUpdate().populate()x3
@@ -328,167 +328,167 @@ describe("Patients Routes", () => {
         .mockReturnValue(makeUpdateChain(updated));
 
       const res = await request(app)
-        .put("/api/patients/patient123")
-        .send({ risk_level: "high", notes: "Needs attention" });
+        .put('/api/patients/patient123')
+        .send({ risk_level: 'high', notes: 'Needs attention' });
 
       expect(res.status).toBe(200);
       expect(Patient.findByIdAndUpdate).toHaveBeenCalledWith(
-        "patient123",
+        'patient123',
         expect.objectContaining({
-          risk_level: "high",
-          notes: "Needs attention",
+          risk_level: 'high',
+          notes: 'Needs attention',
         }),
-        expect.objectContaining({ new: true, runValidators: true }),
+        expect.objectContaining({ new: true, runValidators: true })
       );
     });
 
-    it("returns 400 when care_manager sends only restricted fields", async () => {
+    it('returns 400 when care_manager sends only restricted fields', async () => {
       // 'name' is NOT in care_manager's allowed list → no valid fields → 400
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
+        _id: 'patient123',
+        organization_id: 'org123',
       });
       Patient.findById = jest.fn().mockResolvedValue(patient);
 
       const res = await request(app)
-        .put("/api/patients/patient123")
-        .send({ name: "New Name" });
+        .put('/api/patients/patient123')
+        .send({ name: 'New Name' });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(/no valid fields/i);
     });
 
-    it("returns 404 when patient does not exist", async () => {
+    it('returns 404 when patient does not exist', async () => {
       Patient.findById = jest.fn().mockResolvedValue(null);
       const res = await request(app)
-        .put("/api/patients/nonexistent")
-        .send({ notes: "test" });
+        .put('/api/patients/nonexistent')
+        .send({ notes: 'test' });
       expect(res.status).toBe(404);
     });
 
-    it("logs audit event on successful update", async () => {
+    it('logs audit event on successful update', async () => {
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
+        _id: 'patient123',
+        organization_id: 'org123',
       });
-      const updated = makePatient({ _id: "patient123" });
+      const updated = makePatient({ _id: 'patient123' });
       Patient.findById = jest.fn().mockResolvedValue(patient);
       Patient.findByIdAndUpdate = jest
         .fn()
         .mockReturnValue(makeUpdateChain(updated));
 
       await request(app)
-        .put("/api/patients/patient123")
-        .send({ notes: "Follow up needed" });
+        .put('/api/patients/patient123')
+        .send({ notes: 'Follow up needed' });
 
       expect(logEvent).toHaveBeenCalledWith(
-        "cm-user", // req.profile.supabaseUid
-        "patient_updated",
-        "patient",
-        "patient123", // req.params.id
+        'cm-user', // req.profile.supabaseUid
+        'patient_updated',
+        'patient',
+        'patient123', // req.params.id
         expect.any(Object),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
   });
 
   // ── DELETE /api/patients/:id ───────────────────────────────────────────────
 
-  describe("DELETE /api/patients/:id", () => {
+  describe('DELETE /api/patients/:id', () => {
     beforeEach(() => {
       // DELETE requires org_admin or super_admin
       mockAuthState.profile = {
-        _id: fakeId("admin-profile"),
-        supabaseUid: "admin-user",
-        role: "org_admin",
-        organizationId: fakeId("org123"),
+        _id: fakeId('admin-profile'),
+        supabaseUid: 'admin-user',
+        role: 'org_admin',
+        organizationId: fakeId('org123'),
       };
     });
 
-    it("soft-deletes patient by calling patient.save() with is_active=false", async () => {
+    it('soft-deletes patient by calling patient.save() with is_active=false', async () => {
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
+        _id: 'patient123',
+        organization_id: 'org123',
         is_active: true,
       });
       Patient.findById = jest.fn().mockResolvedValue(patient);
       Organization.findByIdAndUpdate = jest.fn().mockResolvedValue(null);
 
-      const res = await request(app).delete("/api/patients/patient123");
+      const res = await request(app).delete('/api/patients/patient123');
 
       expect(res.status).toBe(200);
       expect(patient.save).toHaveBeenCalled();
       expect(patient.is_active).toBe(false);
     });
 
-    it("decrements org counts.patients counter on delete", async () => {
+    it('decrements org counts.patients counter on delete', async () => {
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
+        _id: 'patient123',
+        organization_id: 'org123',
       });
       Patient.findById = jest.fn().mockResolvedValue(patient);
       Organization.findByIdAndUpdate = jest.fn().mockResolvedValue(null);
 
-      await request(app).delete("/api/patients/patient123");
+      await request(app).delete('/api/patients/patient123');
 
       expect(Organization.findByIdAndUpdate).toHaveBeenCalledWith(
         expect.anything(),
-        { $inc: { "counts.patients": -1 } },
+        { $inc: { 'counts.patients': -1 } }
       );
     });
 
-    it("returns 404 when patient does not exist", async () => {
+    it('returns 404 when patient does not exist', async () => {
       Patient.findById = jest.fn().mockResolvedValue(null);
-      const res = await request(app).delete("/api/patients/nonexistent");
+      const res = await request(app).delete('/api/patients/nonexistent');
       expect(res.status).toBe(404);
     });
 
-    it("returns 403 when care_manager tries to delete (requireRole blocks)", async () => {
+    it('returns 403 when care_manager tries to delete (requireRole blocks)', async () => {
       mockAuthState.profile = {
-        _id: fakeId("cm"),
-        supabaseUid: "cm",
-        role: "care_manager",
-        organizationId: fakeId("org123"),
+        _id: fakeId('cm'),
+        supabaseUid: 'cm',
+        role: 'care_manager',
+        organizationId: fakeId('org123'),
       };
-      const res = await request(app).delete("/api/patients/patient123");
+      const res = await request(app).delete('/api/patients/patient123');
       expect(res.status).toBe(403);
     });
 
-    it("logs patient_deactivated event on successful delete", async () => {
+    it('logs patient_deactivated event on successful delete', async () => {
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
-        email: "p@caremymed.in",
+        _id: 'patient123',
+        organization_id: 'org123',
+        email: 'p@caremymed.in',
       });
       Patient.findById = jest.fn().mockResolvedValue(patient);
       Organization.findByIdAndUpdate = jest.fn().mockResolvedValue(null);
 
-      await request(app).delete("/api/patients/patient123");
+      await request(app).delete('/api/patients/patient123');
 
       expect(logEvent).toHaveBeenCalledWith(
-        "admin-user",
-        "patient_deactivated",
-        "patient",
-        "patient123",
+        'admin-user',
+        'patient_deactivated',
+        'patient',
+        'patient123',
         expect.any(Object),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
   });
 
   // ── PUT /api/patients/:id/prescriptions/:prescriptionId ────────────────────
 
-  describe("PUT /api/patients/:id/prescriptions/:prescriptionId", () => {
-    it("successfully updates prescription status and notes", async () => {
+  describe('PUT /api/patients/:id/prescriptions/:prescriptionId', () => {
+    it('successfully updates prescription status and notes', async () => {
       const mockRx = {
-        _id: "rx123",
-        file_url: "http://example.com/slip.jpg",
-        status: "pending",
-        reviewer_notes: "",
+        _id: 'rx123',
+        file_url: 'http://example.com/slip.jpg',
+        status: 'pending',
+        reviewer_notes: '',
       };
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
+        _id: 'patient123',
+        organization_id: 'org123',
       });
       patient.uploaded_prescriptions = [];
       patient.uploaded_prescriptions.id = jest.fn().mockReturnValue(mockRx);
@@ -497,48 +497,48 @@ describe("Patients Routes", () => {
       Patient.findById = jest.fn().mockResolvedValue(patient);
 
       const res = await request(app)
-        .put("/api/patients/patient123/prescriptions/rx123")
-        .send({ status: "reviewed", reviewer_notes: "Approved!" });
+        .put('/api/patients/patient123/prescriptions/rx123')
+        .send({ status: 'reviewed', reviewer_notes: 'Approved!' });
 
       expect(res.status).toBe(200);
-      expect(mockRx.status).toBe("reviewed");
-      expect(mockRx.reviewer_notes).toBe("Approved!");
+      expect(mockRx.status).toBe('reviewed');
+      expect(mockRx.reviewer_notes).toBe('Approved!');
       expect(patient.save).toHaveBeenCalled();
       expect(logEvent).toHaveBeenCalled();
       const args = logEvent.mock.calls[0];
-      expect(args[0]).toBe("cm-user");
-      expect(args[1]).toBe("prescription_reviewed");
-      expect(args[2]).toBe("patient");
-      expect(args[3].toString()).toBe("patient123");
+      expect(args[0]).toBe('cm-user');
+      expect(args[1]).toBe('prescription_reviewed');
+      expect(args[2]).toBe('patient');
+      expect(args[3].toString()).toBe('patient123');
       expect(args[5]).toEqual({
-        prescriptionId: "rx123",
-        status: "reviewed",
-        reviewer_notes: "Approved!",
+        prescriptionId: 'rx123',
+        status: 'reviewed',
+        reviewer_notes: 'Approved!',
       });
     });
 
-    it("returns 400 for invalid status value", async () => {
+    it('returns 400 for invalid status value', async () => {
       const res = await request(app)
-        .put("/api/patients/patient123/prescriptions/rx123")
-        .send({ status: "invalid_status" });
+        .put('/api/patients/patient123/prescriptions/rx123')
+        .send({ status: 'invalid_status' });
 
       expect(res.status).toBe(400);
     });
 
-    it("returns 404 if patient is not found", async () => {
+    it('returns 404 if patient is not found', async () => {
       Patient.findById = jest.fn().mockResolvedValue(null);
 
       const res = await request(app)
-        .put("/api/patients/nonexistent/prescriptions/rx123")
-        .send({ status: "reviewed" });
+        .put('/api/patients/nonexistent/prescriptions/rx123')
+        .send({ status: 'reviewed' });
 
       expect(res.status).toBe(404);
     });
 
-    it("returns 404 if prescription is not found", async () => {
+    it('returns 404 if prescription is not found', async () => {
       const patient = makePatient({
-        _id: "patient123",
-        organization_id: "org123",
+        _id: 'patient123',
+        organization_id: 'org123',
       });
       patient.uploaded_prescriptions = [];
       patient.uploaded_prescriptions.id = jest.fn().mockReturnValue(null);
@@ -546,8 +546,8 @@ describe("Patients Routes", () => {
       Patient.findById = jest.fn().mockResolvedValue(patient);
 
       const res = await request(app)
-        .put("/api/patients/patient123/prescriptions/rx999")
-        .send({ status: "reviewed" });
+        .put('/api/patients/patient123/prescriptions/rx999')
+        .send({ status: 'reviewed' });
 
       expect(res.status).toBe(404);
     });

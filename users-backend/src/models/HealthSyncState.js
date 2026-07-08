@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const HealthSyncStateSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       unique: true,
       index: true,
@@ -21,7 +21,7 @@ const HealthSyncStateSchema = new mongoose.Schema(
     },
     platform: {
       type: String,
-      enum: ["android", "ios"],
+      enum: ['android', 'ios'],
     },
     permissions_granted: [
       {
@@ -49,8 +49,8 @@ const HealthSyncStateSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
-module.exports = mongoose.model("HealthSyncState", HealthSyncStateSchema);
+module.exports = mongoose.model('HealthSyncState', HealthSyncStateSchema);

@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const CarePlanHistorySchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
@@ -31,7 +31,7 @@ const CarePlanHistorySchema = new mongoose.Schema(
     ],
     vitals_target: {
       type: String,
-      default: "BP check every 2 days",
+      default: 'BP check every 2 days',
     },
     sleep_hours_goal: {
       type: Number,
@@ -47,14 +47,14 @@ const CarePlanHistorySchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
 // Ensure unique active version per week start per patient
 CarePlanHistorySchema.index(
   { patient_id: 1, week_start: 1, version: 1 },
-  { unique: true },
+  { unique: true }
 );
 
-module.exports = mongoose.model("CarePlanHistory", CarePlanHistorySchema);
+module.exports = mongoose.model('CarePlanHistory', CarePlanHistorySchema);

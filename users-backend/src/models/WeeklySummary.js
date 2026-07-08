@@ -1,9 +1,9 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const weeklySummarySchema = new mongoose.Schema({
   patient_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Patient",
+    ref: 'Patient',
     required: true,
     index: true,
   },
@@ -18,4 +18,4 @@ const weeklySummarySchema = new mongoose.Schema({
 
 weeklySummarySchema.index({ patient_id: 1, week_start: 1 }, { unique: true });
 
-module.exports = mongoose.model("WeeklySummary", weeklySummarySchema);
+module.exports = mongoose.model('WeeklySummary', weeklySummarySchema);

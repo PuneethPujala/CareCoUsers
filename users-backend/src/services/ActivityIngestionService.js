@@ -1,4 +1,4 @@
-const ActivityLog = require("../models/ActivityLog");
+const ActivityLog = require('../models/ActivityLog');
 
 class ActivityIngestionService {
   /**
@@ -12,12 +12,12 @@ class ActivityIngestionService {
    */
   static async processDaily(patientId, activityData, source) {
     if (!activityData || !activityData.date) {
-      return { accepted: false, reason: "Missing activity data or date" };
+      return { accepted: false, reason: 'Missing activity data or date' };
     }
 
     const date = new Date(activityData.date);
     if (isNaN(date.getTime())) {
-      return { accepted: false, reason: "Invalid date" };
+      return { accepted: false, reason: 'Invalid date' };
     }
 
     // Normalize date to start of day (midnight) to allow single document per patient per day
@@ -76,7 +76,7 @@ class ActivityIngestionService {
           : [];
 
         const newExercises = validExercises.filter(
-          (e) => !e.source_id || !existingSourceIds.includes(e.source_id),
+          (e) => !e.source_id || !existingSourceIds.includes(e.source_id)
         );
 
         if (newExercises.length > 0) {
@@ -127,7 +127,7 @@ class ActivityIngestionService {
     await ActivityLog.findOneAndUpdate(
       { patient_id: patientId, date: startOfDay },
       update,
-      { upsert: true, new: true, runValidators: true },
+      { upsert: true, new: true, runValidators: true }
     );
 
     return {

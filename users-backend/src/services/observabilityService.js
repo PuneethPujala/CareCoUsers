@@ -1,20 +1,20 @@
-const axios = require("axios");
-const logger = require("../utils/logger");
-const { sendEmail } = require("./emailService");
-const AuditLog = require("../models/AuditLog");
-const AIChatLog = require("../models/AIChatLog");
+const axios = require('axios');
+const logger = require('../utils/logger');
+const { sendEmail } = require('./emailService');
+const AuditLog = require('../models/AuditLog');
+const AIChatLog = require('../models/AIChatLog');
 
 async function triggerSystemAlert(severity, title, message) {
   logger.error(`[SYSTEM ALERT] [${severity}] ${title}: ${message}`);
 
-  const adminEmail = process.env.ADMIN_EMAIL || "admin@caremymed.com";
-  const env = process.env.NODE_ENV || "development";
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@caremymed.com';
+  const env = process.env.NODE_ENV || 'development';
 
   // 1. Email Alert
   const emailSubject = `🚨 [${severity.toUpperCase()}] CareMyMed System Alert: ${title}`;
   const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 2px solid ${severity === "Critical" ? "#ef4444" : "#f59e0b"}; border-radius: 8px;">
-            <h2 style="color: ${severity === "Critical" ? "#ef4444" : "#f59e0b"}; margin-top: 0;">System Alert</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 2px solid ${severity === 'Critical' ? '#ef4444' : '#f59e0b'}; border-radius: 8px;">
+            <h2 style="color: ${severity === 'Critical' ? '#ef4444' : '#f59e0b'}; margin-top: 0;">System Alert</h2>
             <p><strong>Severity:</strong> ${severity}</p>
             <p><strong>Environment:</strong> ${env}</p>
             <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
@@ -29,7 +29,7 @@ async function triggerSystemAlert(severity, title, message) {
   try {
     await sendEmail(adminEmail, emailSubject, emailHtml);
   } catch (err) {
-    logger.error("Failed to send email alert:", { error: err.message });
+    logger.error('Failed to send email alert:', { error: err.message });
   }
 
   // 2. Discord Webhook
@@ -40,10 +40,10 @@ async function triggerSystemAlert(severity, title, message) {
         {
           content: `🚨 **[${severity.toUpperCase()}] CareMyMed System Alert**\n**Environment:** ${env}\n**Alert:** ${title}\n\`\`\`\n${message}\n\`\`\``,
         },
-        { timeout: 5000 },
+        { timeout: 5000 }
       );
     } catch (err) {
-      logger.error("Failed to send Discord alert:", { error: err.message });
+      logger.error('Failed to send Discord alert:', { error: err.message });
     }
   }
 
@@ -55,16 +55,16 @@ async function triggerSystemAlert(severity, title, message) {
         {
           text: `🚨 *[${severity.toUpperCase()}] CareMyMed System Alert*\n*Environment:* ${env}\n*Alert:* ${title}\n\`\`\`\n${message}\n\`\`\``,
         },
-        { timeout: 5000 },
+        { timeout: 5000 }
       );
     } catch (err) {
-      logger.error("Failed to send Slack alert:", { error: err.message });
+      logger.error('Failed to send Slack alert:', { error: err.message });
     }
   }
 }
 
 async function checkSystemHealth() {
-  logger.info("[Observability] Checking system health metrics...");
+  logger.info('[Observability] Checking system health metrics...');
 
   const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -83,24 +83,24 @@ async function checkSystemHealth() {
       const errorRate = failedChats / totalChats;
       if (errorRate > 0.05) {
         await module.exports.triggerSystemAlert(
-          "Warning",
-          "High Chatbot Failure/Fallback Rate",
-          `Chatbot fallback/error rate is ${(errorRate * 100).toFixed(1)}% (${failedChats}/${totalChats} requests failed/fallback) over the last 15 minutes.`,
+          'Warning',
+          'High Chatbot Failure/Fallback Rate',
+          `Chatbot fallback/error rate is ${(errorRate * 100).toFixed(1)}% (${failedChats}/${totalChats} requests failed/fallback) over the last 15 minutes.`
         );
       }
     }
   } catch (err) {
-    logger.error("Failed to evaluate chatbot health:", { error: err.message });
+    logger.error('Failed to evaluate chatbot health:', { error: err.message });
   }
 
   // 2. OCR Failure Rate Evaluation (last 15 mins)
   try {
     const ocrTotal = await AuditLog.countDocuments({
-      action: { $in: ["ocr_extraction_success", "ocr_extraction_failed"] },
+      action: { $in: ['ocr_extraction_success', 'ocr_extraction_failed'] },
       createdAt: { $gte: fifteenMinutesAgo },
     });
     const ocrFailed = await AuditLog.countDocuments({
-      action: "ocr_extraction_failed",
+      action: 'ocr_extraction_failed',
       createdAt: { $gte: fifteenMinutesAgo },
     });
 
@@ -108,26 +108,26 @@ async function checkSystemHealth() {
       const ocrFailureRate = ocrFailed / ocrTotal;
       if (ocrFailureRate > 0.1) {
         await module.exports.triggerSystemAlert(
-          "Warning",
-          "High OCR Extraction Failure Rate",
-          `Prescription OCR failure rate is ${(ocrFailureRate * 100).toFixed(1)}% (${ocrFailed}/${ocrTotal} extractions failed) over the last 15 minutes.`,
+          'Warning',
+          'High OCR Extraction Failure Rate',
+          `Prescription OCR failure rate is ${(ocrFailureRate * 100).toFixed(1)}% (${ocrFailed}/${ocrTotal} extractions failed) over the last 15 minutes.`
         );
       }
     }
   } catch (err) {
-    logger.error("Failed to evaluate OCR health:", { error: err.message });
+    logger.error('Failed to evaluate OCR health:', { error: err.message });
   }
 
   // 3. Payment Success Rate Evaluation (last 24 hours)
   try {
     const paymentTotal = await AuditLog.countDocuments({
       action: {
-        $in: ["payment_activation_success", "payment_activation_failed"],
+        $in: ['payment_activation_success', 'payment_activation_failed'],
       },
       createdAt: { $gte: twentyFourHoursAgo },
     });
     const paymentFailed = await AuditLog.countDocuments({
-      action: "payment_activation_failed",
+      action: 'payment_activation_failed',
       createdAt: { $gte: twentyFourHoursAgo },
     });
 
@@ -135,14 +135,14 @@ async function checkSystemHealth() {
       const successRate = (paymentTotal - paymentFailed) / paymentTotal;
       if (successRate < 0.9) {
         await module.exports.triggerSystemAlert(
-          "Warning",
-          "Low Payment Activation Success Rate",
-          `Subscription payment activation success rate is ${(successRate * 100).toFixed(1)}% (${paymentFailed}/${paymentTotal} activations failed) over the last 24 hours.`,
+          'Warning',
+          'Low Payment Activation Success Rate',
+          `Subscription payment activation success rate is ${(successRate * 100).toFixed(1)}% (${paymentFailed}/${paymentTotal} activations failed) over the last 24 hours.`
         );
       }
     }
   } catch (err) {
-    logger.error("Failed to evaluate payment health:", { error: err.message });
+    logger.error('Failed to evaluate payment health:', { error: err.message });
   }
 }
 

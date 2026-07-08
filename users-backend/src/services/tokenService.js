@@ -1,12 +1,12 @@
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const jwtConfig = require("../config/jwt");
-const RefreshToken = require("../models/RefreshToken");
-const redis = require("../lib/redis");
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const jwtConfig = require('../config/jwt');
+const RefreshToken = require('../models/RefreshToken');
+const redis = require('../lib/redis');
 
 function assertSecrets() {
   if (!jwtConfig.accessSecret) {
-    throw new Error("JWT_ACCESS_SECRET (or JWT_SECRET) must be set");
+    throw new Error('JWT_ACCESS_SECRET (or JWT_SECRET) must be set');
   }
 }
 
@@ -14,21 +14,21 @@ function signAccessToken(payload) {
   assertSecrets();
   return jwt.sign(payload, jwtConfig.accessSecret, {
     expiresIn: jwtConfig.accessExpiresIn,
-    issuer: "caremymednnect-api",
-    audience: "caremymednnect-clients",
+    issuer: 'caremymednnect-api',
+    audience: 'caremymednnect-clients',
   });
 }
 
 function verifyAccessToken(token) {
   assertSecrets();
   return jwt.verify(token, jwtConfig.accessSecret, {
-    issuer: "caremymednnect-api",
-    audience: "caremymednnect-clients",
+    issuer: 'caremymednnect-api',
+    audience: 'caremymednnect-clients',
   });
 }
 
 function generateRawRefreshToken() {
-  return crypto.randomBytes(48).toString("hex");
+  return crypto.randomBytes(48).toString('hex');
 }
 
 function getRefreshExpiryDate() {
@@ -40,11 +40,11 @@ function getRefreshExpiryDate() {
  */
 async function issueTokenPair(
   { userId, userType, subject, role, email, emailVerified },
-  req,
+  req
 ) {
   const accessPayload = {
     sub: subject,
-    typ: userType === "Patient" ? "patient" : "profile",
+    typ: userType === 'Patient' ? 'patient' : 'profile',
     role: role || undefined,
     email,
     ev: !!emailVerified,
@@ -74,20 +74,20 @@ async function issueTokenPair(
 }
 
 function parseExpiresInSeconds(expr) {
-  if (typeof expr === "number" && !Number.isNaN(expr)) return expr;
+  if (typeof expr === 'number' && !Number.isNaN(expr)) return expr;
   const s = String(expr).trim();
   const m = /^(\d+)([smhd])$/i.exec(s);
   if (!m) return 900;
   const n = parseInt(m[1], 10);
   const u = m[2].toLowerCase();
-  const mult = u === "s" ? 1 : u === "m" ? 60 : u === "h" ? 3600 : 86400;
+  const mult = u === 's' ? 1 : u === 'm' ? 60 : u === 'h' ? 3600 : 86400;
   return n * mult;
 }
 
 async function revokeAllForUser(userId, userType) {
   await RefreshToken.updateMany(
     { userId, userType, revokedAt: null },
-    { $set: { revokedAt: new Date() } },
+    { $set: { revokedAt: new Date() } }
   );
 }
 
@@ -95,7 +95,7 @@ async function revokeRefreshToken(rawToken) {
   const tokenHash = RefreshToken.hashToken(rawToken);
   await RefreshToken.updateOne(
     { tokenHash, revokedAt: null },
-    { $set: { revokedAt: new Date() } },
+    { $set: { revokedAt: new Date() } }
   );
 }
 
@@ -104,11 +104,11 @@ async function revokeAllSessionsGlobally(userId) {
   const nowUnix = Math.floor(Date.now() / 1000);
   const ttl = parseExpiresInSeconds(jwtConfig.accessExpiresIn);
   try {
-    await redis.set(key, nowUnix, "EX", ttl);
+    await redis.set(key, nowUnix, 'EX', ttl);
   } catch (err) {
     console.warn(
       `Failed to set global invalidation for ${userId}:`,
-      err.message,
+      err.message
     );
   }
 }
@@ -116,26 +116,26 @@ async function revokeAllSessionsGlobally(userId) {
 async function denylistAccessToken(token) {
   if (!token) return;
   const ttl = parseExpiresInSeconds(jwtConfig.accessExpiresIn);
-  const hash = crypto.createHash("sha256").update(token).digest("hex");
+  const hash = crypto.createHash('sha256').update(token).digest('hex');
   const key = `denylist:jwt:${hash}`;
   try {
-    await redis.set(key, "1", "EX", ttl);
+    await redis.set(key, '1', 'EX', ttl);
   } catch (err) {
-    console.warn("Failed to denylist JWT:", err.message);
+    console.warn('Failed to denylist JWT:', err.message);
   }
 }
 
 async function checkRedisSessionValidity(token, payload) {
-  if (redis.status !== "ready" && redis.status !== "connecting") {
+  if (redis.status !== 'ready' && redis.status !== 'connecting') {
     console.error(
-      "🚨 Redis unavailable (status: %s) — failing closed. All sessions denied until Redis recovers.",
-      redis.status,
+      '🚨 Redis unavailable (status: %s) — failing closed. All sessions denied until Redis recovers.',
+      redis.status
     );
     return false;
   }
 
   // Check global user invalidation (all sessions prior to X)
-  const userId = payload.sub || "";
+  const userId = payload.sub || '';
   const globalKey = `user_invalidated_before:${userId}`;
   const globalTimestamp = await redis.get(globalKey);
   if (
@@ -147,7 +147,7 @@ async function checkRedisSessionValidity(token, payload) {
   }
 
   // Check specific token denylist
-  const hash = crypto.createHash("sha256").update(token).digest("hex");
+  const hash = crypto.createHash('sha256').update(token).digest('hex');
   const denylistKey = `denylist:jwt:${hash}`;
   const isDenylisted = await redis.get(denylistKey);
   if (isDenylisted) {

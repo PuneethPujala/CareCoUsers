@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const OrganizationSchema = new mongoose.Schema(
   {
@@ -27,11 +27,11 @@ const OrganizationSchema = new mongoose.Schema(
     country: {
       type: String,
       trim: true,
-      default: "IN",
+      default: 'IN',
     },
     timezone: {
       type: String,
-      default: "Asia/Kolkata",
+      default: 'Asia/Kolkata',
     },
 
     // ── Contact ───────────────────────────────────
@@ -39,7 +39,7 @@ const OrganizationSchema = new mongoose.Schema(
       type: String,
       validate: {
         validator: (v) => !v || /^[+]?[1-9]\d{0,15}$/.test(v),
-        message: "Please enter a valid phone number",
+        message: 'Please enter a valid phone number',
       },
     },
     email: {
@@ -49,15 +49,15 @@ const OrganizationSchema = new mongoose.Schema(
       validate: {
         validator: (v) =>
           !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v),
-        message: "Please enter a valid email address",
+        message: 'Please enter a valid email address',
       },
     },
 
     // ── Subscription / Plan ───────────────────────
     subscriptionPlan: {
       type: String,
-      enum: ["starter", "professional", "enterprise"],
-      default: "starter",
+      enum: ['starter', 'professional', 'enterprise'],
+      default: 'starter',
     },
 
     // Hard capacity limits — enforced at API layer before assignment
@@ -89,8 +89,8 @@ const OrganizationSchema = new mongoose.Schema(
     licenseExpiryDate: Date,
     accreditationStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected", "expired"],
-      default: "pending",
+      enum: ['pending', 'approved', 'rejected', 'expired'],
+      default: 'pending',
     },
 
     // ── Settings ──────────────────────────────────
@@ -130,7 +130,7 @@ const OrganizationSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // ── Indexes ───────────────────────────────────────
@@ -139,35 +139,35 @@ OrganizationSchema.index({ subscriptionPlan: 1, isActive: 1 });
 OrganizationSchema.index({ createdBy: 1 });
 
 // ── Virtuals ──────────────────────────────────────
-OrganizationSchema.virtual("isAtPatientCapacity").get(function () {
+OrganizationSchema.virtual('isAtPatientCapacity').get(function () {
   return this.counts.patients >= this.limits.max_patients;
 });
 
-OrganizationSchema.virtual("isAtCallerCapacity").get(function () {
+OrganizationSchema.virtual('isAtCallerCapacity').get(function () {
   return this.counts.callers >= this.limits.max_callers;
 });
 
-OrganizationSchema.virtual("isAtManagerCapacity").get(function () {
+OrganizationSchema.virtual('isAtManagerCapacity').get(function () {
   return this.counts.managers >= this.limits.max_managers;
 });
 
-OrganizationSchema.virtual("isLicenseExpired").get(function () {
+OrganizationSchema.virtual('isLicenseExpired').get(function () {
   return !!(this.licenseExpiryDate && this.licenseExpiryDate < new Date());
 });
 
 // True only if active AND license is valid
-OrganizationSchema.virtual("isOperational").get(function () {
+OrganizationSchema.virtual('isOperational').get(function () {
   return this.isActive && !this.isLicenseExpired;
 });
 
 // ── Middleware ────────────────────────────────────
-OrganizationSchema.pre("save", function (next) {
+OrganizationSchema.pre('save', function (next) {
   if (
-    this.isModified("limits.max_patients") &&
+    this.isModified('limits.max_patients') &&
     this.limits.max_patients < this.counts.patients
   ) {
     return next(
-      new Error("Cannot set max_patients below current patient count"),
+      new Error('Cannot set max_patients below current patient count')
     );
   }
   next();
@@ -188,27 +188,27 @@ OrganizationSchema.statics.findByCity = function (city) {
 // Check if a role can still be added within capacity limits
 OrganizationSchema.methods.canAdd = function (role) {
   if (!this.isOperational) return false;
-  if (role === "patient" && this.isAtPatientCapacity) return false;
-  if (role === "caller" && this.isAtCallerCapacity) return false;
-  if (role === "care_manager" && this.isAtManagerCapacity) return false;
+  if (role === 'patient' && this.isAtPatientCapacity) return false;
+  if (role === 'caller' && this.isAtCallerCapacity) return false;
+  if (role === 'care_manager' && this.isAtManagerCapacity) return false;
   return true;
 };
 
 // Recalculate counts from DB — use for reconciliation jobs, not on hot path
 OrganizationSchema.methods.recalculateCounts = async function () {
-  const Patient = mongoose.model("Patient");
-  const Profile = mongoose.model("Profile");
+  const Patient = mongoose.model('Patient');
+  const Profile = mongoose.model('Profile');
 
   const [patients, callers, managers] = await Promise.all([
     Patient.countDocuments({ organization_id: this._id, is_active: true }),
     Profile.countDocuments({
       organizationId: this._id,
-      role: "caller",
+      role: 'caller',
       isActive: true,
     }),
     Profile.countDocuments({
       organizationId: this._id,
-      role: "care_manager",
+      role: 'care_manager',
       isActive: true,
     }),
   ]);
@@ -219,4 +219,4 @@ OrganizationSchema.methods.recalculateCounts = async function () {
   return this.save();
 };
 
-module.exports = mongoose.model("Organization", OrganizationSchema);
+module.exports = mongoose.model('Organization', OrganizationSchema);

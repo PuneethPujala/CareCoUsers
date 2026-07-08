@@ -1,7 +1,7 @@
-const HealthSyncState = require("../models/HealthSyncState");
-const VitalsIngestionService = require("./vitalsIngestionService");
-const ActivityIngestionService = require("./ActivityIngestionService");
-const BodyCompositionService = require("./BodyCompositionService");
+const HealthSyncState = require('../models/HealthSyncState');
+const VitalsIngestionService = require('./vitalsIngestionService');
+const ActivityIngestionService = require('./ActivityIngestionService');
+const BodyCompositionService = require('./BodyCompositionService');
 
 class HealthSyncOrchestrator {
   /**
@@ -13,9 +13,9 @@ class HealthSyncOrchestrator {
    */
   static async processSync(patientId, payload) {
     const { vitals, activity, body, metadata } = payload || {};
-    const effectiveSource = payload.source || "health_connect";
+    const effectiveSource = payload.source || 'health_connect';
     const platform =
-      payload.platform || (effectiveSource === "healthkit" ? "ios" : "android");
+      payload.platform || (effectiveSource === 'healthkit' ? 'ios' : 'android');
 
     const results = {
       vitals: null,
@@ -24,7 +24,7 @@ class HealthSyncOrchestrator {
     };
 
     let hasErrors = false;
-    let errorMessage = "";
+    let errorMessage = '';
 
     try {
       // 1. Process Vitals (batch of point-in-time metrics)
@@ -33,7 +33,7 @@ class HealthSyncOrchestrator {
           results.vitals = await VitalsIngestionService.processBatch(
             patientId,
             vitals,
-            effectiveSource,
+            effectiveSource
           );
         } catch (err) {
           hasErrors = true;
@@ -42,12 +42,12 @@ class HealthSyncOrchestrator {
       }
 
       // 2. Process Activity (daily aggregate and exercise sessions)
-      if (activity && typeof activity === "object") {
+      if (activity && typeof activity === 'object') {
         try {
           results.activity = await ActivityIngestionService.processDaily(
             patientId,
             activity,
-            effectiveSource,
+            effectiveSource
           );
         } catch (err) {
           hasErrors = true;
@@ -56,12 +56,12 @@ class HealthSyncOrchestrator {
       }
 
       // 3. Process Body Composition (daily snapshots)
-      if (body && typeof body === "object") {
+      if (body && typeof body === 'object') {
         try {
           results.body = await BodyCompositionService.processSnapshot(
             patientId,
             body,
-            effectiveSource,
+            effectiveSource
           );
         } catch (err) {
           hasErrors = true;
@@ -98,7 +98,7 @@ class HealthSyncOrchestrator {
       await HealthSyncState.findOneAndUpdate(
         { patient_id: patientId },
         syncUpdate,
-        { upsert: true, new: true },
+        { upsert: true, new: true }
       );
 
       return {
@@ -107,7 +107,7 @@ class HealthSyncOrchestrator {
         error: hasErrors ? errorMessage : undefined,
       };
     } catch (e) {
-      console.error("Orchestrator error:", e);
+      console.error('Orchestrator error:', e);
       try {
         await HealthSyncState.findOneAndUpdate(
           { patient_id: patientId },
@@ -116,7 +116,7 @@ class HealthSyncOrchestrator {
             last_error: e.message,
             last_error_at: new Date(),
           },
-          { upsert: true },
+          { upsert: true }
         );
       } catch (err) {}
       throw e;

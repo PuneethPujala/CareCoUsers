@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
-const dns = require("dns");
+const mongoose = require('mongoose');
+const dns = require('dns');
 
 const connectDB = async () => {
   try {
     // Force Node to use Google DNS because local Windows DNS resolution for SRV records is failing
-    dns.setServers(["8.8.8.8", "8.8.4.4"]);
+    dns.setServers(['8.8.8.8', '8.8.4.4']);
 
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       maxPoolSize: 10, // Maintain up to 10 socket connections
@@ -16,54 +16,54 @@ const connectDB = async () => {
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
     // Handle connection events
-    mongoose.connection.on("error", (err) => {
-      console.error("❌ MongoDB connection error:", err);
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB connection error:', err);
       try {
         const {
           triggerSystemAlert,
-        } = require("../services/observabilityService");
-        triggerSystemAlert("Critical", "MongoDB Connection Error", err.message);
+        } = require('../services/observabilityService');
+        triggerSystemAlert('Critical', 'MongoDB Connection Error', err.message);
       } catch (e) {
-        console.error("Failed to trigger MongoDB connection error alert:", e);
+        console.error('Failed to trigger MongoDB connection error alert:', e);
       }
     });
 
-    mongoose.connection.on("disconnected", () => {
-      console.warn("⚠️ MongoDB disconnected");
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ MongoDB disconnected');
       try {
         const {
           triggerSystemAlert,
-        } = require("../services/observabilityService");
+        } = require('../services/observabilityService');
         triggerSystemAlert(
-          "Critical",
-          "MongoDB Disconnected",
-          "Mongoose has disconnected from the MongoDB database.",
+          'Critical',
+          'MongoDB Disconnected',
+          'Mongoose has disconnected from the MongoDB database.'
         );
       } catch (e) {
-        console.error("Failed to trigger MongoDB disconnect alert:", e);
+        console.error('Failed to trigger MongoDB disconnect alert:', e);
       }
     });
 
-    mongoose.connection.on("reconnected", () => {
-      console.log("🔄 MongoDB reconnected");
+    mongoose.connection.on('reconnected', () => {
+      console.log('🔄 MongoDB reconnected');
     });
   } catch (error) {
-    console.error("❌ MongoDB connection failed:", error.message);
-    console.error("⚠️  Server will continue but DB operations will fail.");
+    console.error('❌ MongoDB connection failed:', error.message);
+    console.error('⚠️  Server will continue but DB operations will fail.');
     console.error(
-      "💡 Check: 1) Atlas IP whitelist  2) Credentials  3) Network",
+      '💡 Check: 1) Atlas IP whitelist  2) Credentials  3) Network'
     );
   }
 };
 
 // Graceful shutdown
-process.on("SIGINT", async () => {
+process.on('SIGINT', async () => {
   try {
     await mongoose.connection.close();
-    console.log("🔒 MongoDB connection closed through app termination");
+    console.log('🔒 MongoDB connection closed through app termination');
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error during MongoDB shutdown:", error);
+    console.error('❌ Error during MongoDB shutdown:', error);
     process.exit(1);
   }
 });

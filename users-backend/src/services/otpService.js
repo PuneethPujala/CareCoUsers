@@ -1,7 +1,7 @@
-const redis = require("../lib/redis");
-const crypto = require("crypto");
+const redis = require('../lib/redis');
+const crypto = require('crypto');
 
-const OTP_PREFIX = "otp:";
+const OTP_PREFIX = 'otp:';
 const OTP_TTL_SECONDS = 300; // 5 minutes
 
 /**
@@ -16,7 +16,7 @@ function generateOTP() {
  */
 async function acquireCooldown(key, seconds = 60) {
   const cooldownKey = `cooldown:${key.toLowerCase().trim()}`;
-  const acquired = await redis.set(cooldownKey, "1", "EX", seconds, "NX");
+  const acquired = await redis.set(cooldownKey, '1', 'EX', seconds, 'NX');
   return !!acquired;
 }
 
@@ -30,7 +30,7 @@ async function createOTP(identifier) {
   const acquired = await acquireCooldown(key, 60);
 
   if (!acquired) {
-    const err = new Error("Please wait 1 minute before requesting a new code.");
+    const err = new Error('Please wait 1 minute before requesting a new code.');
     err.status = 429;
     throw err;
   }
@@ -42,7 +42,7 @@ async function createOTP(identifier) {
   await redis.del(attemptsKey);
 
   // Overwrite any existing OTP with the new one
-  await redis.set(key, otp, "EX", OTP_TTL_SECONDS);
+  await redis.set(key, otp, 'EX', OTP_TTL_SECONDS);
 
   console.log(`🔐 OTP created securely (expires in ${OTP_TTL_SECONDS}s)`);
   return otp;
@@ -63,7 +63,7 @@ async function verifyOTP(identifier, code) {
     await redis.del(attemptsKey);
     return {
       valid: false,
-      reason: "Too many failed attempts. Code has been invalidated.",
+      reason: 'Too many failed attempts. Code has been invalidated.',
     };
   }
 
@@ -72,7 +72,7 @@ async function verifyOTP(identifier, code) {
   if (!stored) {
     return {
       valid: false,
-      reason: "OTP expired or not found. Please request a new one.",
+      reason: 'OTP expired or not found. Please request a new one.',
     };
   }
 
@@ -84,10 +84,10 @@ async function verifyOTP(identifier, code) {
       await redis.del(attemptsKey);
       return {
         valid: false,
-        reason: "Too many failed attempts. Code has been invalidated.",
+        reason: 'Too many failed attempts. Code has been invalidated.',
       };
     }
-    return { valid: false, reason: "Invalid OTP. Please check and try again." };
+    return { valid: false, reason: 'Invalid OTP. Please check and try again.' };
   }
 
   // Delete after successful verification

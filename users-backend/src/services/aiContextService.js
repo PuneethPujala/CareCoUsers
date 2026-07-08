@@ -10,13 +10,13 @@
  * - Adherence: 3-day history summary only
  */
 
-const moment = require("moment-timezone");
-const Patient = require("../models/Patient");
-const Profile = require("../models/Profile");
-const Medication = require("../models/Medication");
-const MedicineLog = require("../models/MedicineLog");
-const VitalLog = require("../models/VitalLog");
-const CallLog = require("../models/CallLog");
+const moment = require('moment-timezone');
+const Patient = require('../models/Patient');
+const Profile = require('../models/Profile');
+const Medication = require('../models/Medication');
+const MedicineLog = require('../models/MedicineLog');
+const VitalLog = require('../models/VitalLog');
+const CallLog = require('../models/CallLog');
 
 /**
  * Builds the truncated patient context for LLM injection
@@ -26,22 +26,22 @@ const CallLog = require("../models/CallLog");
 async function buildPatientContext(patientId) {
   // 1. Fetch Patient & Profile
   const patient = await Patient.findById(patientId).select(
-    "name date_of_birth gender profile_id timezone medications gamification patient_health_state",
+    'name date_of_birth gender profile_id timezone medications gamification patient_health_state'
   );
   if (!patient) return null;
 
-  const tz = patient.timezone || "Asia/Kolkata";
+  const tz = patient.timezone || 'Asia/Kolkata';
   const profile = await Profile.findById(patient.profile_id).select(
-    "blood_type dietary_restrictions medical_history vaccinations",
+    'blood_type dietary_restrictions medical_history vaccinations'
   );
 
   const now = moment().tz(tz);
-  const todayStr = now.format("YYYY-MM-DD");
+  const todayStr = now.format('YYYY-MM-DD');
   const threeDaysAgoDate = new Date(
-    `${now.clone().subtract(3, "days").format("YYYY-MM-DD")}T00:00:00.000Z`,
+    `${now.clone().subtract(3, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`
   );
   const sevenDaysAgoDate = new Date(
-    `${now.clone().subtract(7, "days").format("YYYY-MM-DD")}T00:00:00.000Z`,
+    `${now.clone().subtract(7, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`
   );
 
   // 2. Active Medications (search both patient._id and profile_id like the rest of the app)
@@ -51,11 +51,11 @@ async function buildPatientContext(patientId) {
   const externalMeds = await Medication.find({
     patientId: { $in: searchIds },
     isActive: true,
-  }).select("name dosage frequency times scheduledTimes instructions -_id");
+  }).select('name dosage frequency times scheduledTimes instructions -_id');
 
   // Also include embedded patient.medications
   const embeddedMeds = (patient.medications || []).filter(
-    (m) => m.is_active !== false,
+    (m) => m.is_active !== false
   );
 
   // Merge (external first, dedup by name)
@@ -78,7 +78,7 @@ async function buildPatientContext(patientId) {
       allMeds.push({
         name: m.name,
         dosage: m.dosage,
-        freq: "daily",
+        freq: 'daily',
         times: m.times,
       });
     }
@@ -91,7 +91,7 @@ async function buildPatientContext(patientId) {
   }).sort({ date: -1 });
 
   const logs = sevenDaysLogs.filter(
-    (log) => new Date(log.date) >= threeDaysAgoDate,
+    (log) => new Date(log.date) >= threeDaysAgoDate
   );
 
   let takenMeds = 0;
@@ -112,7 +112,7 @@ async function buildPatientContext(patientId) {
   let todayStatus = null;
   if (todayLog) {
     const activeTodayMeds = todayLog.medicines.filter(
-      (m) => m.is_active !== false,
+      (m) => m.is_active !== false
     );
     const todayTaken = activeTodayMeds.filter((m) => m.taken).length;
     const todayTotal = activeTodayMeds.length;
@@ -126,11 +126,11 @@ async function buildPatientContext(patientId) {
       missed: todayTotal - todayTaken,
       rate:
         todayTotal > 0
-          ? Math.round((todayTaken / todayTotal) * 100) + "%"
-          : "N/A",
+          ? Math.round((todayTaken / todayTotal) * 100) + '%'
+          : 'N/A',
       all_done: todayTotal > 0 && todayTaken === todayTotal,
       last_log_time: lastTakenEntry
-        ? moment(lastTakenEntry.taken_at).tz(tz).format("h:mm A")
+        ? moment(lastTakenEntry.taken_at).tz(tz).format('h:mm A')
         : null,
       medicines: activeTodayMeds.map((m) => ({
         name: m.medicine_name,
@@ -145,7 +145,7 @@ async function buildPatientContext(patientId) {
     patient_id: patient._id,
     date: { $gte: sevenDaysAgoDate },
   }).select(
-    "heart_rate blood_pressure oxygen_saturation hydration date createdAt",
+    'heart_rate blood_pressure oxygen_saturation hydration date createdAt'
   );
 
   // Compute Proactive Insights
@@ -155,7 +155,7 @@ async function buildPatientContext(patientId) {
   if (vitals.length >= 3) {
     const sortedVitals = [...vitals].sort(
       (a, b) =>
-        new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt),
+        new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt)
     );
     const sysVals = sortedVitals
       .map((v) => v.blood_pressure?.systolic)
@@ -166,10 +166,10 @@ async function buildPatientContext(patientId) {
       const prev2 = sysVals[sysVals.length - 3];
       if (last > prev1 && prev1 > prev2) {
         proactive_insights.push({
-          type: "blood_pressure_trend",
-          priority: "medium",
+          type: 'blood_pressure_trend',
+          priority: 'medium',
           message:
-            "I noticed your blood pressure has increased slightly over the last three readings.",
+            'I noticed your blood pressure has increased slightly over the last three readings.',
         });
       }
     }
@@ -182,20 +182,20 @@ async function buildPatientContext(patientId) {
     if (log.medicines) {
       log.medicines.forEach((m) => {
         if (!m.taken && m.is_active !== false) {
-          const slot = (m.scheduled_time || "").toLowerCase();
+          const slot = (m.scheduled_time || '').toLowerCase();
           if (
-            slot.includes("am") ||
-            slot.includes("morning") ||
-            slot.includes("8:") ||
-            slot.includes("9:")
+            slot.includes('am') ||
+            slot.includes('morning') ||
+            slot.includes('8:') ||
+            slot.includes('9:')
           ) {
             missedMorningCount++;
           } else if (
-            slot.includes("pm") ||
-            slot.includes("evening") ||
-            slot.includes("night") ||
-            slot.includes("20:") ||
-            slot.includes("21:")
+            slot.includes('pm') ||
+            slot.includes('evening') ||
+            slot.includes('night') ||
+            slot.includes('20:') ||
+            slot.includes('21:')
           ) {
             missedEveningCount++;
           }
@@ -206,22 +206,22 @@ async function buildPatientContext(patientId) {
 
   if (missedMorningCount >= 2) {
     proactive_insights.push({
-      type: "missed_meds_morning",
-      priority: "medium",
+      type: 'missed_meds_morning',
+      priority: 'medium',
       message:
-        "You missed your morning medication twice this week. Need help setting stronger reminders?",
+        'You missed your morning medication twice this week. Need help setting stronger reminders?',
     });
   }
   if (missedEveningCount >= 2) {
     proactive_insights.push({
-      type: "missed_meds_evening",
-      priority: "medium",
+      type: 'missed_meds_evening',
+      priority: 'medium',
       message:
-        "You missed your evening medication twice this week. Need help setting stronger reminders?",
+        'You missed your evening medication twice this week. Need help setting stronger reminders?',
     });
   }
 
-  let vitalsSummary = "No vitals logged in last 7 days";
+  let vitalsSummary = 'No vitals logged in last 7 days';
   if (vitals.length > 0) {
     const sum = (arr) => arr.reduce((a, b) => a + b, 0);
     const hrs = vitals.map((v) => v.heart_rate).filter(Boolean);
@@ -258,7 +258,7 @@ async function buildPatientContext(patientId) {
 
   if (patient.assigned_manager_id) {
     const manager = await Profile.findById(patient.assigned_manager_id).select(
-      "fullName role",
+      'fullName role'
     );
     if (manager) {
       careTeam = {
@@ -270,11 +270,11 @@ async function buildPatientContext(patientId) {
         patientId: patient._id,
       })
         .sort({ scheduledTime: -1 })
-        .select("status scheduledTime duration");
+        .select('status scheduledTime duration');
 
       if (lastCall) {
         recentCall = {
-          date: moment(lastCall.scheduledTime).tz(tz).format("MMM D, h:mm A"),
+          date: moment(lastCall.scheduledTime).tz(tz).format('MMM D, h:mm A'),
           status: lastCall.status,
           duration_seconds: lastCall.duration,
         };
@@ -282,7 +282,7 @@ async function buildPatientContext(patientId) {
     }
   }
 
-  const { getCachedHealthState } = require("./patientHealthStateService");
+  const { getCachedHealthState } = require('./patientHealthStateService');
   let healthState = await getCachedHealthState(patient);
 
   // 7. Build final payload
@@ -290,8 +290,8 @@ async function buildPatientContext(patientId) {
     patient: {
       name: patient.name,
       age: patient.date_of_birth
-        ? moment().diff(patient.date_of_birth, "years")
-        : "Unknown",
+        ? moment().diff(patient.date_of_birth, 'years')
+        : 'Unknown',
       gender: patient.gender,
       blood_type: profile?.blood_type,
       diet: profile?.dietary_restrictions,
@@ -300,18 +300,18 @@ async function buildPatientContext(patientId) {
     care_team: careTeam,
     latest_interaction: recentCall,
     today: todayStr,
-    current_time: now.format("h:mm A"),
+    current_time: now.format('h:mm A'),
     streak: {
       current: currentStreak,
       longest: longestStreak,
       label:
         currentStreak >= 14
-          ? "Strong"
+          ? 'Strong'
           : currentStreak >= 7
-            ? "Building"
+            ? 'Building'
             : currentStreak >= 3
-              ? "Starting"
-              : "New",
+              ? 'Starting'
+              : 'New',
     },
     today_status: todayStatus,
     medical_history: (profile?.medical_history || [])
@@ -320,12 +320,12 @@ async function buildPatientContext(patientId) {
     vaccinations: (profile?.vaccinations || []).map((v) => v.name),
     medications: allMeds,
     recent_adherence: {
-      period: "Last 3 days",
+      period: 'Last 3 days',
       total_scheduled: totalMeds,
       taken: takenMeds,
       missed: missedMeds,
       rate:
-        totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) + "%" : "N/A",
+        totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) + '%' : 'N/A',
     },
     recent_vitals: vitalsSummary,
     proactive_insights: proactive_insights,

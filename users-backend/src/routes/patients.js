@@ -1,11 +1,11 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const Patient = require("../models/Patient");
-const Organization = require("../models/Organization");
-const { authenticate, requireRole } = require("../middleware/authenticate");
-const { authorize } = require("../middleware/authorize");
-const { scopeFilter } = require("../middleware/scopeFilter");
-const { logEvent, autoLogAccess } = require("../services/auditService");
+const express = require('express');
+const mongoose = require('mongoose');
+const Patient = require('../models/Patient');
+const Organization = require('../models/Organization');
+const { authenticate, requireRole } = require('../middleware/authenticate');
+const { authorize } = require('../middleware/authorize');
+const { scopeFilter } = require('../middleware/scopeFilter');
+const { logEvent, autoLogAccess } = require('../services/auditService');
 
 const router = express.Router();
 
@@ -16,15 +16,15 @@ const router = express.Router();
 // Can this profile READ a given patient document?
 function canReadPatient(profile, patient) {
   const { role } = profile;
-  if (role === "super_admin") return true;
-  if (role === "org_admin" || role === "care_manager") {
+  if (role === 'super_admin') return true;
+  if (role === 'org_admin' || role === 'care_manager') {
     return patient.organization_id?.equals(profile.organizationId);
   }
-  if (role === "caller") {
+  if (role === 'caller') {
     // Callers can only see their own assigned patients
     return patient.assigned_caller_id?.equals(profile._id);
   }
-  if (role === "patient") {
+  if (role === 'patient') {
     // Patients can only see themselves — handled in users/patients.js
     return false;
   }
@@ -38,34 +38,34 @@ function canReadPatient(profile, patient) {
  * List patients — scoped by role
  */
 router.get(
-  "/",
+  '/',
   authenticate,
-  authorize("patients", "read"),
-  scopeFilter("patients"),
-  autoLogAccess("patients", "read"),
+  authorize('patients', 'read'),
+  scopeFilter('patients'),
+  autoLogAccess('patients', 'read'),
   async (req, res) => {
     try {
       const {
         page = 1,
         limit = 20,
         search,
-        sortBy = "created_at",
-        sortOrder = "desc",
-        status = "active",
+        sortBy = 'created_at',
+        sortOrder = 'desc',
+        status = 'active',
         risk_level,
         assigned_caller_id,
       } = req.query;
 
       const query = {
-        is_active: status === "active",
+        is_active: status === 'active',
         ...req.scopeFilter,
       };
 
       // care_manager and caller — scope to their org/assignments
       const { role } = req.profile;
-      if (role === "caller") {
+      if (role === 'caller') {
         query.assigned_caller_id = req.profile._id;
-      } else if (["org_admin", "care_manager"].includes(role)) {
+      } else if (['org_admin', 'care_manager'].includes(role)) {
         query.organization_id = req.profile.organizationId;
       }
 
@@ -74,21 +74,21 @@ router.get(
 
       if (search) {
         query.$or = [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-          { phone: { $regex: search, $options: "i" } },
-          { city: { $regex: search, $options: "i" } },
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { phone: { $regex: search, $options: 'i' } },
+          { city: { $regex: search, $options: 'i' } },
         ];
       }
 
       const sort = {};
-      sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
       const [patients, total] = await Promise.all([
         Patient.find(query)
-          .populate("organization_id", "name city")
-          .populate("assigned_caller_id", "fullName email phone")
-          .populate("assigned_manager_id", "fullName email")
+          .populate('organization_id', 'name city')
+          .populate('assigned_caller_id', 'fullName email phone')
+          .populate('assigned_manager_id', 'fullName email')
           .sort(sort)
           .limit(parseInt(limit))
           .skip((parseInt(page) - 1) * parseInt(limit)),
@@ -105,12 +105,12 @@ router.get(
         },
       });
     } catch (error) {
-      console.error("Get patients error:", error);
+      console.error('Get patients error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get patients", details: error.message });
+        .json({ error: 'Failed to get patients', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -118,33 +118,33 @@ router.get(
  * Get specific patient
  */
 router.get(
-  "/:id",
+  '/:id',
   authenticate,
-  authorize("patients", "read"),
-  autoLogAccess("patients", "read"),
+  authorize('patients', 'read'),
+  autoLogAccess('patients', 'read'),
   async (req, res) => {
     try {
       const patient = await Patient.findById(req.params.id)
-        .populate("organization_id", "name city settings")
-        .populate("assigned_caller_id", "fullName email phone")
-        .populate("assigned_manager_id", "fullName email");
+        .populate('organization_id', 'name city settings')
+        .populate('assigned_caller_id', 'fullName email phone')
+        .populate('assigned_manager_id', 'fullName email');
 
       if (!patient) {
-        return res.status(404).json({ error: "Patient not found" });
+        return res.status(404).json({ error: 'Patient not found' });
       }
 
       if (!canReadPatient(req.profile, patient)) {
-        return res.status(403).json({ error: "Access denied to this patient" });
+        return res.status(403).json({ error: 'Access denied to this patient' });
       }
 
       res.json(patient);
     } catch (error) {
-      console.error("Get patient error:", error);
+      console.error('Get patient error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get patient", details: error.message });
+        .json({ error: 'Failed to get patient', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -154,11 +154,11 @@ router.get(
  * This endpoint is for admin-initiated creation.
  */
 router.post(
-  "/",
+  '/',
   authenticate,
-  requireRole("super_admin", "org_admin", "care_manager"),
-  authorize("patients", "create"),
-  autoLogAccess("patients", "create"),
+  requireRole('super_admin', 'org_admin', 'care_manager'),
+  authorize('patients', 'create'),
+  autoLogAccess('patients', 'create'),
   async (req, res) => {
     try {
       const {
@@ -175,29 +175,29 @@ router.post(
 
       if (!supabase_uid || !email || !name || !city) {
         return res.status(400).json({
-          error: "Missing required fields: supabase_uid, email, name, city",
+          error: 'Missing required fields: supabase_uid, email, name, city',
         });
       }
 
       // Non-super_admin always creates within their own org
       const targetOrgId =
-        req.profile.role === "super_admin"
+        req.profile.role === 'super_admin'
           ? organization_id
           : req.profile.organizationId;
 
       if (!targetOrgId) {
-        return res.status(400).json({ error: "organization_id is required" });
+        return res.status(400).json({ error: 'organization_id is required' });
       }
 
       // Check org capacity before creating
       const org = await Organization.findById(targetOrgId);
       if (!org) {
-        return res.status(404).json({ error: "Organization not found" });
+        return res.status(404).json({ error: 'Organization not found' });
       }
-      if (!org.canAdd("patient")) {
+      if (!org.canAdd('patient')) {
         return res
           .status(400)
-          .json({ error: "Organisation is at patient capacity or inactive" });
+          .json({ error: 'Organisation is at patient capacity or inactive' });
       }
 
       const patient = new Patient({
@@ -218,28 +218,28 @@ router.post(
 
       // Increment org patient counter
       await Organization.findByIdAndUpdate(targetOrgId, {
-        $inc: { "counts.patients": 1 },
+        $inc: { 'counts.patients': 1 },
       });
 
       await logEvent(
         req.profile.supabaseUid,
-        "patient_created",
-        "patient",
+        'patient_created',
+        'patient',
         patient._id,
         req,
-        { patientEmail: email, organization_id: targetOrgId, city },
+        { patientEmail: email, organization_id: targetOrgId, city }
       );
 
       res
         .status(201)
-        .json({ message: "Patient created successfully", patient });
+        .json({ message: 'Patient created successfully', patient });
     } catch (error) {
-      console.error("Create patient error:", error);
+      console.error('Create patient error:', error);
       res
         .status(500)
-        .json({ error: "Failed to create patient", details: error.message });
+        .json({ error: 'Failed to create patient', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -250,72 +250,72 @@ router.post(
  * - caller: can update notes, care_instructions only
  */
 router.put(
-  "/:id",
+  '/:id',
   authenticate,
-  authorize("patients", "update"),
-  autoLogAccess("patients", "update"),
+  authorize('patients', 'update'),
+  autoLogAccess('patients', 'update'),
   async (req, res) => {
     try {
       const { role } = req.profile;
       const patient = await Patient.findById(req.params.id);
 
       if (!patient) {
-        return res.status(404).json({ error: "Patient not found" });
+        return res.status(404).json({ error: 'Patient not found' });
       }
 
       if (!canReadPatient(req.profile, patient)) {
-        return res.status(403).json({ error: "Access denied to this patient" });
+        return res.status(403).json({ error: 'Access denied to this patient' });
       }
 
       // Field permissions per role
       const fieldsByRole = {
         super_admin: [
-          "name",
-          "phone",
-          "avatar_url",
-          "city",
-          "address",
-          "date_of_birth",
-          "gender",
-          "risk_level",
-          "notes",
-          "care_instructions",
-          "is_active",
-          "assigned_caller_id",
-          "assigned_manager_id",
-          "conditions",
-          "medications",
-          "allergies",
-          "medical_history",
-          "trusted_contacts",
-          "gp_name",
-          "gp_phone",
-          "blood_type",
-          "mobility_level",
-          "preferred_call_times",
-          "call_frequency_days",
-          "timezone",
+          'name',
+          'phone',
+          'avatar_url',
+          'city',
+          'address',
+          'date_of_birth',
+          'gender',
+          'risk_level',
+          'notes',
+          'care_instructions',
+          'is_active',
+          'assigned_caller_id',
+          'assigned_manager_id',
+          'conditions',
+          'medications',
+          'allergies',
+          'medical_history',
+          'trusted_contacts',
+          'gp_name',
+          'gp_phone',
+          'blood_type',
+          'mobility_level',
+          'preferred_call_times',
+          'call_frequency_days',
+          'timezone',
         ],
         org_admin: [
-          "risk_level",
-          "notes",
-          "care_instructions",
-          "is_active",
-          "assigned_caller_id",
-          "assigned_manager_id",
-          "preferred_call_times",
-          "call_frequency_days",
-          "trusted_contacts",
+          'risk_level',
+          'notes',
+          'care_instructions',
+          'is_active',
+          'assigned_caller_id',
+          'assigned_manager_id',
+          'preferred_call_times',
+          'call_frequency_days',
+          'trusted_contacts',
         ],
         care_manager: [
-          "risk_level",
-          "notes",
-          "care_instructions",
-          "assigned_caller_id",
-          "preferred_call_times",
-          "call_frequency_days",
+          'risk_level',
+          'notes',
+          'care_instructions',
+          'assigned_caller_id',
+          'preferred_call_times',
+          'call_frequency_days',
         ],
-        caller: ["notes", "care_instructions"],
+        caller: ['notes', 'care_instructions'],
       };
 
       const allowed = fieldsByRole[role] || [];
@@ -327,7 +327,7 @@ router.put(
       if (Object.keys(updateData).length === 0) {
         return res
           .status(400)
-          .json({ error: "No valid fields to update for your role" });
+          .json({ error: 'No valid fields to update for your role' });
       }
 
       const oldCallerId = patient.assigned_caller_id;
@@ -335,39 +335,39 @@ router.put(
       const updatedPatient = await Patient.findByIdAndUpdate(
         req.params.id,
         updateData,
-        { new: true, runValidators: true },
+        { new: true, runValidators: true }
       )
-        .populate("organization_id", "name city")
-        .populate("assigned_caller_id", "fullName email phone")
-        .populate("assigned_manager_id", "fullName email");
+        .populate('organization_id', 'name city')
+        .populate('assigned_caller_id', 'fullName email phone')
+        .populate('assigned_manager_id', 'fullName email');
 
       // Handle bidirectional caller assignment syncing if updated
       if (
         updateData.assigned_caller_id !== undefined &&
         String(updateData.assigned_caller_id) !== String(oldCallerId)
       ) {
-        const Caller = require("../models/Caller");
+        const Caller = require('../models/Caller');
         if (oldCallerId) {
           await Caller.updateOne(
             { _id: oldCallerId },
-            { $pull: { patient_ids: patient._id } },
+            { $pull: { patient_ids: patient._id } }
           );
         }
         if (updateData.assigned_caller_id) {
           await Caller.updateOne(
             { _id: updateData.assigned_caller_id },
-            { $addToSet: { patient_ids: patient._id } },
+            { $addToSet: { patient_ids: patient._id } }
           );
         }
       }
 
       await logEvent(
         req.profile.supabaseUid,
-        "patient_updated",
-        "patient",
+        'patient_updated',
+        'patient',
         req.params.id,
         req,
-        { updatedFields: Object.keys(updateData) },
+        { updatedFields: Object.keys(updateData) }
       );
 
       if (
@@ -376,25 +376,25 @@ router.put(
         (updateData.care_instructions !== undefined ||
           updateData.notes !== undefined)
       ) {
-        const PushNotificationService = require("../utils/pushNotifications");
+        const PushNotificationService = require('../utils/pushNotifications');
         PushNotificationService.sendPush(
           updatedPatient.expo_push_token,
-          "Care Plan Updated 📋",
-          "Your caretaker has added new notes or instructions to your profile.",
-        ).catch((err) => console.warn("Failed to send update push:", err));
+          'Care Plan Updated 📋',
+          'Your caretaker has added new notes or instructions to your profile.'
+        ).catch((err) => console.warn('Failed to send update push:', err));
       }
 
       res.json({
-        message: "Patient updated successfully",
+        message: 'Patient updated successfully',
         patient: updatedPatient,
       });
     } catch (error) {
-      console.error("Update patient error:", error);
+      console.error('Update patient error:', error);
       res
         .status(500)
-        .json({ error: "Failed to update patient", details: error.message });
+        .json({ error: 'Failed to update patient', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -402,44 +402,44 @@ router.put(
  * Soft-delete patient — org_admin / super_admin only
  */
 router.delete(
-  "/:id",
+  '/:id',
   authenticate,
-  requireRole("super_admin", "org_admin"),
-  authorize("patients", "delete"),
-  autoLogAccess("patients", "delete"),
+  requireRole('super_admin', 'org_admin'),
+  authorize('patients', 'delete'),
+  autoLogAccess('patients', 'delete'),
   async (req, res) => {
     try {
       const patient = await Patient.findById(req.params.id);
       if (!patient) {
-        return res.status(404).json({ error: "Patient not found" });
+        return res.status(404).json({ error: 'Patient not found' });
       }
 
       if (!canReadPatient(req.profile, patient)) {
-        return res.status(403).json({ error: "Access denied to this patient" });
+        return res.status(403).json({ error: 'Access denied to this patient' });
       }
 
       patient.is_active = false;
       patient.deactivated_at = new Date();
-      patient.deactivated_reason = req.body.reason || "Deactivated by admin";
+      patient.deactivated_reason = req.body.reason || 'Deactivated by admin';
       patient.expireAt = undefined; // clear TTL so it's not auto-deleted
       await patient.save();
 
       // Decrement org patient counter
       await Organization.findByIdAndUpdate(patient.organization_id, {
-        $inc: { "counts.patients": -1 },
+        $inc: { 'counts.patients': -1 },
       });
 
       await logEvent(
         req.profile.supabaseUid,
-        "patient_deactivated",
-        "patient",
+        'patient_deactivated',
+        'patient',
         req.params.id,
         req,
-        { patientEmail: patient.email, reason: patient.deactivated_reason },
+        { patientEmail: patient.email, reason: patient.deactivated_reason }
       );
 
       res.json({
-        message: "Patient deactivated successfully",
+        message: 'Patient deactivated successfully',
         patient: {
           id: patient._id,
           name: patient.name,
@@ -447,13 +447,13 @@ router.delete(
         },
       });
     } catch (error) {
-      console.error("Delete patient error:", error);
+      console.error('Delete patient error:', error);
       res.status(500).json({
-        error: "Failed to deactivate patient",
+        error: 'Failed to deactivate patient',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -461,48 +461,48 @@ router.delete(
  * Get current assigned caller for logged-in patient
  */
 router.get(
-  "/me/caller",
+  '/me/caller',
   authenticate,
-  requireRole("patient"),
+  requireRole('patient'),
   async (req, res) => {
     try {
       const patient = await Patient.findById(req.profile._id).populate(
-        "assigned_caller_id",
+        'assigned_caller_id'
       );
       if (!patient) {
-        return res.status(404).json({ error: "Patient not found" });
+        return res.status(404).json({ error: 'Patient not found' });
       }
 
       if (!patient.assigned_caller_id) {
-        return res.status(404).json({ error: "No caller assigned" });
+        return res.status(404).json({ error: 'No caller assigned' });
       }
 
       // Get caller user details
-      const Caller = require("../models/Caller");
+      const Caller = require('../models/Caller');
       const caller = await Caller.findById(patient.assigned_caller_id);
       if (!caller) {
-        return res.status(404).json({ error: "Caller not found" });
+        return res.status(404).json({ error: 'Caller not found' });
       }
 
       // Format caller data for frontend
       const callerData = {
         _id: caller._id,
         name: caller.fullName || caller.name,
-        employee_id: caller.employee_id || "N/A",
+        employee_id: caller.employee_id || 'N/A',
         experience_years: caller.experience_years || 0,
-        languages_spoken: caller.languages_spoken || ["English"],
-        phone: caller.phone || "",
+        languages_spoken: caller.languages_spoken || ['English'],
+        phone: caller.phone || '',
         avatar_url: caller.avatar_url || null,
       };
 
       res.json({ caller: callerData });
     } catch (error) {
-      console.error("Get my caller error:", error);
+      console.error('Get my caller error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get caller", details: error.message });
+        .json({ error: 'Failed to get caller', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -510,24 +510,24 @@ router.get(
  * Get call history for logged-in patient
  */
 router.get(
-  "/me/calls",
+  '/me/calls',
   authenticate,
-  requireRole("patient"),
+  requireRole('patient'),
   async (req, res) => {
     try {
-      const CallLog = require("../models/CallLog");
+      const CallLog = require('../models/CallLog');
       const calls = await CallLog.find({ patientId: req.profile._id })
         .sort({ scheduledTime: -1 })
         .limit(20);
 
       res.json({ calls: calls || [] });
     } catch (error) {
-      console.error("Get my calls error:", error);
+      console.error('Get my calls error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get calls", details: error.message });
+        .json({ error: 'Failed to get calls', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -535,21 +535,21 @@ router.get(
  * Get the latest AI vital predictions and health label for a patient
  */
 router.get(
-  "/:id/ai-prediction",
+  '/:id/ai-prediction',
   authenticate,
-  authorize("patients", "read"),
+  authorize('patients', 'read'),
   async (req, res) => {
     try {
       const patient = await Patient.findById(req.params.id);
       if (!patient) {
-        return res.status(404).json({ error: "Patient not found" });
+        return res.status(404).json({ error: 'Patient not found' });
       }
 
       if (!canReadPatient(req.profile, patient)) {
-        return res.status(403).json({ error: "Access denied to this patient" });
+        return res.status(403).json({ error: 'Access denied to this patient' });
       }
 
-      const AIVitalPrediction = require("../models/AIVitalPrediction");
+      const AIVitalPrediction = require('../models/AIVitalPrediction');
       const prediction = await AIVitalPrediction.findOne({
         patient_id: req.params.id,
       });
@@ -557,18 +557,18 @@ router.get(
       if (!prediction) {
         return res
           .status(404)
-          .json({ error: "No AI predictions generated yet for this patient." });
+          .json({ error: 'No AI predictions generated yet for this patient.' });
       }
 
       res.json(prediction);
     } catch (error) {
-      console.error("Get patient AI prediction error:", error);
+      console.error('Get patient AI prediction error:', error);
       res.status(500).json({
-        error: "Failed to get patient AI prediction",
+        error: 'Failed to get patient AI prediction',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -577,58 +577,58 @@ router.get(
  * Access: super_admin, org_admin, care_manager, caller
  */
 router.put(
-  "/:id/prescriptions/:prescriptionId",
+  '/:id/prescriptions/:prescriptionId',
   authenticate,
-  authorize("patients", "update"),
+  authorize('patients', 'update'),
   async (req, res) => {
     try {
       const { status, reviewer_notes } = req.body;
-      if (!["reviewed", "rejected", "pending"].includes(status)) {
-        return res.status(400).json({ error: "Invalid status" });
+      if (!['reviewed', 'rejected', 'pending'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
       }
 
       const patient = await Patient.findById(req.params.id);
       if (!patient) {
-        return res.status(404).json({ error: "Patient not found" });
+        return res.status(404).json({ error: 'Patient not found' });
       }
 
       if (!canReadPatient(req.profile, patient)) {
-        return res.status(403).json({ error: "Access denied to this patient" });
+        return res.status(403).json({ error: 'Access denied to this patient' });
       }
 
       const rx = patient.uploaded_prescriptions.id(req.params.prescriptionId);
       if (!rx) {
-        return res.status(404).json({ error: "Prescription not found" });
+        return res.status(404).json({ error: 'Prescription not found' });
       }
 
       rx.status = status;
       if (reviewer_notes !== undefined) rx.reviewer_notes = reviewer_notes;
-      rx.reviewed_by = req.profile.fullName || req.profile.email || "Staff";
+      rx.reviewed_by = req.profile.fullName || req.profile.email || 'Staff';
       rx.reviewed_at = new Date();
 
       await patient.save();
 
       await logEvent(
         req.profile.supabaseUid,
-        "prescription_reviewed",
-        "patient",
+        'prescription_reviewed',
+        'patient',
         patient._id,
         req,
-        { prescriptionId: req.params.prescriptionId, status, reviewer_notes },
+        { prescriptionId: req.params.prescriptionId, status, reviewer_notes }
       );
 
       res.json({
-        message: "Prescription reviewed successfully",
+        message: 'Prescription reviewed successfully',
         prescription: rx,
       });
     } catch (error) {
-      console.error("Review prescription error:", error);
+      console.error('Review prescription error:', error);
       res.status(500).json({
-        error: "Failed to review prescription",
+        error: 'Failed to review prescription',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 module.exports = router;

@@ -1,5 +1,5 @@
-const admin = require("firebase-admin");
-const dotenv = require("dotenv");
+const admin = require('firebase-admin');
+const dotenv = require('dotenv');
 
 dotenv.config();
 
@@ -23,10 +23,10 @@ const initializeFirebase = () => {
       // Fallback for local development if a file is present
       // console.warn('FIREBASE_SERVICE_ACCOUNT_JSON not found in env, looking for local file...');
       try {
-        serviceAccount = require("./firebase-service-account.json");
+        serviceAccount = require('./firebase-service-account.json');
       } catch (err) {
         console.error(
-          "Firebase Service Account key missing. Notifications will fail.",
+          'Firebase Service Account key missing. Notifications will fail.'
         );
         return null;
       }
@@ -36,10 +36,10 @@ const initializeFirebase = () => {
       credential: admin.credential.cert(serviceAccount),
     });
 
-    console.log("✅ Firebase Admin initialized successfully");
+    console.log('✅ Firebase Admin initialized successfully');
     return admin;
   } catch (error) {
-    console.error("❌ Firebase initialization error:", error.message);
+    console.error('❌ Firebase initialization error:', error.message);
     return null;
   }
 };

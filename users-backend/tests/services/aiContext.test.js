@@ -6,28 +6,28 @@
  * and correctly maps recent call metadata into the context.
  */
 
-const mongoose = require("mongoose");
-const moment = require("moment-timezone");
+const mongoose = require('mongoose');
+const moment = require('moment-timezone');
 
-jest.mock("../../src/models/Patient");
-jest.mock("../../src/models/Profile");
-jest.mock("../../src/models/Medication");
-jest.mock("../../src/models/MedicineLog");
-jest.mock("../../src/models/VitalLog");
-jest.mock("../../src/models/CallLog");
-jest.mock("../../src/services/patientHealthStateService", () => ({
-  getCachedHealthState: jest.fn().mockResolvedValue({ status: "stable" }),
+jest.mock('../../src/models/Patient');
+jest.mock('../../src/models/Profile');
+jest.mock('../../src/models/Medication');
+jest.mock('../../src/models/MedicineLog');
+jest.mock('../../src/models/VitalLog');
+jest.mock('../../src/models/CallLog');
+jest.mock('../../src/services/patientHealthStateService', () => ({
+  getCachedHealthState: jest.fn().mockResolvedValue({ status: 'stable' }),
 }));
 
-const Patient = require("../../src/models/Patient");
-const Profile = require("../../src/models/Profile");
-const Medication = require("../../src/models/Medication");
-const MedicineLog = require("../../src/models/MedicineLog");
-const VitalLog = require("../../src/models/VitalLog");
-const CallLog = require("../../src/models/CallLog");
-const { buildPatientContext } = require("../../src/services/aiContextService");
+const Patient = require('../../src/models/Patient');
+const Profile = require('../../src/models/Profile');
+const Medication = require('../../src/models/Medication');
+const MedicineLog = require('../../src/models/MedicineLog');
+const VitalLog = require('../../src/models/VitalLog');
+const CallLog = require('../../src/models/CallLog');
+const { buildPatientContext } = require('../../src/services/aiContextService');
 
-describe("AI Context Service (Regression & Schema Check)", () => {
+describe('AI Context Service (Regression & Schema Check)', () => {
   const patientId = new mongoose.Types.ObjectId();
   const managerId = new mongoose.Types.ObjectId();
 
@@ -38,8 +38,8 @@ describe("AI Context Service (Regression & Schema Check)", () => {
     Patient.findById.mockReturnValue({
       select: jest.fn().mockResolvedValue({
         _id: patientId,
-        name: "Test Patient",
-        timezone: "Asia/Kolkata",
+        name: 'Test Patient',
+        timezone: 'Asia/Kolkata',
         assigned_manager_id: managerId,
         gamification: { current_streak: 5, longest_streak: 10 },
         medications: [],
@@ -50,8 +50,8 @@ describe("AI Context Service (Regression & Schema Check)", () => {
     Profile.findById.mockReturnValue({
       select: jest.fn().mockResolvedValue({
         _id: managerId,
-        fullName: "Care Manager Alice",
-        role: "care_manager",
+        fullName: 'Care Manager Alice',
+        role: 'care_manager',
       }),
     });
 
@@ -68,12 +68,12 @@ describe("AI Context Service (Regression & Schema Check)", () => {
     });
   });
 
-  it("should query CallLog using correct fields and return recent call details in payload", async () => {
+  it('should query CallLog using correct fields and return recent call details in payload', async () => {
     // Arrange: Create a mock call log with correct schema fields
     const mockCallLog = {
       patientId: patientId,
-      status: "completed",
-      scheduledTime: new Date("2026-06-25T10:00:00.000Z"),
+      status: 'completed',
+      scheduledTime: new Date('2026-06-25T10:00:00.000Z'),
       duration: 360,
     };
 
@@ -88,17 +88,17 @@ describe("AI Context Service (Regression & Schema Check)", () => {
     // Assert: Check CallLog query syntax
     expect(CallLog.findOne).toHaveBeenCalledWith({ patientId: patientId });
     expect(sortMock).toHaveBeenCalledWith({ scheduledTime: -1 });
-    expect(selectMock).toHaveBeenCalledWith("status scheduledTime duration");
+    expect(selectMock).toHaveBeenCalledWith('status scheduledTime duration');
 
     // Assert: Check structure & mapping in returned payload
     expect(context).not.toBeNull();
     expect(context.care_team).toEqual({
-      assigned_caller: "Care Manager Alice",
-      role: "care_manager",
+      assigned_caller: 'Care Manager Alice',
+      role: 'care_manager',
     });
     expect(context.latest_interaction).toEqual({
-      date: "Jun 25, 3:30 PM", // 10:00 AM UTC converted to Asia/Kolkata
-      status: "completed",
+      date: 'Jun 25, 3:30 PM', // 10:00 AM UTC converted to Asia/Kolkata
+      status: 'completed',
       duration_seconds: 360,
     });
   });

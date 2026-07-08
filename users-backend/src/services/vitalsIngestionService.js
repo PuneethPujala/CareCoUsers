@@ -1,7 +1,7 @@
-const VitalLog = require("../models/VitalLog");
-const Notification = require("../models/Notification");
-const Patient = require("../models/Patient");
-const PushNotificationService = require("../utils/pushNotifications");
+const VitalLog = require('../models/VitalLog');
+const Notification = require('../models/Notification');
+const Patient = require('../models/Patient');
+const PushNotificationService = require('../utils/pushNotifications');
 
 // ─── Clinical danger thresholds ─────────────────────────────────
 // These trigger IMMEDIATE alerts, even before the AI layer kicks in.
@@ -190,7 +190,7 @@ class VitalsIngestionService {
         // Partial success — some were duplicates
         const insertedCount = err.insertedDocs?.length || 0;
         const dupCount = (err.writeErrors || []).filter(
-          (e) => e.err?.code === 11000,
+          (e) => e.err?.code === 11000
         ).length;
         summary.accepted = validDocs.length - dupCount;
         summary.duplicates = dupCount;
@@ -203,14 +203,14 @@ class VitalsIngestionService {
     if (summary.anomalies.length > 0) {
       // Fire-and-forget — don't block the sync response
       this._triggerAnomalyAlerts(patientId, summary.anomalies).catch((err) => {
-        console.error("❌ Failed to trigger anomaly alerts:", err.message);
+        console.error('❌ Failed to trigger anomaly alerts:', err.message);
       });
     }
 
     // ── Trigger AI prediction queue if enough data ────────────
     if (summary.accepted > 0) {
       this._maybeQueueAIPrediction(patientId).catch((err) => {
-        console.error("❌ Failed to queue AI prediction:", err.message);
+        console.error('❌ Failed to queue AI prediction:', err.message);
       });
     }
 
@@ -244,12 +244,12 @@ class VitalsIngestionService {
     if (doc.blood_pressure?.systolic != null) {
       if (doc.blood_pressure.systolic > DANGER_THRESHOLDS.systolic.max) {
         alerts.push(
-          `Systolic BP critically high: ${doc.blood_pressure.systolic} mmHg`,
+          `Systolic BP critically high: ${doc.blood_pressure.systolic} mmHg`
         );
       }
       if (doc.blood_pressure.systolic < DANGER_THRESHOLDS.systolic.min) {
         alerts.push(
-          `Systolic BP critically low: ${doc.blood_pressure.systolic} mmHg`,
+          `Systolic BP critically low: ${doc.blood_pressure.systolic} mmHg`
         );
       }
     }
@@ -260,7 +260,7 @@ class VitalsIngestionService {
       }
       if (doc.blood_glucose > DANGER_THRESHOLDS.blood_glucose.max) {
         alerts.push(
-          `Blood glucose critically high: ${doc.blood_glucose} mg/dL`,
+          `Blood glucose critically high: ${doc.blood_glucose} mg/dL`
         );
       }
     }
@@ -268,18 +268,18 @@ class VitalsIngestionService {
     if (doc.respiratory_rate != null) {
       if (doc.respiratory_rate < DANGER_THRESHOLDS.respiratory_rate.min) {
         alerts.push(
-          `Respiratory rate critically low: ${doc.respiratory_rate} breaths/min`,
+          `Respiratory rate critically low: ${doc.respiratory_rate} breaths/min`
         );
       }
       if (doc.respiratory_rate > DANGER_THRESHOLDS.respiratory_rate.max) {
         alerts.push(
-          `Respiratory rate critically high: ${doc.respiratory_rate} breaths/min`,
+          `Respiratory rate critically high: ${doc.respiratory_rate} breaths/min`
         );
       }
     }
 
     if (alerts.length > 0) {
-      return { level: "critical", alerts };
+      return { level: 'critical', alerts };
     }
     return null;
   }
@@ -295,28 +295,28 @@ class VitalsIngestionService {
 
     const alertMessages = anomalies.flatMap((a) => a.alerts);
     const uniqueAlerts = [...new Set(alertMessages)];
-    const message = uniqueAlerts.join(". ") + ".";
+    const message = uniqueAlerts.join('. ') + '.';
 
     // 1. Create persistent notification
     await Notification.create({
       patient_id: patient._id,
-      title: "🚨 Abnormal Vital Sign Detected",
+      title: '🚨 Abnormal Vital Sign Detected',
       message: `Your wearable detected concerning readings: ${message}`,
-      type: "alert",
-      target_screen: "VitalsScreen",
+      type: 'alert',
+      target_screen: 'VitalsScreen',
       expo_push_token: patient.expo_push_token || undefined,
     });
 
     // 2. Send push notification
     await PushNotificationService.sendPush(
       patient.expo_push_token,
-      "🚨 Abnormal Vital Sign Detected",
-      `Concerning readings detected: ${uniqueAlerts[0]}${uniqueAlerts.length > 1 ? ` (+${uniqueAlerts.length - 1} more)` : ""}`,
-      { screen: "VitalsHistory", type: "vital_anomaly" },
+      '🚨 Abnormal Vital Sign Detected',
+      `Concerning readings detected: ${uniqueAlerts[0]}${uniqueAlerts.length > 1 ? ` (+${uniqueAlerts.length - 1} more)` : ''}`,
+      { screen: 'VitalsHistory', type: 'vital_anomaly' }
     );
 
     console.log(
-      `🚨 Anomaly alert sent for patient ${patient.name}: ${message}`,
+      `🚨 Anomaly alert sent for patient ${patient.name}: ${message}`
     );
   }
 
@@ -336,43 +336,43 @@ class VitalsIngestionService {
 
     if (count >= 7) {
       if (
-        process.env.NODE_ENV !== "test" &&
-        process.env.USE_BULLMQ_WORKERS !== "true"
+        process.env.NODE_ENV !== 'test' &&
+        process.env.USE_BULLMQ_WORKERS !== 'true'
       ) {
-        const AIPredictionService = require("./aiPredictionService");
+        const AIPredictionService = require('./aiPredictionService');
         console.log(
-          `🤖 Running in-process background AI prediction for patient ${patientId}`,
+          `🤖 Running in-process background AI prediction for patient ${patientId}`
         );
         AIPredictionService.processPatientPrediction(patientId).catch((err) => {
           console.error(
-            "❌ Failed to run in-process AI prediction:",
-            err.message,
+            '❌ Failed to run in-process AI prediction:',
+            err.message
           );
         });
         return;
       }
       try {
-        const { vitalsQueue } = require("../jobs/vitalsQueue");
-        const { PRIORITY } = require("../jobs/jobQueues");
+        const { vitalsQueue } = require('../jobs/vitalsQueue');
+        const { PRIORITY } = require('../jobs/jobQueues');
         await vitalsQueue.add(
-          "predict",
+          'predict',
           { patientId: patientId.toString() },
           {
             removeOnComplete: true,
             removeOnFail: false,
             attempts: 2,
-            backoff: { type: "exponential", delay: 5000 },
+            backoff: { type: 'exponential', delay: 5000 },
             priority: PRIORITY ? PRIORITY.MEDIUM : 15,
             // Deduplicate: don't queue the same patient twice in quick succession
             jobId: `sync-predict-${patientId}-${new Date().toISOString().slice(0, 13)}`,
-          },
+          }
         );
         console.log(`🤖 AI prediction job enqueued for patient: ${patientId}`);
       } catch (err) {
         // Queue might not be running in dev — that's fine
         console.warn(
-          "⚠️ Could not enqueue AI prediction (queue may be offline):",
-          err.message,
+          '⚠️ Could not enqueue AI prediction (queue may be offline):',
+          err.message
         );
       }
     }

@@ -1,5 +1,5 @@
-process.env.NODE_ENV = "test";
-process.env.AUTH_ENABLE_SUPABASE_FALLBACK = "true";
+process.env.NODE_ENV = 'test';
+process.env.AUTH_ENABLE_SUPABASE_FALLBACK = 'true';
 
 /**
  * auth.test.js — fixed
@@ -24,18 +24,18 @@ process.env.AUTH_ENABLE_SUPABASE_FALLBACK = "true";
 
 const mockAuthState = {
   user: {
-    id: "test-user",
-    supabaseUid: "test-user",
+    id: 'test-user',
+    supabaseUid: 'test-user',
     email_confirmed_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
   },
   profile: {
-    _id: "test-profile",
-    supabaseUid: "test-user",
-    role: "care_manager",
-    organizationId: "org123",
-    email: "staff@caremymed.in",
-    fullName: "Test Staff",
+    _id: 'test-profile',
+    supabaseUid: 'test-user',
+    role: 'care_manager',
+    organizationId: 'org123',
+    email: 'staff@caremymed.in',
+    fullName: 'Test Staff',
   },
   rejectAuth: false, // set true to make authenticate return 401
 };
@@ -57,19 +57,19 @@ const mockSupabase = {
   },
 };
 
-jest.mock("@supabase/supabase-js", () => ({
+jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => mockSupabase),
 }));
 
-jest.mock("../src/models/Profile");
-jest.mock("../src/models/Patient");
-jest.mock("../src/models/Organization");
-jest.mock("../src/models/Companion");
-jest.mock("../src/models/AuditLog", () => ({
+jest.mock('../src/models/Profile');
+jest.mock('../src/models/Patient');
+jest.mock('../src/models/Organization');
+jest.mock('../src/models/Companion');
+jest.mock('../src/models/AuditLog', () => ({
   createLog: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock("../src/services/auditService", () => ({
+jest.mock('../src/services/auditService', () => ({
   logEvent: jest.fn().mockResolvedValue(undefined),
   logSecurityEvent: jest.fn().mockResolvedValue(undefined),
   autoLogAccess: jest.fn(() => (req, res, next) => next()),
@@ -77,15 +77,15 @@ jest.mock("../src/services/auditService", () => ({
   getSecurityIncidents: jest.fn(),
 }));
 
-jest.mock("../src/services/emailService", () => ({
+jest.mock('../src/services/emailService', () => ({
   sendTempPasswordEmail: jest.fn(),
   sendPasswordChangedEmail: jest.fn(),
 }));
 
-jest.mock("../src/middleware/authenticate", () => ({
+jest.mock('../src/middleware/authenticate', () => ({
   authenticate: (req, res, next) => {
     if (mockAuthState.rejectAuth) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
     req.user = mockAuthState.user;
     req.profile = mockAuthState.profile;
@@ -93,7 +93,7 @@ jest.mock("../src/middleware/authenticate", () => ({
   },
   authenticateSession: (req, res, next) => {
     if (mockAuthState.rejectAuth) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
     req.user = mockAuthState.user;
     req.profile = mockAuthState.profile;
@@ -102,31 +102,31 @@ jest.mock("../src/middleware/authenticate", () => ({
   requireRole: () => (req, res, next) => next(),
 }));
 
-jest.mock("../src/middleware/authorize", () => ({
+jest.mock('../src/middleware/authorize', () => ({
   authorize: () => (req, res, next) => next(),
   authorizeResource: () => (req, res, next) => next(),
 }));
 
-jest.mock("../src/middleware/checkPasswordChange", () => ({
+jest.mock('../src/middleware/checkPasswordChange', () => ({
   checkPasswordChange: (req, res, next) => next(),
 }));
 
-jest.mock("../src/services/tokenService", () => ({
+jest.mock('../src/services/tokenService', () => ({
   issueTokenPair: jest.fn().mockResolvedValue({
-    access_token: "mock-access-token",
-    refresh_token: "mock-refresh-token",
+    access_token: 'mock-access-token',
+    refresh_token: 'mock-refresh-token',
     expires_in: 900,
     expires_at: Math.floor(Date.now() / 1000) + 900,
   }),
   revokeAllForUser: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock("../src/models/RefreshToken", () => ({
-  hashToken: jest.fn(() => "hashed-test-refresh"),
+jest.mock('../src/models/RefreshToken', () => ({
+  hashToken: jest.fn(() => 'hashed-test-refresh'),
   findOne: jest.fn(),
 }));
 
-jest.mock("../src/middleware/scopeFilter", () => ({
+jest.mock('../src/middleware/scopeFilter', () => ({
   scopeFilter: () => (req, res, next) => {
     req.scopeFilter = {};
     next();
@@ -135,22 +135,22 @@ jest.mock("../src/middleware/scopeFilter", () => ({
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
-const request = require("supertest");
-const app = require("../src/server");
-const Profile = require("../src/models/Profile");
-const Patient = require("../src/models/Patient");
-const Organization = require("../src/models/Organization");
-const Companion = require("../src/models/Companion");
-const { logEvent, logSecurityEvent } = require("../src/services/auditService");
-const { sendTempPasswordEmail } = require("../src/services/emailService");
-const tokenService = require("../src/services/tokenService");
-const RefreshToken = require("../src/models/RefreshToken");
+const request = require('supertest');
+const app = require('../src/server');
+const Profile = require('../src/models/Profile');
+const Patient = require('../src/models/Patient');
+const Organization = require('../src/models/Organization');
+const Companion = require('../src/models/Companion');
+const { logEvent, logSecurityEvent } = require('../src/services/auditService');
+const { sendTempPasswordEmail } = require('../src/services/emailService');
+const tokenService = require('../src/services/tokenService');
+const RefreshToken = require('../src/models/RefreshToken');
 const {
   mockProfile,
   mockPatient,
   mockOrganization,
-} = require("./helpers/mockModels");
-const crypto = require("crypto");
+} = require('./helpers/mockModels');
+const crypto = require('crypto');
 
 // ─── Chain builders ───────────────────────────────────────────────────────────
 
@@ -181,7 +181,7 @@ function patientSelectChain(resolvedValue) {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("Auth Routes", () => {
+describe('Auth Routes', () => {
   const originalPatientFindOne = Patient.findOne;
   const originalPatientFindById = Patient.findById;
   const originalPatientSave = Patient.prototype.save;
@@ -213,70 +213,70 @@ describe("Auth Routes", () => {
 
     mockAuthState.rejectAuth = false;
     mockAuthState.user = {
-      id: "test-user",
-      supabaseUid: "test-user",
+      id: 'test-user',
+      supabaseUid: 'test-user',
       email_confirmed_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
     };
     mockAuthState.profile = {
-      _id: "test-profile",
-      supabaseUid: "test-user",
-      role: "care_manager",
-      organizationId: "org123",
-      email: "staff@caremymed.in",
-      fullName: "Test Staff",
+      _id: 'test-profile',
+      supabaseUid: 'test-user',
+      role: 'care_manager',
+      organizationId: 'org123',
+      email: 'staff@caremymed.in',
+      fullName: 'Test Staff',
     };
   });
 
   // ── POST /api/auth/register ────────────────────────────────────────────────
 
-  describe("POST /api/auth/register", () => {
-    it("returns 400 when required fields are missing", async () => {
+  describe('POST /api/auth/register', () => {
+    it('returns 400 when required fields are missing', async () => {
       const res = await request(app)
-        .post("/api/auth/register")
-        .send({ email: "test@example.com" });
+        .post('/api/auth/register')
+        .send({ email: 'test@example.com' });
 
       expect(res.status).toBe(400);
-      expect(res.body.code).toBe("VALIDATION");
+      expect(res.body.code).toBe('VALIDATION');
     });
 
-    it("returns 400 when email already exists", async () => {
+    it('returns 400 when email already exists', async () => {
       // Early check: Patient.findOne returns an existing patient → 400 before Supabase
       Patient.findOne = jest
         .fn()
-        .mockResolvedValueOnce({ _id: "existing", email: "dupe@caremymed.in" });
+        .mockResolvedValueOnce({ _id: 'existing', email: 'dupe@caremymed.in' });
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "dupe@caremymed.in",
-        fullName: "Test",
-        password: "Pass12345",
-        city: "Hyderabad",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'dupe@caremymed.in',
+        fullName: 'Test',
+        password: 'Pass12345',
+        city: 'Hyderabad',
       });
 
       expect(res.status).toBe(400);
-      expect(res.body.code).toBe("EMAIL_ALREADY_EXISTS");
+      expect(res.body.code).toBe('EMAIL_ALREADY_EXISTS');
       // Supabase should NOT have been called
       expect(mockSupabase.auth.admin.createUser).not.toHaveBeenCalled();
     });
 
-    it("returns 400 when no active org is found for city", async () => {
+    it('returns 400 when no active org is found for city', async () => {
       Patient.findOne = jest.fn().mockResolvedValue(null);
       Organization.findOne = jest.fn().mockResolvedValue(null);
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "test@example.com",
-        fullName: "Test",
-        password: "Pass12345",
-        city: "UnknownCity",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'test@example.com',
+        fullName: 'Test',
+        password: 'Pass12345',
+        city: 'UnknownCity',
       });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(/no active organisation/i);
     });
 
-    it("returns 400 when org is at patient capacity", async () => {
+    it('returns 400 when org is at patient capacity', async () => {
       const org = mockOrganization({
-        _id: "org123",
+        _id: 'org123',
         counts: { patients: 500, callers: 0, managers: 0 },
         limits: { max_patients: 500, max_callers: 50, max_managers: 10 },
       });
@@ -284,88 +284,88 @@ describe("Auth Routes", () => {
       Organization.findOne = jest.fn().mockResolvedValue(org);
       Organization.findById = jest.fn().mockResolvedValue(org);
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "test@example.com",
-        fullName: "Test",
-        password: "Pass12345",
-        city: "Hyderabad",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'test@example.com',
+        fullName: 'Test',
+        password: 'Pass12345',
+        city: 'Hyderabad',
       });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(/capacity/i);
     });
 
-    it("returns 400 for duplicate email (MongoDB 11000 fallback for race conditions)", async () => {
-      const org = mockOrganization({ _id: "org123" });
+    it('returns 400 for duplicate email (MongoDB 11000 fallback for race conditions)', async () => {
+      const org = mockOrganization({ _id: 'org123' });
       // Patient.findOne must return null to pass the early duplicate check
       // (simulating a race condition where the email slips through to the DB level)
       Patient.findOne = jest.fn().mockResolvedValue(null);
       Organization.findOne = jest.fn().mockResolvedValue(org);
       Organization.findById = jest.fn().mockResolvedValue(org);
 
-      const dupeError = Object.assign(new Error("Duplicate"), {
+      const dupeError = Object.assign(new Error('Duplicate'), {
         code: 11000,
         keyValue: { email: 1 },
       });
       Patient.prototype.save = jest.fn().mockRejectedValue(dupeError);
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "dupe@example.com",
-        fullName: "Test",
-        password: "Pass12345",
-        city: "Hyderabad",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'dupe@example.com',
+        fullName: 'Test',
+        password: 'Pass12345',
+        city: 'Hyderabad',
       });
 
       expect(res.status).toBe(400);
-      expect(res.body.code).toBe("EMAIL_ALREADY_EXISTS");
+      expect(res.body.code).toBe('EMAIL_ALREADY_EXISTS');
     });
 
-    it("registers successfully and creates Patient only (no Profile)", async () => {
-      const fixedSubject = "11111111-1111-1111-1111-111111111111";
-      jest.spyOn(crypto, "randomUUID").mockReturnValue(fixedSubject);
+    it('registers successfully and creates Patient only (no Profile)', async () => {
+      const fixedSubject = '11111111-1111-1111-1111-111111111111';
+      jest.spyOn(crypto, 'randomUUID').mockReturnValue(fixedSubject);
 
-      const org = mockOrganization({ _id: "org123" });
+      const org = mockOrganization({ _id: 'org123' });
       Patient.findOne = jest.fn().mockResolvedValue(null);
       Organization.findOne = jest.fn().mockResolvedValue(org);
       Organization.findById = jest.fn().mockResolvedValue(org);
       Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
 
-      Patient.prototype._id = "patient-auto-id";
+      Patient.prototype._id = 'patient-auto-id';
       Patient.prototype.save = jest.fn().mockResolvedValue({});
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "new@example.com",
-        fullName: "New User",
-        password: "Pass12345",
-        city: "Hyderabad",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'new@example.com',
+        fullName: 'New User',
+        password: 'Pass12345',
+        city: 'Hyderabad',
       });
 
       expect(res.status).toBe(201);
-      expect(res.body.message).toBe("Registration successful");
+      expect(res.body.message).toBe('Registration successful');
       expect(mockSupabase.auth.admin.createUser).not.toHaveBeenCalled();
       expect(Patient.prototype.save).toHaveBeenCalled();
       expect(Profile.prototype.save).not.toHaveBeenCalled();
       expect(Organization.findByIdAndUpdate).toHaveBeenCalledWith(
         expect.anything(),
-        { $inc: { "counts.patients": 1 } },
+        { $inc: { 'counts.patients': 1 } }
       );
       expect(logEvent).toHaveBeenCalledWith(
         fixedSubject,
-        "patient_created",
-        "patient",
+        'patient_created',
+        'patient',
         expect.anything(),
         expect.any(Object),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
-    it("successfully links Google OAuth to an existing email/password Patient account", async () => {
+    it('successfully links Google OAuth to an existing email/password Patient account', async () => {
       const existingPatient = {
-        _id: "patient-id-123",
-        email: "hybrid@caremymed.in",
-        name: "Hybrid User",
-        supabase_uid: "original-local-uuid",
-        passwordHash: "hashed-password-123",
+        _id: 'patient-id-123',
+        email: 'hybrid@caremymed.in',
+        name: 'Hybrid User',
+        supabase_uid: 'original-local-uuid',
+        passwordHash: 'hashed-password-123',
         emailVerified: true,
         is_active: true,
         save: jest.fn().mockResolvedValue({}),
@@ -373,48 +373,48 @@ describe("Auth Routes", () => {
       Patient.findOne = jest.fn().mockResolvedValue(existingPatient);
       Profile.findOne = jest.fn().mockResolvedValue(null);
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "hybrid@caremymed.in",
-        fullName: "Hybrid User",
-        supabaseUid: "google-uid-123",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'hybrid@caremymed.in',
+        fullName: 'Hybrid User',
+        supabaseUid: 'google-uid-123',
       });
 
       expect(res.status).toBe(201);
-      expect(res.body.message).toBe("Account linked successfully");
-      expect(existingPatient.supabase_uid).toBe("google-uid-123");
+      expect(res.body.message).toBe('Account linked successfully');
+      expect(existingPatient.supabase_uid).toBe('google-uid-123');
       expect(existingPatient.save).toHaveBeenCalled();
     });
 
-    it("does not link Google OAuth to an existing companion profile during patient registration (registers new patient instead)", async () => {
+    it('does not link Google OAuth to an existing companion profile during patient registration (registers new patient instead)', async () => {
       const existingProfile = {
-        _id: "companion-profile-123",
-        email: "companion@caremymed.in",
-        fullName: "Companion User",
-        role: "companion",
-        supabaseUid: "cmp_placeholder-uuid",
+        _id: 'companion-profile-123',
+        email: 'companion@caremymed.in',
+        fullName: 'Companion User',
+        role: 'companion',
+        supabaseUid: 'cmp_placeholder-uuid',
         emailVerified: true,
         isActive: true,
         save: jest.fn().mockResolvedValue({}),
       };
-      const org = mockOrganization({ _id: "org123" });
+      const org = mockOrganization({ _id: 'org123' });
       Patient.findOne = jest.fn().mockResolvedValue(null);
       Profile.findOne = jest.fn().mockResolvedValue(existingProfile);
       Organization.findOne = jest.fn().mockResolvedValue(org);
       Organization.findById = jest.fn().mockResolvedValue(org);
       Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
 
-      Patient.prototype._id = "patient-auto-id";
+      Patient.prototype._id = 'patient-auto-id';
       Patient.prototype.save = jest.fn().mockResolvedValue({});
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "companion@caremymed.in",
-        fullName: "Companion User",
-        supabaseUid: "google-uid-123",
-        city: "Hyderabad",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'companion@caremymed.in',
+        fullName: 'Companion User',
+        supabaseUid: 'google-uid-123',
+        city: 'Hyderabad',
       });
 
       expect(res.status).toBe(201);
-      expect(res.body.message).toBe("Registration successful");
+      expect(res.body.message).toBe('Registration successful');
       expect(existingProfile.save).not.toHaveBeenCalled();
       expect(Patient.prototype.save).toHaveBeenCalled();
     });
@@ -422,175 +422,175 @@ describe("Auth Routes", () => {
 
   // ── POST /api/auth/login ───────────────────────────────────────────────────
 
-  describe("POST /api/auth/login", () => {
-    it("returns 400 when email or password missing", async () => {
+  describe('POST /api/auth/login', () => {
+    it('returns 400 when email or password missing', async () => {
       const res = await request(app)
-        .post("/api/auth/login")
-        .send({ email: "test@example.com" });
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com' });
 
       expect(res.status).toBe(400);
-      expect(res.body.code).toBe("VALIDATION");
+      expect(res.body.code).toBe('VALIDATION');
     });
 
-    it("returns 400 when role is missing", async () => {
+    it('returns 400 when role is missing', async () => {
       const res = await request(app)
-        .post("/api/auth/login")
-        .send({ email: "test@example.com", password: "Pass12345" });
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'Pass12345' });
 
       expect(res.status).toBe(400);
-      expect(res.body.code).toBe("VALIDATION");
+      expect(res.body.code).toBe('VALIDATION');
     });
 
-    it("returns 401 with INVALID_CREDENTIALS when email exists under a different role (user enumeration prevention)", async () => {
+    it('returns 401 with INVALID_CREDENTIALS when email exists under a different role (user enumeration prevention)', async () => {
       // SEC-FIX-1: no longer reveals role mismatch — returns generic 401
-      const existingProfile = mockProfile({ role: "care_manager" });
+      const existingProfile = mockProfile({ role: 'care_manager' });
       Profile.findOne = jest
         .fn()
         .mockReturnValueOnce(findOnePopulateChain(null))
         .mockResolvedValueOnce(existingProfile);
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "test@example.com",
-        password: "Pass12345",
-        role: "caller",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'test@example.com',
+        password: 'Pass12345',
+        role: 'caller',
       });
 
       expect(res.status).toBe(401);
-      expect(res.body.code).toBe("INVALID_CREDENTIALS");
+      expect(res.body.code).toBe('INVALID_CREDENTIALS');
     });
 
-    it("returns 401 with INVALID_CREDENTIALS when patient email does not exist (user enumeration prevention)", async () => {
+    it('returns 401 with INVALID_CREDENTIALS when patient email does not exist (user enumeration prevention)', async () => {
       // SEC-FIX-1: no longer reveals whether account exists
       Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(null));
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "ghost@example.com",
-        password: "Pass12345",
-        role: "patient",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'ghost@example.com',
+        password: 'Pass12345',
+        role: 'patient',
       });
 
       expect(res.status).toBe(401);
-      expect(res.body.code).toBe("INVALID_CREDENTIALS");
+      expect(res.body.code).toBe('INVALID_CREDENTIALS');
     });
 
-    it("returns 401 when Supabase rejects credentials", async () => {
+    it('returns 401 when Supabase rejects credentials', async () => {
       const profile = mockProfile({
-        role: "caller",
+        role: 'caller',
         failedLoginAttempts: 0,
-        passwordHash: "$2a$10$fakehash",
+        passwordHash: '$2a$10$fakehash',
       });
-      Object.defineProperty(profile, "isLocked", { get: () => false });
+      Object.defineProperty(profile, 'isLocked', { get: () => false });
       Profile.findOne = jest
         .fn()
         .mockReturnValue(findOnePopulateChain(profile));
 
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: null,
-        error: { message: "Invalid login credentials" },
+        error: { message: 'Invalid login credentials' },
       });
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "caller@caremymed.in",
-        password: "wrongpass",
-        role: "caller",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'caller@caremymed.in',
+        password: 'wrongpass',
+        role: 'caller',
       });
 
       expect(res.status).toBe(401);
-      expect(res.body.code).toBe("INVALID_CREDENTIALS");
+      expect(res.body.code).toBe('INVALID_CREDENTIALS');
       expect(logSecurityEvent).toHaveBeenCalledWith(
-        "anonymous",
-        "login_failed",
-        "medium",
+        'anonymous',
+        'login_failed',
+        'medium',
         expect.any(String),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
-    it("returns 423 when account is locked", async () => {
+    it('returns 423 when account is locked', async () => {
       const profile = mockProfile({
-        role: "caller",
+        role: 'caller',
         accountLockedUntil: new Date(Date.now() + 60_000),
       });
-      Object.defineProperty(profile, "isLocked", { get: () => true });
+      Object.defineProperty(profile, 'isLocked', { get: () => true });
       Profile.findOne = jest
         .fn()
         .mockReturnValue(findOnePopulateChain(profile));
 
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: {
-          user: { id: "sup-uid-123" },
+          user: { id: 'sup-uid-123' },
           session: {
-            access_token: "tok",
-            refresh_token: "ref",
+            access_token: 'tok',
+            refresh_token: 'ref',
             expires_in: 3600,
           },
         },
         error: null,
       });
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "caller@caremymed.in",
-        password: "Pass12345",
-        role: "caller",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'caller@caremymed.in',
+        password: 'Pass12345',
+        role: 'caller',
       });
 
       expect(res.status).toBe(423);
-      expect(res.body.code).toBe("ACCOUNT_LOCKED");
+      expect(res.body.code).toBe('ACCOUNT_LOCKED');
     });
 
-    it("logs in patient successfully and returns session + profile", async () => {
+    it('logs in patient successfully and returns session + profile', async () => {
       const patient = mockPatient({
-        _id: "patient123",
-        email: "patient@caremymed.in",
-        supabase_uid: "sup-uid-pat-stable",
+        _id: 'patient123',
+        email: 'patient@caremymed.in',
+        supabase_uid: 'sup-uid-pat-stable',
         failedLoginAttempts: 0,
       });
-      Object.defineProperty(patient, "isLocked", { get: () => false });
+      Object.defineProperty(patient, 'isLocked', { get: () => false });
       Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(patient));
 
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: {
           user: {
-            id: "sup-uid-123",
-            email: "patient@caremymed.in",
+            id: 'sup-uid-123',
+            email: 'patient@caremymed.in',
             email_confirmed_at: new Date().toISOString(),
           },
           session: {
-            access_token: "acc-tok",
-            refresh_token: "ref-tok",
+            access_token: 'acc-tok',
+            refresh_token: 'ref-tok',
             expires_in: 3600,
           },
         },
         error: null,
       });
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "patient@caremymed.in",
-        password: "Pass12345",
-        role: "patient",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'patient@caremymed.in',
+        password: 'Pass12345',
+        role: 'patient',
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.session.access_token).toBe("mock-access-token");
-      expect(res.body.profile.role).toBe("patient");
-      expect(res.body.profile.subscription_status).toBe("active");
+      expect(res.body.session.access_token).toBe('mock-access-token');
+      expect(res.body.profile.role).toBe('patient');
+      expect(res.body.profile.subscription_status).toBe('active');
       expect(logEvent).toHaveBeenCalledWith(
-        "sup-uid-pat-stable",
-        "login",
-        "patient",
+        'sup-uid-pat-stable',
+        'login',
+        'patient',
         patient._id,
         expect.any(Object),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
-    it("logs in staff successfully and returns session + profile", async () => {
+    it('logs in staff successfully and returns session + profile', async () => {
       const profile = mockProfile({
-        role: "caller",
-        supabaseUid: "sup-uid-123",
+        role: 'caller',
+        supabaseUid: 'sup-uid-123',
         failedLoginAttempts: 0,
       });
-      Object.defineProperty(profile, "isLocked", { get: () => false });
+      Object.defineProperty(profile, 'isLocked', { get: () => false });
       Profile.findOne = jest
         .fn()
         .mockReturnValue(findOnePopulateChain(profile));
@@ -598,104 +598,104 @@ describe("Auth Routes", () => {
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: {
           user: {
-            id: "sup-uid-123",
-            email: "caller@caremymed.in",
+            id: 'sup-uid-123',
+            email: 'caller@caremymed.in',
             email_confirmed_at: new Date().toISOString(),
           },
           session: {
-            access_token: "acc-tok",
-            refresh_token: "ref-tok",
+            access_token: 'acc-tok',
+            refresh_token: 'ref-tok',
             expires_in: 3600,
           },
         },
         error: null,
       });
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "caller@caremymed.in",
-        password: "Pass12345",
-        role: "caller",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'caller@caremymed.in',
+        password: 'Pass12345',
+        role: 'caller',
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.session.access_token).toBe("mock-access-token");
-      expect(res.body.profile.role).toBe("caller");
+      expect(res.body.session.access_token).toBe('mock-access-token');
+      expect(res.body.profile.role).toBe('caller');
       expect(logEvent).toHaveBeenCalledWith(
-        "sup-uid-123",
-        "login",
-        "profile",
+        'sup-uid-123',
+        'login',
+        'profile',
         profile._id,
         expect.any(Object),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
   });
 
   // ── POST /api/auth/logout ──────────────────────────────────────────────────
 
-  describe("POST /api/auth/logout", () => {
-    it("returns 401 when not authenticated", async () => {
+  describe('POST /api/auth/logout', () => {
+    it('returns 401 when not authenticated', async () => {
       mockAuthState.rejectAuth = true;
 
-      const res = await request(app).post("/api/auth/logout");
+      const res = await request(app).post('/api/auth/logout');
 
       expect(res.status).toBe(401);
     });
 
-    it("logs out successfully and revokes refresh tokens", async () => {
+    it('logs out successfully and revokes refresh tokens', async () => {
       const profile = mockProfile({
-        _id: "profile123",
-        supabaseUid: "sup-uid-123",
+        _id: 'profile123',
+        supabaseUid: 'sup-uid-123',
       });
-      mockAuthState.user = { id: "sup-uid-123" };
+      mockAuthState.user = { id: 'sup-uid-123' };
       mockAuthState.profile = profile;
 
-      const res = await request(app).post("/api/auth/logout");
+      const res = await request(app).post('/api/auth/logout');
 
       expect(res.status).toBe(200);
       expect(tokenService.revokeAllForUser).toHaveBeenCalledWith(
         profile._id,
-        "Profile",
+        'Profile'
       );
       expect(logEvent).toHaveBeenCalledWith(
-        "sup-uid-123",
-        "logout",
-        "profile",
+        'sup-uid-123',
+        'logout',
+        'profile',
         profile._id,
-        expect.any(Object),
+        expect.any(Object)
       );
     });
   });
 
   // ── POST /api/auth/refresh ─────────────────────────────────────────────────
 
-  describe("POST /api/auth/refresh", () => {
-    it("returns 400 when refresh_token is missing", async () => {
-      const res = await request(app).post("/api/auth/refresh").send({});
+  describe('POST /api/auth/refresh', () => {
+    it('returns 400 when refresh_token is missing', async () => {
+      const res = await request(app).post('/api/auth/refresh').send({});
 
       expect(res.status).toBe(400);
-      expect(res.body.code).toBe("VALIDATION");
+      expect(res.body.code).toBe('VALIDATION');
     });
 
-    it("returns 401 when refresh token document is not found", async () => {
+    it('returns 401 when refresh token document is not found', async () => {
       RefreshToken.findOne.mockResolvedValue(null);
 
       const res = await request(app)
-        .post("/api/auth/refresh")
-        .send({ refresh_token: "invalid-token" });
+        .post('/api/auth/refresh')
+        .send({ refresh_token: 'invalid-token' });
 
       expect(res.status).toBe(401);
-      expect(res.body.code).toBe("INVALID_REFRESH_TOKEN");
+      expect(res.body.code).toBe('INVALID_REFRESH_TOKEN');
     });
 
-    it("returns new tokens and profile on successful refresh", async () => {
+    it('returns new tokens and profile on successful refresh', async () => {
       const profile = mockProfile({
-        _id: "profile123",
-        supabaseUid: "sup-uid-123",
+        _id: 'profile123',
+        supabaseUid: 'sup-uid-123',
       });
       const doc = {
         userId: profile._id,
-        userType: "Profile",
+        userType: 'Profile',
         revokedAt: null,
         save: jest.fn().mockResolvedValue(undefined),
       };
@@ -705,19 +705,19 @@ describe("Auth Routes", () => {
         .mockReturnValue(findByIdPopulateChain(profile));
 
       const res = await request(app)
-        .post("/api/auth/refresh")
-        .send({ refresh_token: "valid-refresh-token" });
+        .post('/api/auth/refresh')
+        .send({ refresh_token: 'valid-refresh-token' });
 
       expect(res.status).toBe(200);
-      expect(res.body.session.access_token).toBe("mock-access-token");
+      expect(res.body.session.access_token).toBe('mock-access-token');
       expect(res.body.profile.role).toBe(profile.role);
       expect(doc.save).toHaveBeenCalled();
     });
 
-    it("returns 403 when account no longer exists", async () => {
+    it('returns 403 when account no longer exists', async () => {
       const doc = {
-        userId: "deleted-profile-id",
-        userType: "Profile",
+        userId: 'deleted-profile-id',
+        userType: 'Profile',
         revokedAt: null,
         save: jest.fn().mockResolvedValue(undefined),
       };
@@ -727,25 +727,25 @@ describe("Auth Routes", () => {
       });
 
       const res = await request(app)
-        .post("/api/auth/refresh")
-        .send({ refresh_token: "orphan-token" });
+        .post('/api/auth/refresh')
+        .send({ refresh_token: 'orphan-token' });
 
       expect(res.status).toBe(403);
-      expect(res.body.code).toBe("PROFILE_NOT_FOUND");
+      expect(res.body.code).toBe('PROFILE_NOT_FOUND');
     });
   });
 
   // ── GET /api/auth/me ───────────────────────────────────────────────────────
 
-  describe("GET /api/auth/me", () => {
-    it("returns current user profile", async () => {
+  describe('GET /api/auth/me', () => {
+    it('returns current user profile', async () => {
       const profile = mockProfile({
-        _id: "profile123",
-        email: "staff@caremymed.in",
-        role: "care_manager",
+        _id: 'profile123',
+        email: 'staff@caremymed.in',
+        role: 'care_manager',
       });
       mockAuthState.user = {
-        id: "sup-uid-123",
+        id: 'sup-uid-123',
         email_confirmed_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
       };
@@ -756,25 +756,25 @@ describe("Auth Routes", () => {
         .mockReturnValue(findByIdPopulateChain(profile));
 
       // Mock Caller.findOne (used by /me for caller role check)
-      const Caller = require("../src/models/Caller");
+      const Caller = require('../src/models/Caller');
       Caller.findOne = jest.fn().mockResolvedValue(null);
 
-      const res = await request(app).get("/api/auth/me");
+      const res = await request(app).get('/api/auth/me');
 
       expect(res.status).toBe(200);
-      expect(res.body.profile.email).toBe("staff@caremymed.in");
-      expect(res.body.profile.role).toBe("care_manager");
+      expect(res.body.profile.email).toBe('staff@caremymed.in');
+      expect(res.body.profile.role).toBe('care_manager');
     });
 
-    it("returns subscription_status for patient role", async () => {
+    it('returns subscription_status for patient role', async () => {
       const patient = mockPatient({
-        _id: "patient123",
-        role: "patient",
-        subscription: { status: "active", plan: "basic" },
+        _id: 'patient123',
+        role: 'patient',
+        subscription: { status: 'active', plan: 'basic' },
       });
       mockAuthState.user = {
-        id: "sup-uid-123",
-        email: "patient@caremymed.in",
+        id: 'sup-uid-123',
+        email: 'patient@caremymed.in',
         email_confirmed_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
       };
@@ -785,23 +785,23 @@ describe("Auth Routes", () => {
         select: jest.fn().mockResolvedValue(patient),
       });
 
-      const res = await request(app).get("/api/auth/me");
+      const res = await request(app).get('/api/auth/me');
 
       expect(res.status).toBe(200);
-      expect(res.body.profile.subscription_status).toBe("active");
-      expect(res.body.profile.role).toBe("patient");
+      expect(res.body.profile.subscription_status).toBe('active');
+      expect(res.body.profile.role).toBe('patient');
     });
 
-    it("returns 401 when not authenticated", async () => {
+    it('returns 401 when not authenticated', async () => {
       mockAuthState.rejectAuth = true;
 
-      const res = await request(app).get("/api/auth/me");
+      const res = await request(app).get('/api/auth/me');
 
       expect(res.status).toBe(401);
     });
 
-    it("exports staff data successfully", async () => {
-      const profile = mockProfile({ _id: "profile123", role: "care_manager" });
+    it('exports staff data successfully', async () => {
+      const profile = mockProfile({ _id: 'profile123', role: 'care_manager' });
       mockAuthState.profile = profile;
 
       Profile.findById = jest.fn().mockReturnValue({
@@ -810,14 +810,14 @@ describe("Auth Routes", () => {
         }),
       });
 
-      const res = await request(app).get("/api/auth/me/export");
-      console.log("STAFF EXPORT STATUS:", res.status);
-      console.log("STAFF EXPORT BODY:", res.body);
+      const res = await request(app).get('/api/auth/me/export');
+      console.log('STAFF EXPORT STATUS:', res.status);
+      console.log('STAFF EXPORT BODY:', res.body);
       expect(res.status).toBe(200);
     });
 
-    it("exports patient data successfully", async () => {
-      const patient = mockPatient({ _id: "patient123", role: "patient" });
+    it('exports patient data successfully', async () => {
+      const patient = mockPatient({ _id: 'patient123', role: 'patient' });
       mockAuthState.profile = patient;
 
       Patient.findById = jest.fn().mockReturnValue({
@@ -825,18 +825,18 @@ describe("Auth Routes", () => {
       });
 
       // Mock other models
-      const CallLog = require("../src/models/CallLog");
-      const MedicineLog = require("../src/models/MedicineLog");
-      const VitalLog = require("../src/models/VitalLog");
+      const CallLog = require('../src/models/CallLog');
+      const MedicineLog = require('../src/models/MedicineLog');
+      const VitalLog = require('../src/models/VitalLog');
 
       CallLog.find = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue([{ notes: "call 1" }]),
+          lean: jest.fn().mockResolvedValue([{ notes: 'call 1' }]),
         }),
       });
       MedicineLog.find = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue([{ date: "today" }]),
+          lean: jest.fn().mockResolvedValue([{ date: 'today' }]),
         }),
       });
       VitalLog.find = jest.fn().mockReturnValue({
@@ -845,48 +845,48 @@ describe("Auth Routes", () => {
         }),
       });
 
-      const res = await request(app).get("/api/auth/me/export");
-      console.log("PATIENT EXPORT STATUS:", res.status);
-      console.log("PATIENT EXPORT BODY:", res.body);
+      const res = await request(app).get('/api/auth/me/export');
+      console.log('PATIENT EXPORT STATUS:', res.status);
+      console.log('PATIENT EXPORT BODY:', res.body);
       expect(res.status).toBe(200);
     });
   });
 
   // ── POST /api/auth/create-user ─────────────────────────────────────────────
 
-  describe("POST /api/auth/create-user", () => {
-    const testOrgId = "507f1f77bcf86cd799439011";
+  describe('POST /api/auth/create-user', () => {
+    const testOrgId = '507f1f77bcf86cd799439011';
 
     beforeEach(() => {
       mockAuthState.profile = {
-        _id: "admin123",
-        supabaseUid: "admin-user",
-        role: "org_admin",
+        _id: 'admin123',
+        supabaseUid: 'admin-user',
+        role: 'org_admin',
         organizationId: testOrgId,
       };
     });
 
-    it("returns 400 when required fields are missing", async () => {
+    it('returns 400 when required fields are missing', async () => {
       const res = await request(app)
-        .post("/api/auth/create-user")
-        .send({ email: "new@caremymed.in" });
+        .post('/api/auth/create-user')
+        .send({ email: 'new@caremymed.in' });
 
       expect(res.status).toBe(400);
-      expect(res.body.code).toBe("VALIDATION");
+      expect(res.body.code).toBe('VALIDATION');
     });
 
-    it("returns 403 when role hierarchy is violated (org_admin cannot create org_admin)", async () => {
-      const res = await request(app).post("/api/auth/create-user").send({
-        email: "new@caremymed.in",
-        fullName: "New Admin",
-        role: "org_admin",
+    it('returns 403 when role hierarchy is violated (org_admin cannot create org_admin)', async () => {
+      const res = await request(app).post('/api/auth/create-user').send({
+        email: 'new@caremymed.in',
+        fullName: 'New Admin',
+        role: 'org_admin',
       });
 
       expect(res.status).toBe(403);
-      expect(res.body.code).toBe("ROLE_HIERARCHY_VIOLATION");
+      expect(res.body.code).toBe('ROLE_HIERARCHY_VIOLATION');
     });
 
-    it("returns 400 when org is at caller capacity", async () => {
+    it('returns 400 when org is at caller capacity', async () => {
       const org = mockOrganization({
         _id: testOrgId,
         counts: { patients: 0, callers: 50, managers: 0 },
@@ -894,18 +894,18 @@ describe("Auth Routes", () => {
       });
       Organization.findById = jest.fn().mockResolvedValue(org);
 
-      const res = await request(app).post("/api/auth/create-user").send({
-        email: "new@caremymed.in",
-        fullName: "New Caller",
-        role: "caller",
+      const res = await request(app).post('/api/auth/create-user').send({
+        email: 'new@caremymed.in',
+        fullName: 'New Caller',
+        role: 'caller',
         organizationId: testOrgId,
       });
 
       expect(res.status).toBe(400);
-      expect(res.body.code).toBe("CAPACITY_LIMIT_REACHED");
+      expect(res.body.code).toBe('CAPACITY_LIMIT_REACHED');
     });
 
-    it("creates caller successfully and sends temp password email", async () => {
+    it('creates caller successfully and sends temp password email', async () => {
       const org = mockOrganization({ _id: testOrgId });
       Organization.findById = jest.fn().mockResolvedValue(org);
       Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
@@ -913,10 +913,10 @@ describe("Auth Routes", () => {
       Patient.findOne = jest.fn().mockResolvedValue(null); // Cross-collection check
       Profile.prototype.save = jest.fn().mockResolvedValue({});
 
-      const res = await request(app).post("/api/auth/create-user").send({
-        email: "newcaller@caremymed.in",
-        fullName: "New Caller",
-        role: "caller",
+      const res = await request(app).post('/api/auth/create-user').send({
+        email: 'newcaller@caremymed.in',
+        fullName: 'New Caller',
+        role: 'caller',
         organizationId: testOrgId,
       });
 
@@ -925,33 +925,33 @@ describe("Auth Routes", () => {
       expect(sendTempPasswordEmail).toHaveBeenCalled();
       expect(Organization.findByIdAndUpdate).toHaveBeenCalledWith(
         expect.anything(),
-        { $inc: { "counts.callers": 1 } },
+        { $inc: { 'counts.callers': 1 } }
       );
     });
   });
 
   // ── PUT /api/auth/me & POST /api/auth/me/avatar for Companion ──────────────
 
-  describe("PUT /api/auth/me and POST /api/auth/me/avatar for Companion", () => {
+  describe('PUT /api/auth/me and POST /api/auth/me/avatar for Companion', () => {
     beforeEach(() => {
       mockAuthState.profile = {
-        _id: "companion123",
-        role: "companion",
-        email: "companion@caremymed.in",
-        fullName: "Companion Name",
-        phone: "+919999999999",
-        supabaseUid: "cmp-uid-123",
+        _id: 'companion123',
+        role: 'companion',
+        email: 'companion@caremymed.in',
+        fullName: 'Companion Name',
+        phone: '+919999999999',
+        supabaseUid: 'cmp-uid-123',
       };
     });
 
-    it("allows companion to update own profile and bypasses RBAC checks", async () => {
+    it('allows companion to update own profile and bypasses RBAC checks', async () => {
       const updatedCompanion = {
-        _id: "companion123",
-        email: "companion@caremymed.in",
-        fullName: "Companion New Name",
-        role: "companion",
-        phone: "+919999999998",
-        avatarUrl: "http://example.com/avatar.jpg",
+        _id: 'companion123',
+        email: 'companion@caremymed.in',
+        fullName: 'Companion New Name',
+        role: 'companion',
+        phone: '+919999999998',
+        avatarUrl: 'http://example.com/avatar.jpg',
         isActive: true,
         emailVerified: true,
       };
@@ -959,32 +959,32 @@ describe("Auth Routes", () => {
         .fn()
         .mockResolvedValue(updatedCompanion);
 
-      const res = await request(app).put("/api/auth/me").send({
-        fullName: "Companion New Name",
-        phone: "+919999999998",
-        avatarUrl: "http://example.com/avatar.jpg",
+      const res = await request(app).put('/api/auth/me').send({
+        fullName: 'Companion New Name',
+        phone: '+919999999998',
+        avatarUrl: 'http://example.com/avatar.jpg',
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toBe("Profile updated successfully");
-      expect(res.body.profile.fullName).toBe("Companion New Name");
-      expect(res.body.profile.phone).toBe("+919999999998");
-      expect(res.body.profile.avatarUrl).toBe("http://example.com/avatar.jpg");
+      expect(res.body.message).toBe('Profile updated successfully');
+      expect(res.body.profile.fullName).toBe('Companion New Name');
+      expect(res.body.profile.phone).toBe('+919999999998');
+      expect(res.body.profile.avatarUrl).toBe('http://example.com/avatar.jpg');
       expect(Companion.findByIdAndUpdate).toHaveBeenCalledWith(
-        "companion123",
+        'companion123',
         {
-          fullName: "Companion New Name",
-          phone: "+919999999998",
-          avatarUrl: "http://example.com/avatar.jpg",
+          fullName: 'Companion New Name',
+          phone: '+919999999998',
+          avatarUrl: 'http://example.com/avatar.jpg',
         },
-        { new: true, runValidators: true },
+        { new: true, runValidators: true }
       );
     });
 
-    it("allows companion to upload cropped avatar to Supabase and saves avatarUrl", async () => {
+    it('allows companion to upload cropped avatar to Supabase and saves avatarUrl', async () => {
       const companionObj = {
-        _id: "companion123",
-        supabaseUid: "cmp-uid-123",
+        _id: 'companion123',
+        supabaseUid: 'cmp-uid-123',
         avatarUrl: null,
         save: jest.fn().mockResolvedValue(true),
       };
@@ -995,7 +995,7 @@ describe("Auth Routes", () => {
       const mockGetPublicUrl = jest.fn().mockReturnValue({
         data: {
           publicUrl:
-            "https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg",
+            'https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg',
         },
       });
 
@@ -1009,31 +1009,31 @@ describe("Auth Routes", () => {
         }),
       };
 
-      const res = await request(app).post("/api/auth/me/avatar").send({
+      const res = await request(app).post('/api/auth/me/avatar').send({
         file_base64:
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-        content_type: "image/png",
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        content_type: 'image/png',
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toBe("Avatar uploaded successfully");
+      expect(res.body.message).toBe('Avatar uploaded successfully');
       expect(res.body.avatarUrl).toBe(
-        "https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg",
+        'https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg'
       );
       expect(companionObj.save).toHaveBeenCalled();
     });
   });
 
-  describe("Role-Isolated Authentication and Dual-Role Handling", () => {
-    it("registers a new patient successfully when the email already exists as a companion, leaving companion unchanged", async () => {
+  describe('Role-Isolated Authentication and Dual-Role Handling', () => {
+    it('registers a new patient successfully when the email already exists as a companion, leaving companion unchanged', async () => {
       const existingCompanion = {
-        _id: "companion-123",
-        email: "dual@caremymed.in",
-        fullName: "Dual User Companion",
-        role: "companion",
+        _id: 'companion-123',
+        email: 'dual@caremymed.in',
+        fullName: 'Dual User Companion',
+        role: 'companion',
         save: jest.fn().mockResolvedValue({}),
       };
-      const org = mockOrganization({ _id: "org123" });
+      const org = mockOrganization({ _id: 'org123' });
       Companion.findOne = jest.fn().mockReturnValue({
         select: jest.fn().mockResolvedValue(existingCompanion),
       });
@@ -1043,44 +1043,44 @@ describe("Auth Routes", () => {
       Organization.findById = jest.fn().mockResolvedValue(org);
       Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
 
-      Patient.prototype._id = "patient-auto-id";
-      Patient.prototype.role = "patient";
+      Patient.prototype._id = 'patient-auto-id';
+      Patient.prototype.role = 'patient';
       Patient.prototype.save = jest.fn().mockResolvedValue({});
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "dual@caremymed.in",
-        fullName: "Dual User Patient",
-        supabaseUid: "google-uid-123",
-        city: "Hyderabad",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'dual@caremymed.in',
+        fullName: 'Dual User Patient',
+        supabaseUid: 'google-uid-123',
+        city: 'Hyderabad',
       });
 
       Patient.prototype.role = undefined;
 
       expect(res.status).toBe(201);
-      expect(res.body.message).toBe("Registration successful");
-      expect(res.body.profile.role).toBe("patient");
+      expect(res.body.message).toBe('Registration successful');
+      expect(res.body.profile.role).toBe('patient');
       expect(existingCompanion.save).not.toHaveBeenCalled();
       expect(Patient.prototype.save).toHaveBeenCalled();
     });
 
-    it("returns the patient account when logging in with patient role for a dual-role email", async () => {
+    it('returns the patient account when logging in with patient role for a dual-role email', async () => {
       const patient = mockPatient({
-        _id: "patient-123",
-        email: "dual@caremymed.in",
-        supabase_uid: "pat-uid-123",
+        _id: 'patient-123',
+        email: 'dual@caremymed.in',
+        supabase_uid: 'pat-uid-123',
         failedLoginAttempts: 0,
       });
-      Object.defineProperty(patient, "isLocked", { get: () => false });
+      Object.defineProperty(patient, 'isLocked', { get: () => false });
 
       const companion = {
-        _id: "companion-123",
-        email: "dual@caremymed.in",
-        fullName: "Companion Name",
-        role: "companion",
+        _id: 'companion-123',
+        email: 'dual@caremymed.in',
+        fullName: 'Companion Name',
+        role: 'companion',
         isActive: true,
         failedLoginAttempts: 0,
         isLocked: false,
-        passwordHash: "$2a$10$fakehash",
+        passwordHash: '$2a$10$fakehash',
         incrementFailedLogin: jest.fn(),
         resetFailedLogin: jest.fn(),
       };
@@ -1093,45 +1093,45 @@ describe("Auth Routes", () => {
 
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: {
-          user: { id: "pat-uid-123", email: "dual@caremymed.in" },
+          user: { id: 'pat-uid-123', email: 'dual@caremymed.in' },
           session: {
-            access_token: "acc",
-            refresh_token: "ref",
+            access_token: 'acc',
+            refresh_token: 'ref',
             expires_in: 3600,
           },
         },
         error: null,
       });
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "dual@caremymed.in",
-        password: "Password123",
-        role: "patient",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'dual@caremymed.in',
+        password: 'Password123',
+        role: 'patient',
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.profile.role).toBe("patient");
-      expect(res.body.profile.id).toBe("patient-123");
+      expect(res.body.profile.role).toBe('patient');
+      expect(res.body.profile.id).toBe('patient-123');
     });
 
-    it("returns the companion account when logging in with companion role for a dual-role email", async () => {
+    it('returns the companion account when logging in with companion role for a dual-role email', async () => {
       const patient = mockPatient({
-        _id: "patient-123",
-        email: "dual@caremymed.in",
-        supabase_uid: "pat-uid-123",
+        _id: 'patient-123',
+        email: 'dual@caremymed.in',
+        supabase_uid: 'pat-uid-123',
         failedLoginAttempts: 0,
       });
-      Object.defineProperty(patient, "isLocked", { get: () => false });
+      Object.defineProperty(patient, 'isLocked', { get: () => false });
 
       const companion = {
-        _id: "companion-123",
-        email: "dual@caremymed.in",
-        fullName: "Companion Name",
-        role: "companion",
+        _id: 'companion-123',
+        email: 'dual@caremymed.in',
+        fullName: 'Companion Name',
+        role: 'companion',
         isActive: true,
         failedLoginAttempts: 0,
         isLocked: false,
-        supabaseUid: "cmp-uid-123",
+        supabaseUid: 'cmp-uid-123',
         incrementFailedLogin: jest.fn(),
         resetFailedLogin: jest.fn(),
         save: jest.fn().mockResolvedValue(true),
@@ -1145,34 +1145,34 @@ describe("Auth Routes", () => {
 
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: {
-          user: { id: "cmp-uid-123", email: "dual@caremymed.in" },
+          user: { id: 'cmp-uid-123', email: 'dual@caremymed.in' },
           session: {
-            access_token: "acc",
-            refresh_token: "ref",
+            access_token: 'acc',
+            refresh_token: 'ref',
             expires_in: 3600,
           },
         },
         error: null,
       });
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "dual@caremymed.in",
-        password: "Password123",
-        role: "companion",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'dual@caremymed.in',
+        password: 'Password123',
+        role: 'companion',
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.profile.role).toBe("companion");
-      expect(res.body.profile.id).toBe("companion-123");
+      expect(res.body.profile.role).toBe('companion');
+      expect(res.body.profile.id).toBe('companion-123');
     });
 
-    it("links OAuth identity to the existing Patient account of the same email and does not create duplicates", async () => {
+    it('links OAuth identity to the existing Patient account of the same email and does not create duplicates', async () => {
       const existingPatient = {
-        _id: "patient-123",
-        email: "link@caremymed.in",
-        name: "Existing Patient",
-        supabase_uid: "original-local-uuid",
-        passwordHash: "hashed-password-123",
+        _id: 'patient-123',
+        email: 'link@caremymed.in',
+        name: 'Existing Patient',
+        supabase_uid: 'original-local-uuid',
+        passwordHash: 'hashed-password-123',
         emailVerified: true,
         is_active: true,
         save: jest.fn().mockResolvedValue({}),
@@ -1183,29 +1183,29 @@ describe("Auth Routes", () => {
         select: jest.fn().mockResolvedValue(null),
       });
 
-      const res = await request(app).post("/api/auth/register").send({
-        email: "link@caremymed.in",
-        fullName: "Existing Patient",
-        supabaseUid: "google-uid-123",
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'link@caremymed.in',
+        fullName: 'Existing Patient',
+        supabaseUid: 'google-uid-123',
       });
 
       expect(res.status).toBe(201);
-      expect(res.body.message).toBe("Account linked successfully");
-      expect(existingPatient.supabase_uid).toBe("google-uid-123");
+      expect(res.body.message).toBe('Account linked successfully');
+      expect(existingPatient.supabase_uid).toBe('google-uid-123');
       expect(existingPatient.save).toHaveBeenCalled();
       expect(Patient.prototype.save).not.toHaveBeenCalled();
     });
 
-    it("allows login as companion when logging in as a patient if only a companion account exists", async () => {
+    it('allows login as companion when logging in as a patient if only a companion account exists', async () => {
       const companion = {
-        _id: "companion-123",
-        email: "only-companion@caremymed.in",
-        fullName: "Companion Name",
-        role: "companion",
+        _id: 'companion-123',
+        email: 'only-companion@caremymed.in',
+        fullName: 'Companion Name',
+        role: 'companion',
         isActive: true,
         failedLoginAttempts: 0,
         isLocked: false,
-        supabaseUid: "cmp-uid-123",
+        supabaseUid: 'cmp-uid-123',
         save: jest.fn().mockResolvedValue(true),
       };
 
@@ -1217,42 +1217,42 @@ describe("Auth Routes", () => {
 
       mockSupabase.auth.signInWithPassword.mockResolvedValue({
         data: {
-          user: { id: "cmp-uid-123", email: "only-companion@caremymed.in" },
+          user: { id: 'cmp-uid-123', email: 'only-companion@caremymed.in' },
           session: {
-            access_token: "acc",
-            refresh_token: "ref",
+            access_token: 'acc',
+            refresh_token: 'ref',
             expires_in: 3600,
           },
         },
         error: null,
       });
 
-      const res = await request(app).post("/api/auth/login").send({
-        email: "only-companion@caremymed.in",
-        password: "Password123",
-        role: "patient",
+      const res = await request(app).post('/api/auth/login').send({
+        email: 'only-companion@caremymed.in',
+        password: 'Password123',
+        role: 'patient',
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.profile.role).toBe("companion");
-      expect(res.body.profile.id).toBe("companion-123");
+      expect(res.body.profile.role).toBe('companion');
+      expect(res.body.profile.id).toBe('companion-123');
     });
 
-    it("returns workspace metadata in me profile response", async () => {
+    it('returns workspace metadata in me profile response', async () => {
       const patient = {
-        _id: "patient-123",
-        email: "dual@caremymed.in",
-        name: "Dual User",
-        role: "patient",
+        _id: 'patient-123',
+        email: 'dual@caremymed.in',
+        name: 'Dual User',
+        role: 'patient',
         is_active: true,
         emailVerified: true,
-        subscription: { status: "active" },
+        subscription: { status: 'active' },
       };
       const companion = {
-        _id: "companion-123",
-        email: "dual@caremymed.in",
-        fullName: "Dual User Caregiver",
-        role: "companion",
+        _id: 'companion-123',
+        email: 'dual@caremymed.in',
+        fullName: 'Dual User Caregiver',
+        role: 'companion',
         isActive: true,
         emailVerified: true,
       };
@@ -1266,49 +1266,49 @@ describe("Auth Routes", () => {
 
       // Mock profile of authenticate middleware to be patient
       mockAuthState.profile = {
-        _id: "patient-123",
-        email: "dual@caremymed.in",
-        role: "patient",
+        _id: 'patient-123',
+        email: 'dual@caremymed.in',
+        role: 'patient',
         is_active: true,
       };
 
-      const res = await request(app).get("/api/auth/me");
+      const res = await request(app).get('/api/auth/me');
 
       expect(res.status).toBe(200);
-      expect(res.body.profile.currentWorkspace).toBe("patient");
+      expect(res.body.profile.currentWorkspace).toBe('patient');
       expect(res.body.profile.workspaces).toEqual([
         {
-          id: "patient",
-          label: "Patient",
-          description: "Track your health and vitals",
+          id: 'patient',
+          label: 'Patient',
+          description: 'Track your health and vitals',
         },
         {
-          id: "companion",
-          label: "Caregiver",
-          description: "Care for linked family members",
+          id: 'companion',
+          label: 'Caregiver',
+          description: 'Care for linked family members',
         },
       ]);
     });
 
-    it("allows switching workspace between patient and companion", async () => {
+    it('allows switching workspace between patient and companion', async () => {
       const patient = {
-        _id: "patient-123",
-        email: "dual@caremymed.in",
-        name: "Dual User",
-        role: "patient",
+        _id: 'patient-123',
+        email: 'dual@caremymed.in',
+        name: 'Dual User',
+        role: 'patient',
         is_active: true,
         emailVerified: true,
-        supabase_uid: "patient-uid",
+        supabase_uid: 'patient-uid',
         save: jest.fn().mockResolvedValue(true),
       };
       const companion = {
-        _id: "companion-123",
-        email: "dual@caremymed.in",
-        fullName: "Dual User Caregiver",
-        role: "companion",
+        _id: 'companion-123',
+        email: 'dual@caremymed.in',
+        fullName: 'Dual User Caregiver',
+        role: 'companion',
         isActive: true,
         emailVerified: true,
-        supabaseUid: "companion-uid",
+        supabaseUid: 'companion-uid',
         save: jest.fn().mockResolvedValue(true),
       };
 
@@ -1318,30 +1318,30 @@ describe("Auth Routes", () => {
 
       // Mock current authenticated user as Patient
       mockAuthState.profile = {
-        _id: "patient-123",
-        email: "dual@caremymed.in",
-        role: "patient",
+        _id: 'patient-123',
+        email: 'dual@caremymed.in',
+        role: 'patient',
         is_active: true,
       };
 
       const res = await request(app)
-        .post("/api/auth/switch-role")
-        .send({ targetRole: "companion" });
+        .post('/api/auth/switch-role')
+        .send({ targetRole: 'companion' });
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toBe("Role switched successfully");
-      expect(res.body.profile.role).toBe("companion");
-      expect(res.body.profile.currentWorkspace).toBe("companion");
+      expect(res.body.message).toBe('Role switched successfully');
+      expect(res.body.profile.role).toBe('companion');
+      expect(res.body.profile.currentWorkspace).toBe('companion');
       expect(patient.save).toHaveBeenCalled();
       expect(companion.save).toHaveBeenCalled();
     });
 
-    it("returns 400 when switching to an unavailable role", async () => {
+    it('returns 400 when switching to an unavailable role', async () => {
       const patient = {
-        _id: "patient-123",
-        email: "dual@caremymed.in",
-        name: "Dual User",
-        role: "patient",
+        _id: 'patient-123',
+        email: 'dual@caremymed.in',
+        name: 'Dual User',
+        role: 'patient',
         is_active: true,
         emailVerified: true,
       };
@@ -1351,18 +1351,18 @@ describe("Auth Routes", () => {
       Profile.findOne = jest.fn().mockResolvedValue(null);
 
       mockAuthState.profile = {
-        _id: "patient-123",
-        email: "dual@caremymed.in",
-        role: "patient",
+        _id: 'patient-123',
+        email: 'dual@caremymed.in',
+        role: 'patient',
         is_active: true,
       };
 
       const res = await request(app)
-        .post("/api/auth/switch-role")
-        .send({ targetRole: "companion" });
+        .post('/api/auth/switch-role')
+        .send({ targetRole: 'companion' });
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toContain("is not available for this account");
+      expect(res.body.error).toContain('is not available for this account');
     });
   });
 });

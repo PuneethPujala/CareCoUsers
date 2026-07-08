@@ -18,28 +18,28 @@ const scopeFilter = (resourceType) => {
       if (!req.profile) {
         return res
           .status(500)
-          .json({ error: "Scope filter error: profile missing" });
+          .json({ error: 'Scope filter error: profile missing' });
       }
       const { role, _id: profileId, organizationId } = req.profile;
 
       switch (role) {
-        case "super_admin":
+        case 'super_admin':
           // No filter — sees all records across all orgs
           req.scopeFilter = {};
           break;
 
-        case "org_admin":
-        case "care_manager":
+        case 'org_admin':
+        case 'care_manager':
           // Scoped to their organisation
           // Patient collection uses snake_case, Profile uses camelCase
           req.scopeFilter =
-            resourceType === "patients"
+            resourceType === 'patients'
               ? { organization_id: organizationId }
               : { organizationId };
           break;
 
-        case "caller":
-          if (resourceType === "patients") {
+        case 'caller':
+          if (resourceType === 'patients') {
             // Callers only see their own 30 assigned patients
             req.scopeFilter = { assigned_caller_id: profileId };
           } else {
@@ -48,13 +48,13 @@ const scopeFilter = (resourceType) => {
           }
           break;
 
-        case "patient":
+        case 'patient':
           // Patients only access their own data via users/ routes
           // Should not normally hit admin-facing routes
-          if (resourceType === "patients") {
+          if (resourceType === 'patients') {
             req.scopeFilter = { _id: profileId };
           } else {
-            return res.status(403).json({ error: "Access denied" });
+            return res.status(403).json({ error: 'Access denied' });
           }
           break;
 
@@ -64,8 +64,8 @@ const scopeFilter = (resourceType) => {
 
       next();
     } catch (err) {
-      console.error("Scope filter error:", err);
-      return res.status(500).json({ error: "Scope filter error" });
+      console.error('Scope filter error:', err);
+      return res.status(500).json({ error: 'Scope filter error' });
     }
   };
 };

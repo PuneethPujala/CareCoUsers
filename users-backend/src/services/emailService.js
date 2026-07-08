@@ -1,11 +1,11 @@
-const nodemailer = require("nodemailer");
-const { Resend } = require("resend");
+const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 // Initialize Resend client if API key is provided
 let resend;
 if (process.env.RESEND_API_KEY) {
   resend = new Resend(process.env.RESEND_API_KEY);
-  console.log("✉️ Resend email service initialized successfully");
+  console.log('✉️ Resend email service initialized successfully');
 }
 
 // Create reusable transporter
@@ -17,12 +17,12 @@ const getTransporter = () => {
   const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
   const isSecure =
     process.env.SMTP_SECURE !== undefined
-      ? process.env.SMTP_SECURE !== "false"
+      ? process.env.SMTP_SECURE !== 'false'
       : smtpPort === 465;
 
   // Use SMTP config from environment variables
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: smtpPort,
     secure: isSecure,
     auth: {
@@ -44,19 +44,19 @@ const getTransporter = () => {
  * Send a generic email
  */
 const sendEmail = async (to, subject, html, { textBody } = {}) => {
-  const fromEmail = process.env.FROM_EMAIL || "noreply@CareMyMed.com";
+  const fromEmail = process.env.FROM_EMAIL || 'noreply@CareMyMed.com';
 
   if (resend) {
     try {
       let resendFrom = fromEmail;
       const lowerFrom = fromEmail.toLowerCase();
       if (
-        lowerFrom.endsWith("@gmail.com") ||
-        lowerFrom.endsWith("@yahoo.com") ||
-        lowerFrom.endsWith("@outlook.com") ||
+        lowerFrom.endsWith('@gmail.com') ||
+        lowerFrom.endsWith('@yahoo.com') ||
+        lowerFrom.endsWith('@outlook.com') ||
         !process.env.FROM_EMAIL
       ) {
-        resendFrom = "onboarding@resend.dev";
+        resendFrom = 'onboarding@resend.dev';
       }
       const info = await resend.emails.send({
         from: `CareMyMed Health <${resendFrom}>`,
@@ -66,8 +66,8 @@ const sendEmail = async (to, subject, html, { textBody } = {}) => {
         text:
           textBody ||
           html
-            .replace(/<[^>]*>/g, "")
-            .replace(/\s+/g, " ")
+            .replace(/<[^>]*>/g, '')
+            .replace(/\s+/g, ' ')
             .trim()
             .slice(0, 500),
       });
@@ -75,15 +75,15 @@ const sendEmail = async (to, subject, html, { textBody } = {}) => {
         throw new Error(info.error.message);
       }
       console.log(
-        `📧 Email sent via Resend to ${to}: ${info.data?.id || info.id}`,
+        `📧 Email sent via Resend to ${to}: ${info.data?.id || info.id}`
       );
       return info;
     } catch (error) {
       console.error(
         `❌ Failed to send email via Resend to ${to}:`,
-        error.message,
+        error.message
       );
-      console.log("🔄 Falling back to standard SMTP...");
+      console.log('🔄 Falling back to standard SMTP...');
     }
   }
 
@@ -98,14 +98,14 @@ const sendEmail = async (to, subject, html, { textBody } = {}) => {
     text:
       textBody ||
       html
-        .replace(/<[^>]*>/g, "")
-        .replace(/\s+/g, " ")
+        .replace(/<[^>]*>/g, '')
+        .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 500),
     headers: {
-      "X-Mailer": "CareMyMed Health Platform",
-      Precedence: "bulk",
-      "List-Unsubscribe": `<mailto:${fromEmail}?subject=unsubscribe>`,
+      'X-Mailer': 'CareMyMed Health Platform',
+      Precedence: 'bulk',
+      'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
     },
   };
 
@@ -189,7 +189,7 @@ const sendOTPEmail = async (to, otp) => {
  * Send temporary password email to newly created user
  */
 const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
-  const loginUrl = process.env.FRONTEND_URL || "https://app.CareMyMed.com";
+  const loginUrl = process.env.FRONTEND_URL || 'https://app.CareMyMed.com';
 
   const html = `
     <!DOCTYPE html>
@@ -251,7 +251,7 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
     </html>
   `;
 
-  return sendEmail(to, "Your CareMyMed account is ready", html);
+  return sendEmail(to, 'Your CareMyMed account is ready', html);
 };
 
 /**
@@ -300,7 +300,7 @@ const sendPasswordChangedEmail = async (to, fullName) => {
     </html>
   `;
 
-  return sendEmail(to, "Your CareMyMed password was changed", html);
+  return sendEmail(to, 'Your CareMyMed password was changed', html);
 };
 
 /**

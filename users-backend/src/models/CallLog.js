@@ -1,22 +1,22 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const CallLogSchema = new mongoose.Schema(
   {
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
     caretakerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Caller",
+      ref: 'Caller',
       required: true,
       index: true,
     },
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
+      ref: 'Organization',
       index: true,
     },
     scheduledTime: {
@@ -30,15 +30,15 @@ const CallLogSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-        "completed",
-        "missed",
-        "refused",
-        "escalated",
-        "attempted",
-        "pending",
-        "rejected",
-        "callback_requested",
-        "secure_message_left",
+        'completed',
+        'missed',
+        'refused',
+        'escalated',
+        'attempted',
+        'pending',
+        'rejected',
+        'callback_requested',
+        'secure_message_left',
       ],
       index: true,
     },
@@ -59,7 +59,7 @@ const CallLogSchema = new mongoose.Schema(
     ],
     notes: {
       type: String,
-      default: "",
+      default: '',
     },
     followUpRequired: {
       type: Boolean,
@@ -79,7 +79,7 @@ const CallLogSchema = new mongoose.Schema(
   },
   {
     timestamps: true, // adds createdAt and updatedAt
-  },
+  }
 );
 
 // Compound indexes for common queries
@@ -87,4 +87,4 @@ CallLogSchema.index({ caretakerId: 1, scheduledTime: -1 });
 CallLogSchema.index({ patientId: 1, scheduledTime: -1 });
 CallLogSchema.index({ organizationId: 1, scheduledTime: -1 });
 
-module.exports = mongoose.model("CallLog", CallLogSchema);
+module.exports = mongoose.model('CallLog', CallLogSchema);

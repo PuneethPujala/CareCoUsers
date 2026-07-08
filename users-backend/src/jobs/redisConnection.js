@@ -16,7 +16,7 @@ function getRedisConnection() {
       port: parseInt(url.port) || 6379,
       password: url.password || undefined,
       // Render/Upstash/Railway use rediss:// for TLS
-      tls: process.env.REDIS_URL.startsWith("rediss://")
+      tls: process.env.REDIS_URL.startsWith('rediss://')
         ? { rejectUnauthorized: false }
         : undefined,
       maxRetriesPerRequest: null, // Required by BullMQ
@@ -24,7 +24,7 @@ function getRedisConnection() {
   }
 
   return {
-    host: process.env.REDIS_HOST || "127.0.0.1",
+    host: process.env.REDIS_HOST || '127.0.0.1',
     port: parseInt(process.env.REDIS_PORT) || 6379,
     password: process.env.REDIS_PASSWORD || undefined,
     maxRetriesPerRequest: null,

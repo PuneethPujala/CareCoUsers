@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const riskTransitionSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
@@ -15,12 +15,12 @@ const riskTransitionSchema = new mongoose.Schema(
     },
     from: {
       type: String,
-      enum: ["low", "medium", "high", "unknown"],
+      enum: ['low', 'medium', 'high', 'unknown'],
       required: true,
     },
     to: {
       type: String,
-      enum: ["low", "medium", "high", "unknown"],
+      enum: ['low', 'medium', 'high', 'unknown'],
       required: true,
     },
     reason: {
@@ -29,11 +29,11 @@ const riskTransitionSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
 // Optimize sorting index
 riskTransitionSchema.index({ patient_id: 1, date: -1 });
 
-module.exports = mongoose.model("RiskTransition", riskTransitionSchema);
+module.exports = mongoose.model('RiskTransition', riskTransitionSchema);

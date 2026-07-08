@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 /**
  * MedicineCache — Caches AI lookups so we don't call Groq
@@ -11,22 +11,22 @@ const MedicineCacheSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
-      description: "Lowercase, trimmed medicine name used as cache key",
+      description: 'Lowercase, trimmed medicine name used as cache key',
     },
     originalName: { type: String, trim: true },
     riskTier: {
       type: String,
-      enum: ["safe", "caution", "restricted"],
-      default: "caution",
+      enum: ['safe', 'caution', 'restricted'],
+      default: 'caution',
     },
-    genericName: { type: String, trim: true, default: "" },
-    aiSummary: { type: String, trim: true, default: "" },
+    genericName: { type: String, trim: true, default: '' },
+    aiSummary: { type: String, trim: true, default: '' },
     sideEffects: [{ type: String, trim: true }],
     warnings: [{ type: String, trim: true }],
     interactions: [{ type: String, trim: true }],
     commonUses: [{ type: String, trim: true }],
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
-module.exports = mongoose.model("MedicineCache", MedicineCacheSchema);
+module.exports = mongoose.model('MedicineCache', MedicineCacheSchema);

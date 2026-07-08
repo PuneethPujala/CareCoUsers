@@ -5,11 +5,11 @@
  * Evaluates frequency limits, grabs content, generates DB records, and dispatches to Expo.
  */
 
-const Patient = require("../models/Patient");
-const Notification = require("../models/Notification");
-const NotificationService = require("./NotificationService");
-const { generateMessage } = require("./notificationContentEngine");
-const moment = require("moment-timezone");
+const Patient = require('../models/Patient');
+const Notification = require('../models/Notification');
+const NotificationService = require('./NotificationService');
+const { generateMessage } = require('./notificationContentEngine');
+const moment = require('moment-timezone');
 
 /**
  * Checks if the patient is eligible for a notification right now based on frequency limits.
@@ -23,7 +23,7 @@ async function isEligibleForNotification(patient) {
   const limits = patient.notification_limits || { max_daily: 3 };
 
   // Check if last_notification_date was today (in patient's timezone or UTC)
-  const tz = patient.timezone || "UTC";
+  const tz = patient.timezone || 'UTC';
   const nowLocal = moment().tz(tz);
 
   // Reset daily counter if a new day has started
@@ -55,30 +55,30 @@ async function isEligibleForNotification(patient) {
 async function triggerAiNotification(
   trigger,
   patient,
-  category = "health_tips",
+  category = 'health_tips',
   customVars = {},
-  force = false,
+  force = false
 ) {
   if (!force) {
     const eligible = await isEligibleForNotification(patient);
     if (!eligible) {
       console.log(
-        `[AI-Notification] Suppressed ${trigger} for ${patient.email} (Limit reached or disabled)`,
+        `[AI-Notification] Suppressed ${trigger} for ${patient.email} (Limit reached or disabled)`
       );
       return null;
     }
 
     // Deduplication check: only one notification of this trigger type per patient per day
-    const tz = patient.timezone || "UTC";
-    const startOfTodayLocal = moment().tz(tz).startOf("day");
+    const tz = patient.timezone || 'UTC';
+    const startOfTodayLocal = moment().tz(tz).startOf('day');
     const existing = await Notification.findOne({
       patient_id: patient._id,
-      "ai_context.trigger": trigger,
+      'ai_context.trigger': trigger,
       created_at: { $gte: startOfTodayLocal.toDate() },
     });
     if (existing) {
       console.log(
-        `[AI-Notification] Suppressed duplicate trigger "${trigger}" for ${patient.email} (Already sent today)`,
+        `[AI-Notification] Suppressed duplicate trigger "${trigger}" for ${patient.email} (Already sent today)`
       );
       return null;
     }
@@ -90,15 +90,15 @@ async function triggerAiNotification(
   }
 
   // Determine target screen based on category
-  let targetScreen = "HomeScreen";
-  if (category === "mental_wellness") targetScreen = "WellnessScreen";
-  if (category === "activity") targetScreen = "ActivityScreen";
+  let targetScreen = 'HomeScreen';
+  if (category === 'mental_wellness') targetScreen = 'WellnessScreen';
+  if (category === 'activity') targetScreen = 'ActivityScreen';
 
   // 1. Create permanent In-App record
   const notificationDoc = await Notification.create({
     patient_id: patient._id,
     type: category,
-    title: "CareMyMed Companion", // Title could also be dynamic later
+    title: 'CareMyMed Companion', // Title could also be dynamic later
     message: messageBody,
     target_screen: targetScreen,
     push_delivered: false,
@@ -110,7 +110,7 @@ async function triggerAiNotification(
 
   // 2. Dispatch Push
   const pushResult = await NotificationService.sendPush(patient._id, {
-    title: "CareMyMed Companion 🤖",
+    title: 'CareMyMed Companion 🤖',
     body: messageBody,
     data: {
       screen: targetScreen,

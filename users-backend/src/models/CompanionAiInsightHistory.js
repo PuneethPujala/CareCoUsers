@@ -1,17 +1,17 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const companionAiInsightHistorySchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
     schema_version: { type: Number, default: 1 },
     risk_level: {
       type: String,
-      enum: ["low", "medium", "high"],
+      enum: ['low', 'medium', 'high'],
       required: true,
     },
     risk_score: { type: Number, min: 0, max: 100, required: true },
@@ -27,17 +27,17 @@ const companionAiInsightHistorySchema = new mongoose.Schema(
     expires_at: { type: Date, required: true },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
 // TTL index to automatically delete records after 60 days
 companionAiInsightHistorySchema.index(
   { expires_at: 1 },
-  { expireAfterSeconds: 0 },
+  { expireAfterSeconds: 0 }
 );
 
 module.exports = mongoose.model(
-  "CompanionAiInsightHistory",
-  companionAiInsightHistorySchema,
+  'CompanionAiInsightHistory',
+  companionAiInsightHistorySchema
 );

@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const CompanionSchema = new mongoose.Schema(
   {
@@ -24,7 +24,7 @@ const CompanionSchema = new mongoose.Schema(
         validator: function (v) {
           return /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
         },
-        message: "Please enter a valid email address",
+        message: 'Please enter a valid email address',
       },
     },
     fullName: {
@@ -47,7 +47,7 @@ const CompanionSchema = new mongoose.Schema(
         validator: function (v) {
           return !v || /^[+]?[1-9]\d{0,15}$/.test(v);
         },
-        message: "Please enter a valid phone number",
+        message: 'Please enter a valid phone number',
       },
     },
     avatarUrl: {
@@ -56,8 +56,8 @@ const CompanionSchema = new mongoose.Schema(
     role: {
       type: String,
       required: true,
-      default: "companion",
-      enum: ["companion"],
+      default: 'companion',
+      enum: ['companion'],
       index: true,
     },
     isActive: {
@@ -94,7 +94,7 @@ const CompanionSchema = new mongoose.Schema(
     },
     lastWorkspace: {
       type: String,
-      enum: ["patient", "companion"],
+      enum: ['patient', 'companion'],
     },
   },
   {
@@ -109,10 +109,10 @@ const CompanionSchema = new mongoose.Schema(
       },
     },
     toObject: { virtuals: true },
-  },
+  }
 );
 
-CompanionSchema.virtual("isLocked").get(function () {
+CompanionSchema.virtual('isLocked').get(function () {
   return !!(this.accountLockedUntil && this.accountLockedUntil > Date.now());
 });
 
@@ -139,4 +139,4 @@ CompanionSchema.methods.resetFailedLogin = function () {
   return this.save();
 };
 
-module.exports = mongoose.model("Companion", CompanionSchema);
+module.exports = mongoose.model('Companion', CompanionSchema);

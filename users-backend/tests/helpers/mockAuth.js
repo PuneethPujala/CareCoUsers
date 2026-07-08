@@ -22,7 +22,7 @@
 function fakeId(val) {
   const s = String(val);
   return {
-    _bsontype: "ObjectId",
+    _bsontype: 'ObjectId',
     toString: () => s,
     toJSON: () => s,
     equals: (other) => s === String(other?._id ?? other),
@@ -36,16 +36,16 @@ function fakeId(val) {
  * _id and organizationId are wrapped in fakeId() so .equals() works in routes.
  */
 function mockProfile(overrides = {}) {
-  const rawId = overrides._id || "test-profile-id";
-  const rawOrg = overrides.organizationId || "test-org-id";
+  const rawId = overrides._id || 'test-profile-id';
+  const rawOrg = overrides.organizationId || 'test-org-id';
 
   const base = {
     _id: fakeId(rawId),
     supabaseUid:
       overrides.supabaseUid || `sup-uid-${String(rawId).slice(0, 8)}`,
-    email: overrides.email || "test@caremymed.in",
-    fullName: overrides.fullName || "Test User",
-    role: overrides.role || "care_manager",
+    email: overrides.email || 'test@caremymed.in',
+    fullName: overrides.fullName || 'Test User',
+    role: overrides.role || 'care_manager',
     organizationId: fakeId(rawOrg),
     isActive: overrides.isActive !== undefined ? overrides.isActive : true,
     mustChangePassword:
@@ -97,7 +97,7 @@ function mockProfile(overrides = {}) {
     organizationId:
       overrides.organizationId !== undefined
         ? // If caller passed an object with .equals() already, keep it as-is
-          typeof overrides.organizationId === "object" &&
+          typeof overrides.organizationId === 'object' &&
           overrides.organizationId.equals
           ? overrides.organizationId
           : fakeId(overrides.organizationId)
@@ -113,14 +113,14 @@ function mockProfile(overrides = {}) {
  */
 function mockSupabaseUser(overrides = {}) {
   return {
-    id: overrides.id || "sup-uid-12345678",
-    email: overrides.email || "test@caremymed.in",
+    id: overrides.id || 'sup-uid-12345678',
+    email: overrides.email || 'test@caremymed.in',
     email_confirmed_at:
       overrides.email_confirmed_at || new Date().toISOString(),
     created_at: overrides.created_at || new Date().toISOString(),
     user_metadata: overrides.user_metadata || {
-      full_name: "Test User",
-      role: "care_manager",
+      full_name: 'Test User',
+      role: 'care_manager',
     },
     app_metadata: overrides.app_metadata || {},
     ...overrides,
@@ -182,8 +182,8 @@ function fakeRequireRole(state = {}) {
       const role = (state.profile || req.profile)?.role;
       if (!allowedRoles.includes(role)) {
         return res.status(403).json({
-          error: "Insufficient role permissions",
-          code: "INSUFFICIENT_ROLE",
+          error: 'Insufficient role permissions',
+          code: 'INSUFFICIENT_ROLE',
           required: allowedRoles,
           current: role,
         });

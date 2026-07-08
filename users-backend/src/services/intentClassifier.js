@@ -1,13 +1,13 @@
-const moment = require("moment-timezone");
-const Patient = require("../models/Patient");
-const SleepLog = require("../models/SleepLog");
-const VitalLog = require("../models/VitalLog");
-const MedicineLog = require("../models/MedicineLog");
-const PatientHealthStateHistory = require("../models/PatientHealthStateHistory");
-const { buildPatientContext } = require("./aiContextService");
-const { getOrGenerateInsights } = require("./companionAiService");
-const { computeSleepTarget } = require("./carePlanService");
-const logger = require("../utils/logger");
+const moment = require('moment-timezone');
+const Patient = require('../models/Patient');
+const SleepLog = require('../models/SleepLog');
+const VitalLog = require('../models/VitalLog');
+const MedicineLog = require('../models/MedicineLog');
+const PatientHealthStateHistory = require('../models/PatientHealthStateHistory');
+const { buildPatientContext } = require('./aiContextService');
+const { getOrGenerateInsights } = require('./companionAiService');
+const { computeSleepTarget } = require('./carePlanService');
+const logger = require('../utils/logger');
 
 /**
  * Classifies the deterministic query intent.
@@ -20,45 +20,45 @@ function classifyIntent(query) {
   const q = query.toLowerCase().trim();
 
   if (
-    q.includes("why did my score drop") ||
-    q.includes("why did my health score drop") ||
-    q.includes("why did my score decrease") ||
-    q.includes("explain my score change") ||
-    q.includes("why is my score lower") ||
-    q.includes("why did it drop")
+    q.includes('why did my score drop') ||
+    q.includes('why did my health score drop') ||
+    q.includes('why did my score decrease') ||
+    q.includes('explain my score change') ||
+    q.includes('why is my score lower') ||
+    q.includes('why did it drop')
   ) {
-    return "score_drop";
+    return 'score_drop';
   }
 
   if (
-    q.includes("how can i improve my score") ||
-    q.includes("how to improve my score") ||
-    q.includes("how to increase my score") ||
-    q.includes("how can i increase my health score") ||
-    q.includes("improve my health score")
+    q.includes('how can i improve my score') ||
+    q.includes('how to improve my score') ||
+    q.includes('how to increase my score') ||
+    q.includes('how can i increase my health score') ||
+    q.includes('improve my health score')
   ) {
-    return "improve_score";
+    return 'improve_score';
   }
 
   if (
-    q.includes("what medications did i miss") ||
-    q.includes("what meds did i miss") ||
-    q.includes("show missed doses") ||
-    q.includes("missed medications") ||
-    q.includes("missed doses") ||
-    q.includes("did i miss any med")
+    q.includes('what medications did i miss') ||
+    q.includes('what meds did i miss') ||
+    q.includes('show missed doses') ||
+    q.includes('missed medications') ||
+    q.includes('missed doses') ||
+    q.includes('did i miss any med')
   ) {
-    return "missed_meds";
+    return 'missed_meds';
   }
 
   if (
-    q.includes("how am i doing this week") ||
-    q.includes("weekly progress") ||
-    q.includes("weekly summary") ||
-    q.includes("my progress this week") ||
-    q.includes("how was my week")
+    q.includes('how am i doing this week') ||
+    q.includes('weekly progress') ||
+    q.includes('weekly summary') ||
+    q.includes('my progress this week') ||
+    q.includes('how was my week')
   ) {
-    return "weekly_summary";
+    return 'weekly_summary';
   }
 
   return null;
@@ -81,9 +81,9 @@ async function resolveDeterministicIntent(patientId, intent) {
       };
     }
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const nowLocal = moment().tz(timezone);
-    const todayUtc = new Date(`${nowLocal.format("YYYY-MM-DD")}T00:00:00.000Z`);
+    const todayUtc = new Date(`${nowLocal.format('YYYY-MM-DD')}T00:00:00.000Z`);
 
     // Fetch common contexts in parallel
     const [patientContext, insights, historyHistory] = await Promise.all([
@@ -98,7 +98,7 @@ async function resolveDeterministicIntent(patientId, intent) {
     const weeklyAdherence = patient.adherence_rate ?? 100;
     const currentScore = patient.health_score ?? 80;
 
-    if (intent === "score_drop") {
+    if (intent === 'score_drop') {
       let scoreChange = 0;
       if (historyHistory.length >= 2) {
         scoreChange =
@@ -118,7 +118,7 @@ async function resolveDeterministicIntent(patientId, intent) {
       const weeklyMissed = patientContext?.recent_adherence?.missed ?? 0;
       if (weeklyMissed > 0) {
         bullets.push(
-          `• Missed ${weeklyMissed} scheduled medication ${weeklyMissed === 1 ? "dose" : "doses"} this week`,
+          `• Missed ${weeklyMissed} scheduled medication ${weeklyMissed === 1 ? 'dose' : 'doses'} this week`
         );
       }
 
@@ -127,7 +127,7 @@ async function resolveDeterministicIntent(patientId, intent) {
         .sort({ date: -1 })
         .lean();
       if (lastBPDate) {
-        const diffDays = moment().diff(moment(lastBPDate.date), "days");
+        const diffDays = moment().diff(moment(lastBPDate.date), 'days');
         if (diffDays >= 3) {
           bullets.push(`• No blood pressure logs synced for ${diffDays} days`);
         }
@@ -145,7 +145,7 @@ async function resolveDeterministicIntent(patientId, intent) {
         const sleepDiff = sleepAvg - todaySleepLog.hours;
         if (sleepDiff > 1.0) {
           bullets.push(
-            `• Today's sleep decreased by ${sleepDiff.toFixed(1)} hours compared to your ${sleepAvg}h average`,
+            `• Today's sleep decreased by ${sleepDiff.toFixed(1)} hours compared to your ${sleepAvg}h average`
           );
         }
       } else {
@@ -154,76 +154,76 @@ async function resolveDeterministicIntent(patientId, intent) {
 
       if (bullets.length === 0) {
         bullets.push(
-          "• Vitals and medications are otherwise stable. Continue logs to improve your metrics!",
+          '• Vitals and medications are otherwise stable. Continue logs to improve your metrics!'
         );
       }
 
       return {
-        text: `${dropText}\n\n${bullets.join("\n")}`,
+        text: `${dropText}\n\n${bullets.join('\n')}`,
         suggestions: [
-          "Explain my medication schedule today.",
-          "How can I improve my score?",
-          "How am I doing this week?",
+          'Explain my medication schedule today.',
+          'How can I improve my score?',
+          'How am I doing this week?',
         ],
         cards: [
           {
-            type: "adherence",
+            type: 'adherence',
             rate: weeklyAdherence,
             streak: patient.current_streak || 0,
-            level: weeklyAdherence >= 75 ? "Good" : "Needs Focus",
+            level: weeklyAdherence >= 75 ? 'Good' : 'Needs Focus',
           },
         ],
       };
     }
 
-    if (intent === "improve_score") {
+    if (intent === 'improve_score') {
       const targets = [
-        "To increase your health score, focus on these actionable checklist targets:",
+        'To increase your health score, focus on these actionable checklist targets:',
       ];
 
       // 1. Adherence recommendation
       if (weeklyAdherence < 75) {
         targets.push(
-          `• Complete your scheduled medications today (target: 75%+ compliance, currently ${weeklyAdherence}%)`,
+          `• Complete your scheduled medications today (target: 75%+ compliance, currently ${weeklyAdherence}%)`
         );
       } else {
         targets.push(
-          `• Keep up your medication routine to maintain your perfect streak`,
+          `• Keep up your medication routine to maintain your perfect streak`
         );
       }
 
       // 2. BP request
       const threeDaysAgo = nowLocal
         .clone()
-        .subtract(3, "days")
-        .startOf("day")
+        .subtract(3, 'days')
+        .startOf('day')
         .toDate();
       const BPLogged = await VitalLog.exists({
         patient_id: patientId,
         date: { $gte: threeDaysAgo },
       });
       if (!BPLogged) {
-        targets.push("• Sync a new blood pressure vitals reading today");
+        targets.push('• Sync a new blood pressure vitals reading today');
       } else {
-        targets.push("• Keep recording BP readings regularly every 2 days");
+        targets.push('• Keep recording BP readings regularly every 2 days');
       }
 
       // 3. Sleep targets
       const sleepAvg = await computeSleepTarget(patientId, timezone);
       targets.push(
-        `• Sleep at least ${sleepAvg} hours tonight to meet your 14-day baseline`,
+        `• Sleep at least ${sleepAvg} hours tonight to meet your 14-day baseline`
       );
 
       return {
-        text: targets.join("\n"),
+        text: targets.join('\n'),
         suggestions: [
-          "Why did my score drop?",
-          "What medications did I miss?",
-          "How am I doing this week?",
+          'Why did my score drop?',
+          'What medications did I miss?',
+          'How am I doing this week?',
         ],
         cards: [
           {
-            type: "medications",
+            type: 'medications',
             taken: (patientContext?.today_status?.medicines || [])
               .filter((m) => m.taken)
               .map((m) => m.name),
@@ -235,12 +235,12 @@ async function resolveDeterministicIntent(patientId, intent) {
       };
     }
 
-    if (intent === "missed_meds") {
+    if (intent === 'missed_meds') {
       // Find missed meds in the last 7 days
       const sevenDaysAgo = nowLocal
         .clone()
-        .subtract(7, "days")
-        .startOf("day")
+        .subtract(7, 'days')
+        .startOf('day')
         .toDate();
       const missedLogs = await MedicineLog.find({
         patient_id: patientId,
@@ -250,7 +250,7 @@ async function resolveDeterministicIntent(patientId, intent) {
       const missedCounts = {};
       missedLogs.forEach((log) => {
         const missedList = (log.medicines || []).filter(
-          (m) => !m.taken && m.is_active !== false,
+          (m) => !m.taken && m.is_active !== false
         );
         missedList.forEach((m) => {
           const key = `${m.medicine_name} (${m.scheduled_time})`;
@@ -259,33 +259,33 @@ async function resolveDeterministicIntent(patientId, intent) {
       });
 
       const keys = Object.keys(missedCounts);
-      let replyText = "";
+      let replyText = '';
       if (keys.length > 0) {
         replyText =
-          "In the past 7 days, you missed the following scheduled doses:\n\n" +
+          'In the past 7 days, you missed the following scheduled doses:\n\n' +
           keys
             .map(
               (k) =>
-                `• ${k}: missed ${missedCounts[k]} ${missedCounts[k] === 1 ? "time" : "times"}`,
+                `• ${k}: missed ${missedCounts[k]} ${missedCounts[k] === 1 ? 'time' : 'times'}`
             )
-            .join("\n");
+            .join('\n');
       } else {
         replyText =
-          "Great news! You have not missed any scheduled medication doses in the past 7 days. Keep it up! 🎉";
+          'Great news! You have not missed any scheduled medication doses in the past 7 days. Keep it up! 🎉';
       }
 
       return {
         text: replyText,
         suggestions: [
-          "How can I improve my score?",
-          "Why did my score drop?",
-          "How am I doing this week?",
+          'How can I improve my score?',
+          'Why did my score drop?',
+          'How am I doing this week?',
         ],
         cards: [],
       };
     }
 
-    if (intent === "weekly_summary") {
+    if (intent === 'weekly_summary') {
       // Metrics from Sprint 9 extended statistics
       const consistency = insights?.predictive_health?.consistency?.score ?? 92;
       const momentum = insights?.predictive_health?.momentum?.score ?? 12;
@@ -298,7 +298,7 @@ async function resolveDeterministicIntent(patientId, intent) {
 
       const replyText =
         `Here is your Health Intelligence Weekly Summary:\n\n` +
-        `• **Adherence Consistency:** ${consistency}% (${consistency >= 90 ? "Excellent" : "Fair"})\n` +
+        `• **Adherence Consistency:** ${consistency}% (${consistency >= 90 ? 'Excellent' : 'Fair'})\n` +
         `• **Risk Momentum:** ${momentumDirection}\n` +
         `• **Recovery Confidence:** ${confidence}%\n` +
         `• **Forecast Reliability:** ${reliability}% (High)`;
@@ -306,13 +306,13 @@ async function resolveDeterministicIntent(patientId, intent) {
       return {
         text: replyText,
         suggestions: [
-          "Why did my score drop?",
-          "How can I improve my score?",
-          "What medications did I miss?",
+          'Why did my score drop?',
+          'How can I improve my score?',
+          'What medications did I miss?',
         ],
         cards: [
           {
-            type: "summary",
+            type: 'summary',
             adherenceRate: weeklyAdherence,
             vitalsLoggedDays: historyHistory.length,
             missedDoses: patientContext?.recent_adherence?.missed ?? 0,
@@ -324,13 +324,13 @@ async function resolveDeterministicIntent(patientId, intent) {
 
     return null;
   } catch (err) {
-    logger.error("[IntentClassifier] Error resolving deterministic intent", {
+    logger.error('[IntentClassifier] Error resolving deterministic intent', {
       error: err.message,
       intent,
       patientId,
     });
     return {
-      text: "An error occurred while fetching your health analytics summary. Please try again.",
+      text: 'An error occurred while fetching your health analytics summary. Please try again.',
       suggestions: [],
       cards: [],
     };

@@ -1,4 +1,4 @@
-const AuditLog = require("../models/AuditLog");
+const AuditLog = require('../models/AuditLog');
 
 /**
  * Log an audit event
@@ -16,7 +16,7 @@ const logEvent = async (
   resourceType = null,
   resourceId = null,
   req = null,
-  additionalData = {},
+  additionalData = {}
 ) => {
   try {
     const logData = {
@@ -25,26 +25,26 @@ const logEvent = async (
       resourceType,
       resourceId,
       ipAddress: req?.ip,
-      userAgent: req?.headers?.["user-agent"],
+      userAgent: req?.headers?.['user-agent'],
       ...additionalData,
     };
 
     // Add request-specific data if available
     if (req) {
       logData.sessionId = req.session?.id;
-      logData.deviceId = req.headers?.["x-device-id"];
+      logData.deviceId = req.headers?.['x-device-id'];
 
       // Extract geographic information if available
-      if (req.headers["x-geo-country"]) {
+      if (req.headers['x-geo-country']) {
         logData.location = {
-          country: req.headers["x-geo-country"],
-          region: req.headers["x-geo-region"],
-          city: req.headers["x-geo-city"],
-          latitude: req.headers["x-geo-latitude"]
-            ? parseFloat(req.headers["x-geo-latitude"])
+          country: req.headers['x-geo-country'],
+          region: req.headers['x-geo-region'],
+          city: req.headers['x-geo-city'],
+          latitude: req.headers['x-geo-latitude']
+            ? parseFloat(req.headers['x-geo-latitude'])
             : undefined,
-          longitude: req.headers["x-geo-longitude"]
-            ? parseFloat(req.headers["x-geo-longitude"])
+          longitude: req.headers['x-geo-longitude']
+            ? parseFloat(req.headers['x-geo-longitude'])
             : undefined,
         };
       }
@@ -52,7 +52,7 @@ const logEvent = async (
 
     return await AuditLog.createLog(logData);
   } catch (error) {
-    console.warn("Failed to create audit log:", error?.message);
+    console.warn('Failed to create audit log:', error?.message);
     // Don't throw error to avoid breaking main flow
     return null;
   }
@@ -74,15 +74,15 @@ const logSecurityEvent = async (
   severity,
   description,
   req = null,
-  additionalData = {},
+  additionalData = {}
 ) => {
   try {
     const logData = {
       supabaseUid,
-      action: "security_event",
-      resourceType: "system",
+      action: 'security_event',
+      resourceType: 'system',
       ipAddress: req?.ip,
-      userAgent: req?.headers?.["user-agent"],
+      userAgent: req?.headers?.['user-agent'],
       securityFlags: [
         {
           type: securityType,
@@ -97,12 +97,12 @@ const logSecurityEvent = async (
     // Add request-specific data if available
     if (req) {
       logData.sessionId = req.session?.id;
-      logData.deviceId = req.headers?.["x-device-id"];
+      logData.deviceId = req.headers?.['x-device-id'];
     }
 
     return await AuditLog.createLog(logData);
   } catch (error) {
-    console.warn("Failed to create security log:", error?.message);
+    console.warn('Failed to create security log:', error?.message);
     return null;
   }
 };
@@ -121,9 +121,9 @@ const logDataAccess = async (
   supabaseUid,
   resourceType,
   resourceId,
-  action = "view",
+  action = 'view',
   req = null,
-  additionalData = {},
+  additionalData = {}
 ) => {
   try {
     const logData = {
@@ -132,15 +132,15 @@ const logDataAccess = async (
       resourceType,
       resourceId,
       ipAddress: req?.ip,
-      userAgent: req?.headers?.["user-agent"],
-      outcome: "success",
+      userAgent: req?.headers?.['user-agent'],
+      outcome: 'success',
       ...additionalData,
     };
 
     // Add request-specific data if available
     if (req) {
       logData.sessionId = req.session?.id;
-      logData.deviceId = req.headers?.["x-device-id"];
+      logData.deviceId = req.headers?.['x-device-id'];
 
       // Add response time if available
       if (req.startTime) {
@@ -150,7 +150,7 @@ const logDataAccess = async (
 
     return await AuditLog.createLog(logData);
   } catch (error) {
-    console.warn("Failed to create data access log:", error?.message);
+    console.warn('Failed to create data access log:', error?.message);
     return null;
   }
 };
@@ -169,16 +169,16 @@ const logComplianceEvent = async (
   complianceType,
   description,
   req = null,
-  additionalData = {},
+  additionalData = {}
 ) => {
   try {
     const logData = {
       supabaseUid,
-      action: "compliance_event",
-      resourceType: "system",
+      action: 'compliance_event',
+      resourceType: 'system',
       ipAddress: req?.ip,
-      userAgent: req?.headers?.["user-agent"],
-      dataClassification: "confidential",
+      userAgent: req?.headers?.['user-agent'],
+      dataClassification: 'confidential',
       details: {
         complianceType,
         description,
@@ -189,12 +189,12 @@ const logComplianceEvent = async (
     // Add request-specific data if available
     if (req) {
       logData.sessionId = req.session?.id;
-      logData.deviceId = req.headers?.["x-device-id"];
+      logData.deviceId = req.headers?.['x-device-id'];
     }
 
     return await AuditLog.createLog(logData);
   } catch (error) {
-    console.warn("Failed to create compliance log:", error?.message);
+    console.warn('Failed to create compliance log:', error?.message);
     return null;
   }
 };
@@ -209,7 +209,7 @@ const getUserActivitySummary = async (supabaseUid, days = 30) => {
   try {
     return await AuditLog.getUserActivitySummary(supabaseUid, days);
   } catch (error) {
-    console.warn("Failed to get user activity summary:", error?.message);
+    console.warn('Failed to get user activity summary:', error?.message);
     return [];
   }
 };
@@ -224,7 +224,7 @@ const getSecurityIncidents = async (filters = {}, limit = 50) => {
   try {
     return await AuditLog.findSecurityIncidents({ ...filters, limit });
   } catch (error) {
-    console.warn("Failed to get security incidents:", error?.message);
+    console.warn('Failed to get security incidents:', error?.message);
     return [];
   }
 };
@@ -239,7 +239,7 @@ const getUserAuditLogs = async (supabaseUid, options = {}) => {
   try {
     return await AuditLog.findByUser(supabaseUid, options);
   } catch (error) {
-    console.warn("Failed to get user audit logs:", error?.message);
+    console.warn('Failed to get user audit logs:', error?.message);
     return [];
   }
 };
@@ -264,11 +264,11 @@ const getResourceAuditLogs = async (resourceType, resourceId, options = {}) => {
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate({
-        path: "supabaseUid",
-        select: "fullName email role",
+        path: 'supabaseUid',
+        select: 'fullName email role',
       });
   } catch (error) {
-    console.warn("Failed to get resource audit logs:", error?.message);
+    console.warn('Failed to get resource audit logs:', error?.message);
     return [];
   }
 };
@@ -300,7 +300,7 @@ const autoLogAccess = (resourceType, action) => {
             {
               statusCode: res.statusCode,
               responseTime: Date.now() - req.startTime,
-            },
+            }
           );
         }
       });
@@ -326,25 +326,25 @@ const checkSuspiciousPatterns = async (req, profile) => {
     const hour = new Date().getHours();
     if (hour < 6 || hour > 22) {
       suspiciousPatterns.push({
-        type: "unusual_time",
-        severity: "medium",
+        type: 'unusual_time',
+        severity: 'medium',
         description: `Access at unusual hour: ${hour}:00`,
       });
     }
 
     // Check for unusual location (if location data available)
-    if (req.headers["x-geo-country"] && profile.metadata?.lastKnownLocation) {
+    if (req.headers['x-geo-country'] && profile.metadata?.lastKnownLocation) {
       const lastLocation = profile.metadata.lastKnownLocation;
       const currentLocation = {
-        country: req.headers["x-geo-country"],
-        region: req.headers["x-geo-region"],
-        city: req.headers["x-geo-city"],
+        country: req.headers['x-geo-country'],
+        region: req.headers['x-geo-region'],
+        city: req.headers['x-geo-city'],
       };
 
       if (lastLocation.country !== currentLocation.country) {
         suspiciousPatterns.push({
-          type: "suspicious_location",
-          severity: "high",
+          type: 'suspicious_location',
+          severity: 'high',
           description: `Access from different country: ${lastLocation.country} -> ${currentLocation.country}`,
         });
       }
@@ -357,20 +357,20 @@ const checkSuspiciousPatterns = async (req, profile) => {
       if (timeSinceLastRequest < 1000) {
         // Less than 1 second
         suspiciousPatterns.push({
-          type: "rapid_requests",
-          severity: "medium",
-          description: "Rapid successive requests detected",
+          type: 'rapid_requests',
+          severity: 'medium',
+          description: 'Rapid successive requests detected',
         });
       }
     }
 
     // Update last request time
     profile.metadata.lastRequestTime = Date.now();
-    if (req.headers["x-geo-country"]) {
+    if (req.headers['x-geo-country']) {
       profile.metadata.lastKnownLocation = {
-        country: req.headers["x-geo-country"],
-        region: req.headers["x-geo-region"],
-        city: req.headers["x-geo-city"],
+        country: req.headers['x-geo-country'],
+        region: req.headers['x-geo-region'],
+        city: req.headers['x-geo-city'],
       };
     }
     await profile.save();
@@ -383,12 +383,12 @@ const checkSuspiciousPatterns = async (req, profile) => {
           pattern.type,
           pattern.severity,
           pattern.description,
-          req,
+          req
         );
       }
     }
   } catch (error) {
-    console.warn("Error checking suspicious patterns:", error?.message);
+    console.warn('Error checking suspicious patterns:', error?.message);
   }
 };
 

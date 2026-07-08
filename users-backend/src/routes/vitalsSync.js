@@ -1,8 +1,8 @@
-const express = require("express");
-const { body, validationResult } = require("express-validator");
-const rateLimit = require("express-rate-limit");
-const Patient = require("../models/Patient");
-const VitalsIngestionService = require("../services/vitalsIngestionService");
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+const rateLimit = require('express-rate-limit');
+const Patient = require('../models/Patient');
+const VitalsIngestionService = require('../services/vitalsIngestionService');
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ const router = express.Router();
 const syncRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10,
-  message: { error: "Sync rate limit exceeded. Maximum 10 syncs per hour." },
+  message: { error: 'Sync rate limit exceeded. Maximum 10 syncs per hour.' },
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
@@ -22,14 +22,14 @@ const syncRateLimiter = rateLimit({
 
 // ─── Auth middleware for sync endpoint ──────────────────────────
 // Extracts patient_id from the Supabase JWT (same pattern as existing user routes)
-const { createClient } = require("@supabase/supabase-js");
+const { createClient } = require('@supabase/supabase-js');
 
 let _supabase = null;
 function getSupabase() {
   if (!_supabase) {
     _supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY,
+      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
     );
   }
   return _supabase;
@@ -38,24 +38,24 @@ function getSupabase() {
 async function authenticatePatient(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Unauthorized: No token provided" });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized: No token provided' });
     }
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.split(' ')[1];
 
     // 1. Try to verify as primary CareMyMed JWT
-    const tokenService = require("../services/tokenService");
+    const tokenService = require('../services/tokenService');
     try {
       const payload = tokenService.verifyAccessToken(token);
       const isValid = await tokenService.checkRedisSessionValidity(
         token,
-        payload,
+        payload
       );
-      if (isValid && payload.sub && payload.typ === "patient") {
+      if (isValid && payload.sub && payload.typ === 'patient') {
         const patient = await Patient.findOne({
           supabase_uid: payload.sub,
-        }).select("_id name");
+        }).select('_id name');
         if (patient) {
           req.patientId = patient._id.toString();
           req.patientName = patient.name;
@@ -69,7 +69,7 @@ async function authenticatePatient(req, res, next) {
     // 2. Fallback to Supabase legacy auth
     const supabase = getSupabase();
     if (!supabase) {
-      return res.status(401).json({ error: "Unauthorized: Invalid token" });
+      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
 
     const {
@@ -78,43 +78,43 @@ async function authenticatePatient(req, res, next) {
     } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      return res.status(401).json({ error: "Unauthorized: Invalid token" });
+      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
 
     // Find the patient by their Supabase UID
     const patient = await Patient.findOne({ supabase_uid: user.id }).select(
-      "_id name",
+      '_id name'
     );
     if (!patient) {
-      return res.status(404).json({ error: "Patient record not found" });
+      return res.status(404).json({ error: 'Patient record not found' });
     }
 
     req.patientId = patient._id.toString();
     req.patientName = patient.name;
     next();
   } catch (err) {
-    console.error("Auth middleware error:", err.message);
-    return res.status(500).json({ error: "Authentication failed" });
+    console.error('Auth middleware error:', err.message);
+    return res.status(500).json({ error: 'Authentication failed' });
   }
 }
 
 // ─── Validation ─────────────────────────────────────────────────
 const syncValidators = [
-  body("readings")
+  body('readings')
     .isArray({ min: 1, max: 100 })
-    .withMessage("readings must be an array of 1–100 items"),
-  body("readings.*.timestamp")
+    .withMessage('readings must be an array of 1–100 items'),
+  body('readings.*.timestamp')
     .notEmpty()
-    .withMessage("Each reading must have a timestamp"),
-  body("readings.*.heart_rate")
+    .withMessage('Each reading must have a timestamp'),
+  body('readings.*.heart_rate')
     .notEmpty()
     .isFloat({ min: 30, max: 250 })
-    .withMessage("heart_rate must be 30–250 bpm"),
-  body("source")
+    .withMessage('heart_rate must be 30–250 bpm'),
+  body('source')
     .optional()
-    .isIn(["manual", "health_connect", "healthkit", "fitbit", "garmin"])
+    .isIn(['manual', 'health_connect', 'healthkit', 'fitbit', 'garmin'])
     .withMessage(
-      "source must be manual, health_connect, healthkit, fitbit, or garmin",
+      'source must be manual, health_connect, healthkit, fitbit, or garmin'
     ),
 ];
 
@@ -122,7 +122,7 @@ const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
-      error: "Validation failed",
+      error: 'Validation failed',
       details: errors.array().map((e) => ({ field: e.path, message: e.msg })),
     });
   }
@@ -134,7 +134,7 @@ const validate = (req, res, next) => {
 // Auth: Supabase JWT required (patient only)
 // Rate: Max 10 syncs/hour, 100 readings/request
 router.post(
-  "/sync",
+  '/sync',
   authenticatePatient,
   syncRateLimiter,
   syncValidators,
@@ -146,24 +146,24 @@ router.post(
       // Determine source from body or default based on platform header
       const effectiveSource =
         source ||
-        (req.headers["x-app-platform"] === "ios"
-          ? "healthkit"
-          : "health_connect");
+        (req.headers['x-app-platform'] === 'ios'
+          ? 'healthkit'
+          : 'health_connect');
 
       console.log(
-        `📡 Vitals sync: ${readings.length} readings from ${req.patientName} (${effectiveSource})`,
+        `📡 Vitals sync: ${readings.length} readings from ${req.patientName} (${effectiveSource})`
       );
 
       const summary = await VitalsIngestionService.processBatch(
         req.patientId,
         readings,
-        effectiveSource,
+        effectiveSource
       );
 
       const statusCode = summary.anomalies.length > 0 ? 200 : 201;
 
       res.status(statusCode).json({
-        message: "Vitals sync completed",
+        message: 'Vitals sync completed',
         summary: {
           received: summary.received,
           accepted: summary.accepted,
@@ -173,21 +173,21 @@ router.post(
         },
         ...(summary.anomalies.length > 0 && {
           anomaly_warning:
-            "Abnormal readings were detected and alerts have been sent.",
+            'Abnormal readings were detected and alerts have been sent.',
         }),
       });
     } catch (err) {
-      console.error("POST /api/vitals/sync error:", err);
-      res.status(500).json({ error: "Failed to process vitals sync" });
+      console.error('POST /api/vitals/sync error:', err);
+      res.status(500).json({ error: 'Failed to process vitals sync' });
     }
-  },
+  }
 );
 
 // ─── GET /api/vitals/sync/status ────────────────────────────────
 // Returns the patient's sync status (last sync time, readings count today)
-router.get("/sync/status", authenticatePatient, async (req, res) => {
+router.get('/sync/status', authenticatePatient, async (req, res) => {
   try {
-    const VitalLog = require("../models/VitalLog");
+    const VitalLog = require('../models/VitalLog');
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -195,15 +195,15 @@ router.get("/sync/status", authenticatePatient, async (req, res) => {
     const [todayCount, lastReading] = await Promise.all([
       VitalLog.countDocuments({
         patient_id: req.patientId,
-        source: { $in: ["health_connect", "healthkit"] },
+        source: { $in: ['health_connect', 'healthkit'] },
         date: { $gte: todayStart },
       }),
       VitalLog.findOne({
         patient_id: req.patientId,
-        source: { $in: ["health_connect", "healthkit"] },
+        source: { $in: ['health_connect', 'healthkit'] },
       })
         .sort({ date: -1 })
-        .select("date source")
+        .select('date source')
         .lean(),
     ]);
 
@@ -214,8 +214,8 @@ router.get("/sync/status", authenticatePatient, async (req, res) => {
       source: lastReading?.source || null,
     });
   } catch (err) {
-    console.error("GET /api/vitals/sync/status error:", err);
-    res.status(500).json({ error: "Failed to get sync status" });
+    console.error('GET /api/vitals/sync/status error:', err);
+    res.status(500).json({ error: 'Failed to get sync status' });
   }
 });
 

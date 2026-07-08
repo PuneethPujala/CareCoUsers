@@ -1,15 +1,15 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const MedicationSchema = new mongoose.Schema(
   {
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
       required: true,
     },
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
+      ref: 'Organization',
       required: true,
       index: true,
     },
@@ -31,29 +31,29 @@ const MedicationSchema = new mongoose.Schema(
       required: true,
       trim: true,
       maxlength: 100,
-      description: "e.g., 500mg, 10 units",
+      description: 'e.g., 500mg, 10 units',
     },
     route: {
       type: String,
       enum: [
-        "oral",
-        "injection",
-        "topical",
-        "inhalation",
-        "sublingual",
-        "rectal",
-        "transdermal",
-        "iv",
-        "other",
+        'oral',
+        'injection',
+        'topical',
+        'inhalation',
+        'sublingual',
+        'rectal',
+        'transdermal',
+        'iv',
+        'other',
       ],
-      default: "oral",
+      default: 'oral',
     },
     frequency: {
       type: String,
       required: true,
       trim: true,
       maxlength: 100,
-      description: "e.g., Daily, Twice daily, Weekly, As needed",
+      description: 'e.g., Daily, Twice daily, Weekly, As needed',
     },
 
     // ── Schedule ─────────────────────────────────────────────────
@@ -76,15 +76,15 @@ const MedicationSchema = new mongoose.Schema(
       {
         type: String,
         enum: [
-          "monday",
-          "tuesday",
-          "wednesday",
-          "thursday",
-          "friday",
-          "saturday",
-          "sunday",
+          'monday',
+          'tuesday',
+          'wednesday',
+          'thursday',
+          'friday',
+          'saturday',
+          'sunday',
         ],
-        description: "For non-daily medications (e.g., weekly Alendronate)",
+        description: 'For non-daily medications (e.g., weekly Alendronate)',
       },
     ],
 
@@ -104,7 +104,7 @@ const MedicationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 200,
-      description: "Prescribing physician name",
+      description: 'Prescribing physician name',
     },
     prescribedDate: {
       type: Date,
@@ -118,14 +118,14 @@ const MedicationSchema = new mongoose.Schema(
     },
     endDate: {
       type: Date,
-      description: "Null = indefinite",
+      description: 'Null = indefinite',
     },
 
     // ── Status ───────────────────────────────────────────────────
     status: {
       type: String,
-      enum: ["active", "paused", "discontinued", "completed"],
-      default: "active",
+      enum: ['active', 'paused', 'discontinued', 'completed'],
+      default: 'active',
       index: true,
     },
     isActive: {
@@ -140,7 +140,7 @@ const MedicationSchema = new mongoose.Schema(
     },
     discontinuedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
     },
     discontinuedAt: {
       type: Date,
@@ -177,7 +177,7 @@ const MedicationSchema = new mongoose.Schema(
         type: String,
         trim: true,
         maxlength: 200,
-        description: "Known drug interactions",
+        description: 'Known drug interactions',
       },
     ],
     contraindications: [
@@ -191,12 +191,12 @@ const MedicationSchema = new mongoose.Schema(
     // ── Tracking metadata ────────────────────────────────────────
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
-      description: "User who added this medication to the system",
+      ref: 'Profile',
+      description: 'User who added this medication to the system',
     },
     lastModifiedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
     },
     notes: {
       type: String,
@@ -214,11 +214,11 @@ const MedicationSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // Compound index for the main query pattern: find active meds by patient
 MedicationSchema.index({ patientId: 1, isActive: 1 });
 MedicationSchema.index({ patientId: 1, name: 1 });
 
-module.exports = mongoose.model("Medication", MedicationSchema);
+module.exports = mongoose.model('Medication', MedicationSchema);

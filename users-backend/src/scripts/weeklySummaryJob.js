@@ -1,11 +1,11 @@
-const mongoose = require("mongoose");
-const axios = require("axios");
-const moment = require("moment-timezone");
-const Patient = require("../models/Patient");
-const MedicineLog = require("../models/MedicineLog");
-const WeeklySummary = require("../models/WeeklySummary");
-const Notification = require("../models/Notification");
-const PushNotificationService = require("../utils/pushNotifications");
+const mongoose = require('mongoose');
+const axios = require('axios');
+const moment = require('moment-timezone');
+const Patient = require('../models/Patient');
+const MedicineLog = require('../models/MedicineLog');
+const WeeklySummary = require('../models/WeeklySummary');
+const Notification = require('../models/Notification');
+const PushNotificationService = require('../utils/pushNotifications');
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
@@ -17,8 +17,8 @@ async function generateSummaryText(patientName, logs) {
     return {
       summary_text:
         "We don't have enough data to generate an AI summary for this week.",
-      encouragement_text: "Keep tracking your medications!",
-      areas_to_improve: "Make sure to log your medicines daily.",
+      encouragement_text: 'Keep tracking your medications!',
+      areas_to_improve: 'Make sure to log your medicines daily.',
     };
   }
 
@@ -57,39 +57,39 @@ Important constraints:
 
   try {
     const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
+      'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
       },
       {
         headers: {
           Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-      },
+      }
     );
 
     const resultStr = response.data.choices[0].message.content;
     const parsed = JSON.parse(resultStr);
     return {
-      summary_text: parsed.summary_text || "Your weekly care report is ready.",
+      summary_text: parsed.summary_text || 'Your weekly care report is ready.',
       encouragement_text:
-        parsed.encouragement_text || "Great job keeping up with your health.",
+        parsed.encouragement_text || 'Great job keeping up with your health.',
       areas_to_improve:
         parsed.areas_to_improve ||
         "Let's aim for a consistent routine next week.",
     };
   } catch (error) {
     console.error(
-      "Groq AI generation failed:",
-      error?.response?.data || error.message,
+      'Groq AI generation failed:',
+      error?.response?.data || error.message
     );
     return {
       summary_text: `You had an adherence rate of ${adherenceRate}% this week.`,
-      encouragement_text: "Keep tracking your medications!",
-      areas_to_improve: "Make sure to log your medicines daily.",
+      encouragement_text: 'Keep tracking your medications!',
+      areas_to_improve: 'Make sure to log your medicines daily.',
     };
   }
 }
@@ -98,12 +98,12 @@ Important constraints:
  * Main Job Execution
  */
 async function runWeeklySummaries() {
-  console.log("[WeeklySummaryJob] Starting weekly summary generation...");
+  console.log('[WeeklySummaryJob] Starting weekly summary generation...');
 
   // We analyze the past 7 days up to yesterday
-  const today = moment.tz("Asia/Kolkata").startOf("day");
-  const weekEnd = today.clone().subtract(1, "day").endOf("day");
-  const weekStart = today.clone().subtract(7, "days").startOf("day");
+  const today = moment.tz('Asia/Kolkata').startOf('day');
+  const weekEnd = today.clone().subtract(1, 'day').endOf('day');
+  const weekStart = today.clone().subtract(7, 'days').startOf('day');
 
   try {
     // Find all active patients
@@ -119,7 +119,7 @@ async function runWeeklySummaries() {
 
       if (existing) {
         console.log(
-          `[WeeklySummaryJob] Summary already exists for ${patient.name}. Skipping.`,
+          `[WeeklySummaryJob] Summary already exists for ${patient.name}. Skipping.`
         );
         continue;
       }
@@ -149,10 +149,10 @@ async function runWeeklySummaries() {
       // Trigger Push Notification
       await Notification.create({
         patient_id: patient._id,
-        title: "✨ Your Weekly Care Summary is Ready!",
+        title: '✨ Your Weekly Care Summary is Ready!',
         message: generated.summary_text,
-        type: "info",
-        target_screen: "Dashboard", // Or MedicationsScreen
+        type: 'info',
+        target_screen: 'Dashboard', // Or MedicationsScreen
       });
 
       // Assuming patient object needs to be a mongoose document for PushNotificationService
@@ -164,33 +164,33 @@ async function runWeeklySummaries() {
           await PushNotificationService.sendPushNotification(
             patientDoc.expo_push_token,
             {
-              title: "✨ Your Weekly Care Summary is Ready!",
+              title: '✨ Your Weekly Care Summary is Ready!',
               body: generated.encouragement_text,
-              data: { screen: "Dashboard" },
-            },
+              data: { screen: 'Dashboard' },
+            }
           );
         }
       } catch (err) {
         console.warn(
-          "[WeeklySummaryJob] Push notification failed:",
-          err.message,
+          '[WeeklySummaryJob] Push notification failed:',
+          err.message
         );
       }
 
       console.log(
-        `[WeeklySummaryJob] Successfully generated summary for ${patient.name}`,
+        `[WeeklySummaryJob] Successfully generated summary for ${patient.name}`
       );
     }
 
-    console.log("[WeeklySummaryJob] Completed successfully.");
+    console.log('[WeeklySummaryJob] Completed successfully.');
   } catch (error) {
-    console.error("[WeeklySummaryJob] Error running job:", error);
+    console.error('[WeeklySummaryJob] Error running job:', error);
   }
 }
 
 // Allow manual execution via CLI: `node src/scripts/weeklySummaryJob.js`
 if (require.main === module) {
-  require("dotenv").config();
+  require('dotenv').config();
   mongoose
     .connect(process.env.MONGODB_URI)
     .then(() => runWeeklySummaries())

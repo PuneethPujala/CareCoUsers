@@ -1,10 +1,10 @@
-const express = require("express");
-const Profile = require("../models/Profile");
-const Organization = require("../models/Organization");
-const { authenticate, requireRole } = require("../middleware/authenticate");
-const { authorize, authorizeResource } = require("../middleware/authorize");
-const { scopeFilter } = require("../middleware/scopeFilter");
-const { logEvent, autoLogAccess } = require("../services/auditService");
+const express = require('express');
+const Profile = require('../models/Profile');
+const Organization = require('../models/Organization');
+const { authenticate, requireRole } = require('../middleware/authenticate');
+const { authorize, authorizeResource } = require('../middleware/authorize');
+const { scopeFilter } = require('../middleware/scopeFilter');
+const { logEvent, autoLogAccess } = require('../services/auditService');
 
 const router = express.Router();
 
@@ -19,24 +19,24 @@ const router = express.Router();
  * Get the currently authenticated user's own profile
  */
 router.get(
-  "/me",
+  '/me',
   authenticate,
-  autoLogAccess("profile", "read"),
+  autoLogAccess('profile', 'read'),
   async (req, res) => {
     try {
       const profile = await Profile.findById(req.profile._id).populate(
-        "organizationId",
-        "name city subscriptionPlan settings",
+        'organizationId',
+        'name city subscriptionPlan settings'
       );
 
       res.json(profile);
     } catch (error) {
-      console.error("Get profile error:", error);
+      console.error('Get profile error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get profile", details: error.message });
+        .json({ error: 'Failed to get profile', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -44,52 +44,52 @@ router.get(
  * Upload avatar for staff/companion profile
  */
 router.post(
-  "/me/avatar",
+  '/me/avatar',
   authenticate,
-  autoLogAccess("profile", "update"),
+  autoLogAccess('profile', 'update'),
   async (req, res) => {
     try {
       const { file_base64, content_type } = req.body;
       if (!file_base64)
-        return res.status(400).json({ error: "file_base64 is required" });
+        return res.status(400).json({ error: 'file_base64 is required' });
 
       const profile = await Profile.findById(req.profile._id);
       if (!profile) {
-        return res.status(404).json({ error: "Profile not found" });
+        return res.status(404).json({ error: 'Profile not found' });
       }
 
-      const { createClient } = require("@supabase/supabase-js");
+      const { createClient } = require('@supabase/supabase-js');
       const supabaseUrl = process.env.SUPABASE_URL;
       const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (!supabaseUrl || !supabaseServiceKey) {
         return res
           .status(500)
-          .json({ error: "Supabase configuration missing on server" });
+          .json({ error: 'Supabase configuration missing on server' });
       }
 
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-      const buffer = Buffer.from(file_base64, "base64");
-      const ext = content_type === "image/png" ? "png" : "jpg";
+      const buffer = Buffer.from(file_base64, 'base64');
+      const ext = content_type === 'image/png' ? 'png' : 'jpg';
       const randomHash =
         Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
       const fileName = `${profile.supabaseUid || profile._id}/${randomHash}.${ext}`;
 
       const { data, error } = await supabaseAdmin.storage
-        .from("avatars")
+        .from('avatars')
         .upload(fileName, buffer, {
-          contentType: content_type || "image/jpeg",
+          contentType: content_type || 'image/jpeg',
           upsert: true,
         });
 
       if (error) {
-        console.error("Supabase profile avatar upload error:", error.message);
+        console.error('Supabase profile avatar upload error:', error.message);
         return res
           .status(500)
-          .json({ error: "Failed to upload: " + error.message });
+          .json({ error: 'Failed to upload: ' + error.message });
       }
 
       const publicUrl = supabaseAdmin.storage
-        .from("avatars")
+        .from('avatars')
         .getPublicUrl(fileName).data.publicUrl;
 
       // Delete old avatar from Supabase Storage if it exists
@@ -99,12 +99,12 @@ router.post(
           const idx = profile.avatarUrl.indexOf(marker);
           if (idx !== -1) {
             const oldFilePath = decodeURIComponent(
-              profile.avatarUrl.substring(idx + marker.length),
+              profile.avatarUrl.substring(idx + marker.length)
             );
-            await supabaseAdmin.storage.from("avatars").remove([oldFilePath]);
+            await supabaseAdmin.storage.from('avatars').remove([oldFilePath]);
           }
         } catch (delErr) {
-          console.warn("Failed to delete old avatar file:", delErr.message);
+          console.warn('Failed to delete old avatar file:', delErr.message);
         }
       }
 
@@ -112,17 +112,17 @@ router.post(
       await profile.save();
 
       res.json({
-        message: "Avatar uploaded successfully",
+        message: 'Avatar uploaded successfully',
         avatarUrl: publicUrl,
         profile,
       });
     } catch (error) {
-      console.error("Upload profile avatar error:", error);
+      console.error('Upload profile avatar error:', error);
       res
         .status(500)
-        .json({ error: "Failed to upload avatar", details: error.message });
+        .json({ error: 'Failed to upload avatar', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -131,20 +131,20 @@ router.post(
  * NOTE: must be defined before /:id to avoid route conflict
  */
 router.get(
-  "/organization/:orgId",
+  '/organization/:orgId',
   authenticate,
-  authorize("profile", "read"),
-  requireRole("super_admin", "org_admin", "care_manager"),
-  autoLogAccess("profile", "read"),
+  authorize('profile', 'read'),
+  requireRole('super_admin', 'org_admin', 'care_manager'),
+  autoLogAccess('profile', 'read'),
   async (req, res) => {
     try {
       const { orgId } = req.params;
       const { role: roleFilter, page = 1, limit = 20 } = req.query;
 
-      if (req.profile.role !== "super_admin") {
+      if (req.profile.role !== 'super_admin') {
         if (!req.profile.organizationId.equals(orgId)) {
           return res.status(403).json({
-            error: "Cannot access profiles from a different organization",
+            error: 'Cannot access profiles from a different organization',
           });
         }
       }
@@ -154,25 +154,25 @@ router.get(
       // Only allow valid staff roles — patients are in Patient collection
       if (roleFilter) {
         const validRoles = [
-          "super_admin",
-          "org_admin",
-          "care_manager",
-          "caller",
+          'super_admin',
+          'org_admin',
+          'care_manager',
+          'caller',
         ];
         if (!validRoles.includes(roleFilter)) {
           return res.status(400).json({
-            error: `Invalid role filter. Valid roles: ${validRoles.join(", ")}`,
+            error: `Invalid role filter. Valid roles: ${validRoles.join(', ')}`,
           });
         }
         query.role = roleFilter;
       } else {
         // Default: exclude patient role since they live in Patient collection
-        query.role = { $in: ["org_admin", "care_manager", "caller"] };
+        query.role = { $in: ['org_admin', 'care_manager', 'caller'] };
       }
 
       const [profiles, total] = await Promise.all([
         Profile.find(query)
-          .populate("organizationId", "name city")
+          .populate('organizationId', 'name city')
           .sort({ createdAt: -1 })
           .limit(parseInt(limit))
           .skip((parseInt(page) - 1) * parseInt(limit)),
@@ -189,13 +189,13 @@ router.get(
         },
       });
     } catch (error) {
-      console.error("Get organization profiles error:", error);
+      console.error('Get organization profiles error:', error);
       res.status(500).json({
-        error: "Failed to get organization profiles",
+        error: 'Failed to get organization profiles',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -203,11 +203,11 @@ router.get(
  * List profiles with filtering and pagination
  */
 router.get(
-  "/",
+  '/',
   authenticate,
-  authorize("profile", "read"),
-  scopeFilter("profile"),
-  autoLogAccess("profile", "read"),
+  authorize('profile', 'read'),
+  scopeFilter('profile'),
+  autoLogAccess('profile', 'read'),
   async (req, res) => {
     try {
       const {
@@ -216,34 +216,34 @@ router.get(
         role: roleFilter,
         organizationId: orgFilter,
         search,
-        sortBy = "createdAt",
-        sortOrder = "desc",
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
       } = req.query;
 
       const query = {
         ...req.scopeFilter,
         // Never return patient role from Profile — they're in Patient collection
-        role: { $in: ["super_admin", "org_admin", "care_manager", "caller"] },
+        role: { $in: ['super_admin', 'org_admin', 'care_manager', 'caller'] },
       };
 
       if (roleFilter) query.role = roleFilter;
-      if (orgFilter && req.profile.role === "super_admin")
+      if (orgFilter && req.profile.role === 'super_admin')
         query.organizationId = orgFilter;
 
       if (search) {
         query.$or = [
-          { fullName: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-          { phone: { $regex: search, $options: "i" } },
+          { fullName: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { phone: { $regex: search, $options: 'i' } },
         ];
       }
 
       const sort = {};
-      sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
       const [profiles, total] = await Promise.all([
         Profile.find(query)
-          .populate("organizationId", "name city")
+          .populate('organizationId', 'name city')
           .sort(sort)
           .limit(parseInt(limit))
           .skip((parseInt(page) - 1) * parseInt(limit)),
@@ -260,12 +260,12 @@ router.get(
         },
       });
     } catch (error) {
-      console.error("Get profiles error:", error);
+      console.error('Get profiles error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get profiles", details: error.message });
+        .json({ error: 'Failed to get profiles', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -273,35 +273,35 @@ router.get(
  * Get a specific staff profile by ID
  */
 router.get(
-  "/:id",
+  '/:id',
   authenticate,
-  authorize("profile", "read"),
-  autoLogAccess("profile", "read"),
+  authorize('profile', 'read'),
+  autoLogAccess('profile', 'read'),
   async (req, res) => {
     try {
       const profile = await Profile.findById(req.params.id).populate(
-        "organizationId",
-        "name city subscriptionPlan",
+        'organizationId',
+        'name city subscriptionPlan'
       );
 
       if (!profile) {
-        return res.status(404).json({ error: "Profile not found" });
+        return res.status(404).json({ error: 'Profile not found' });
       }
 
       const { role } = req.profile;
 
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         return res.json(profile);
       }
 
-      if (["org_admin", "care_manager", "caller"].includes(role)) {
+      if (['org_admin', 'care_manager', 'caller'].includes(role)) {
         if (
           profile.organizationId &&
           profile.organizationId._id?.equals(req.profile.organizationId)
         ) {
           return res.json(profile);
         }
-        return res.status(403).json({ error: "Access denied to this profile" });
+        return res.status(403).json({ error: 'Access denied to this profile' });
       }
 
       // Callers / other staff can see their own profile
@@ -309,14 +309,14 @@ router.get(
         return res.json(profile);
       }
 
-      res.status(403).json({ error: "Access denied" });
+      res.status(403).json({ error: 'Access denied' });
     } catch (error) {
-      console.error("Get profile error:", error);
+      console.error('Get profile error:', error);
       res
         .status(500)
-        .json({ error: "Failed to get profile", details: error.message });
+        .json({ error: 'Failed to get profile', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -325,10 +325,10 @@ router.get(
  * Note: patients are created via POST /api/patients, not here
  */
 router.post(
-  "/",
+  '/',
   authenticate,
-  authorize("profile", "create"),
-  autoLogAccess("profile", "create"),
+  authorize('profile', 'create'),
+  autoLogAccess('profile', 'create'),
   async (req, res) => {
     try {
       const {
@@ -344,39 +344,39 @@ router.post(
 
       if (!supabaseUid || !email || !fullName || !role) {
         return res.status(400).json({
-          error: "Missing required fields: supabaseUid, email, fullName, role",
+          error: 'Missing required fields: supabaseUid, email, fullName, role',
         });
       }
 
       // Block patient creation through this endpoint
-      if (role === "patient") {
+      if (role === 'patient') {
         return res.status(400).json({
-          error: "Patients must be created via POST /api/patients",
+          error: 'Patients must be created via POST /api/patients',
         });
       }
 
       // Only super_admin can create super_admin profiles
-      if (role === "super_admin" && req.profile.role !== "super_admin") {
+      if (role === 'super_admin' && req.profile.role !== 'super_admin') {
         return res
           .status(403)
-          .json({ error: "Only super admins can create super admin profiles" });
+          .json({ error: 'Only super admins can create super admin profiles' });
       }
 
       // Staff roles require an org
       if (
-        ["org_admin", "care_manager", "caller"].includes(role) &&
+        ['org_admin', 'care_manager', 'caller'].includes(role) &&
         !organizationId
       ) {
         return res
           .status(400)
-          .json({ error: "organizationId is required for this role" });
+          .json({ error: 'organizationId is required for this role' });
       }
 
       // Non-super_admin cannot create profiles in a different org
-      if (organizationId && req.profile.role !== "super_admin") {
+      if (organizationId && req.profile.role !== 'super_admin') {
         if (!req.profile.organizationId.equals(organizationId)) {
           return res.status(403).json({
-            error: "Cannot create profile in a different organization",
+            error: 'Cannot create profile in a different organization',
           });
         }
       }
@@ -388,9 +388,9 @@ router.post(
       if (existingUid)
         return res
           .status(400)
-          .json({ error: "Profile already exists for this user" });
+          .json({ error: 'Profile already exists for this user' });
       if (existingEmail)
-        return res.status(400).json({ error: "Email already in use" });
+        return res.status(400).json({ error: 'Email already in use' });
 
       const profile = new Profile({
         supabaseUid,
@@ -409,10 +409,10 @@ router.post(
       // Update org caller/manager counters
       if (organizationId) {
         const incField =
-          role === "caller"
-            ? "counts.callers"
-            : role === "care_manager"
-              ? "counts.managers"
+          role === 'caller'
+            ? 'counts.callers'
+            : role === 'care_manager'
+              ? 'counts.managers'
               : null;
 
         if (incField) {
@@ -424,27 +424,27 @@ router.post(
 
       await logEvent(
         req.profile.supabaseUid,
-        "profile_created",
-        "profile",
+        'profile_created',
+        'profile',
         profile._id,
         req,
         {
           createdProfileEmail: email,
           createdProfileRole: role,
           organizationId,
-        },
+        }
       );
 
       res
         .status(201)
-        .json({ message: "Profile created successfully", profile });
+        .json({ message: 'Profile created successfully', profile });
     } catch (error) {
-      console.error("Create profile error:", error);
+      console.error('Create profile error:', error);
       res
         .status(500)
-        .json({ error: "Failed to create profile", details: error.message });
+        .json({ error: 'Failed to create profile', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -452,15 +452,15 @@ router.post(
  * Update a staff profile
  */
 router.put(
-  "/:id",
+  '/:id',
   authenticate,
-  authorizeResource("profile", "update", (req) => req.params.id),
-  autoLogAccess("profile", "update"),
+  authorizeResource('profile', 'update', (req) => req.params.id),
+  autoLogAccess('profile', 'update'),
   async (req, res) => {
     try {
       const profile = await Profile.findById(req.params.id);
       if (!profile) {
-        return res.status(404).json({ error: "Profile not found" });
+        return res.status(404).json({ error: 'Profile not found' });
       }
 
       const { role } = req.profile;
@@ -481,44 +481,44 @@ router.put(
       if (metadata !== undefined) updateData.metadata = metadata;
 
       // Only super_admin can change role or org
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         if (isActive !== undefined) updateData.isActive = isActive;
         if (newRole !== undefined) updateData.role = newRole;
         if (organizationId !== undefined)
           updateData.organizationId = organizationId;
-      } else if (["org_admin", "care_manager"].includes(role)) {
+      } else if (['org_admin', 'care_manager'].includes(role)) {
         if (isActive !== undefined) updateData.isActive = isActive;
       }
 
       const updatedProfile = await Profile.findByIdAndUpdate(
         req.params.id,
         updateData,
-        { new: true, runValidators: true },
-      ).populate("organizationId", "name city");
+        { new: true, runValidators: true }
+      ).populate('organizationId', 'name city');
 
       await logEvent(
         req.profile.supabaseUid,
-        "profile_updated",
-        "profile",
+        'profile_updated',
+        'profile',
         profile._id,
         req,
         {
           updatedFields: Object.keys(updateData),
           targetProfile: profile.email,
-        },
+        }
       );
 
       res.json({
-        message: "Profile updated successfully",
+        message: 'Profile updated successfully',
         profile: updatedProfile,
       });
     } catch (error) {
-      console.error("Update profile error:", error);
+      console.error('Update profile error:', error);
       res
         .status(500)
-        .json({ error: "Failed to update profile", details: error.message });
+        .json({ error: 'Failed to update profile', details: error.message });
     }
-  },
+  }
 );
 
 /**
@@ -526,30 +526,30 @@ router.put(
  * Soft-delete (deactivate) a staff profile — admin only
  */
 router.delete(
-  "/:id",
+  '/:id',
   authenticate,
-  authorize("profile", "delete"),
-  autoLogAccess("profile", "delete"),
+  authorize('profile', 'delete'),
+  autoLogAccess('profile', 'delete'),
   async (req, res) => {
     try {
       const profile = await Profile.findById(req.params.id);
       if (!profile) {
-        return res.status(404).json({ error: "Profile not found" });
+        return res.status(404).json({ error: 'Profile not found' });
       }
 
       if (profile._id.equals(req.profile._id)) {
         return res
           .status(400)
-          .json({ error: "Cannot deactivate your own profile" });
+          .json({ error: 'Cannot deactivate your own profile' });
       }
 
       if (
-        profile.role === "super_admin" &&
-        req.profile.role !== "super_admin"
+        profile.role === 'super_admin' &&
+        req.profile.role !== 'super_admin'
       ) {
         return res
           .status(403)
-          .json({ error: "Cannot deactivate super admin profiles" });
+          .json({ error: 'Cannot deactivate super admin profiles' });
       }
 
       profile.isActive = false;
@@ -558,10 +558,10 @@ router.delete(
       // Decrement org counters for staff roles
       if (profile.organizationId) {
         const decField =
-          profile.role === "caller"
-            ? "counts.callers"
-            : profile.role === "care_manager"
-              ? "counts.managers"
+          profile.role === 'caller'
+            ? 'counts.callers'
+            : profile.role === 'care_manager'
+              ? 'counts.managers'
               : null;
 
         if (decField) {
@@ -573,18 +573,18 @@ router.delete(
 
       await logEvent(
         req.profile.supabaseUid,
-        "profile_deleted",
-        "profile",
+        'profile_deleted',
+        'profile',
         profile._id,
         req,
         {
           deletedProfileEmail: profile.email,
           deletedProfileRole: profile.role,
-        },
+        }
       );
 
       res.json({
-        message: "Profile deactivated successfully",
+        message: 'Profile deactivated successfully',
         profile: {
           id: profile._id,
           email: profile.email,
@@ -594,12 +594,12 @@ router.delete(
         },
       });
     } catch (error) {
-      console.error("Delete profile error:", error);
+      console.error('Delete profile error:', error);
       res
         .status(500)
-        .json({ error: "Failed to delete profile", details: error.message });
+        .json({ error: 'Failed to delete profile', details: error.message });
     }
-  },
+  }
 );
 
 module.exports = router;

@@ -51,18 +51,18 @@ function forecastTrajectory(history = [], currentScore = 82) {
   // Weighted slope combining short, medium, and long-term trend
   const weightedSlope = 0.5 * m7 + 0.3 * m14 + 0.2 * m30;
 
-  let trajectory = "stable";
+  let trajectory = 'stable';
   if (weightedSlope > 0.25) {
-    trajectory = "positive";
+    trajectory = 'positive';
   } else if (weightedSlope < -0.25) {
-    trajectory = "negative";
+    trajectory = 'negative';
   }
 
   // Project 14 days out: if stable, project no change from current score
-  const projectionDelta = trajectory === "stable" ? 0 : weightedSlope * 14;
+  const projectionDelta = trajectory === 'stable' ? 0 : weightedSlope * 14;
   const projectedScore = Math.min(
     100,
-    Math.max(0, Math.round(currentScore + projectionDelta)),
+    Math.max(0, Math.round(currentScore + projectionDelta))
   );
 
   return {

@@ -1,25 +1,25 @@
-const moment = require("moment-timezone");
-const Patient = require("../models/Patient");
-const CompanionAiInsight = require("../models/CompanionAiInsight");
-const CompanionAiInsightHistory = require("../models/CompanionAiInsightHistory");
-const AIVitalPrediction = require("../models/AIVitalPrediction");
-const VitalLog = require("../models/VitalLog");
-const MedicineLog = require("../models/MedicineLog");
-const PatientHealthStateHistory = require("../models/PatientHealthStateHistory");
-const { buildPatientContext } = require("./aiContextService");
-const logger = require("../utils/logger");
-const axios = require("axios");
+const moment = require('moment-timezone');
+const Patient = require('../models/Patient');
+const CompanionAiInsight = require('../models/CompanionAiInsight');
+const CompanionAiInsightHistory = require('../models/CompanionAiInsightHistory');
+const AIVitalPrediction = require('../models/AIVitalPrediction');
+const VitalLog = require('../models/VitalLog');
+const MedicineLog = require('../models/MedicineLog');
+const PatientHealthStateHistory = require('../models/PatientHealthStateHistory');
+const { buildPatientContext } = require('./aiContextService');
+const logger = require('../utils/logger');
+const axios = require('axios');
 
 // Import Predictive Intelligence Services
-const { calculateConsistency } = require("./adherenceConsistencyService");
-const { calculateRiskTrends } = require("./riskTrendService");
-const { detectRecovery } = require("./recoveryDetectionService");
-const { forecastTrajectory } = require("./trajectoryForecastService");
-const { calculateMomentum } = require("./healthMomentumService");
+const { calculateConsistency } = require('./adherenceConsistencyService');
+const { calculateRiskTrends } = require('./riskTrendService');
+const { detectRecovery } = require('./recoveryDetectionService');
+const { forecastTrajectory } = require('./trajectoryForecastService');
+const { calculateMomentum } = require('./healthMomentumService');
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 /**
  * Enqueues a companion insights generation job to BullMQ.
@@ -28,27 +28,27 @@ const GROQ_MODEL = "llama-3.3-70b-versatile";
  */
 async function enqueueCompanionInsights(patientId, delay = 120000) {
   if (
-    process.env.NODE_ENV !== "test" &&
-    process.env.USE_BULLMQ_WORKERS !== "true"
+    process.env.NODE_ENV !== 'test' &&
+    process.env.USE_BULLMQ_WORKERS !== 'true'
   ) {
     logger.info(
-      `[CompanionAIService] Running in-process background companion-insights generation for patient ${patientId} (delay: ${delay}ms)`,
+      `[CompanionAIService] Running in-process background companion-insights generation for patient ${patientId} (delay: ${delay}ms)`
     );
     setTimeout(() => {
       generateAndCacheInsights(patientId).catch((err) => {
         logger.error(
-          "[CompanionAIService] In-process background insights generation failed",
-          { error: err.message, patientId },
+          '[CompanionAIService] In-process background insights generation failed',
+          { error: err.message, patientId }
         );
       });
     }, delay);
     return;
   }
   try {
-    const { companionInsightsQueue, PRIORITY } = require("../jobs/jobQueues");
+    const { companionInsightsQueue, PRIORITY } = require('../jobs/jobQueues');
     if (!companionInsightsQueue) {
       logger.warn(
-        "[CompanionAIService] companionInsightsQueue not initialized. Executing synchronously.",
+        '[CompanionAIService] companionInsightsQueue not initialized. Executing synchronously.'
       );
       await generateAndCacheInsights(patientId);
       return;
@@ -61,27 +61,27 @@ async function enqueueCompanionInsights(patientId, delay = 120000) {
     if (existingJob) {
       await existingJob.remove();
       logger.info(
-        `[CompanionAIService] Removed existing delayed job for patient ${patientId}`,
+        `[CompanionAIService] Removed existing delayed job for patient ${patientId}`
       );
     }
 
     // Add fresh job with a custom delay
     await companionInsightsQueue.add(
-      "generate",
+      'generate',
       { patientId },
       {
         jobId,
         delay,
         priority: PRIORITY ? PRIORITY.LOW : 25,
-      },
+      }
     );
     logger.info(
-      `[CompanionAIService] Enqueued debounced companion-insights generation for patient ${patientId} (2-minute delay)`,
+      `[CompanionAIService] Enqueued debounced companion-insights generation for patient ${patientId} (2-minute delay)`
     );
   } catch (err) {
     logger.warn(
-      "[CompanionAIService] Queue unavailable, falling back to synchronous execution",
-      { error: err.message, patientId },
+      '[CompanionAIService] Queue unavailable, falling back to synchronous execution',
+      { error: err.message, patientId }
     );
     await generateAndCacheInsights(patientId);
   }
@@ -97,24 +97,24 @@ async function enqueueCompanionInsights(patientId, delay = 120000) {
 async function generateAndCacheInsights(
   patientId,
   isManualRefresh = false,
-  skipLlmCall = false,
+  skipLlmCall = false
 ) {
   try {
     const patient = await Patient.findById(patientId);
     if (!patient) return null;
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
     const nowLocal = moment().tz(timezone);
-    const todayStr = nowLocal.format("YYYY-MM-DD");
+    const todayStr = nowLocal.format('YYYY-MM-DD');
     const fourteenDaysAgo = nowLocal
       .clone()
-      .subtract(14, "days")
-      .startOf("day")
+      .subtract(14, 'days')
+      .startOf('day')
       .toDate();
     const thirtyDaysAgo = nowLocal
       .clone()
-      .subtract(30, "days")
-      .startOf("day")
+      .subtract(30, 'days')
+      .startOf('day')
       .toDate();
 
     // 1. Fetch Patient Context & Predictions in parallel
@@ -134,7 +134,7 @@ async function generateAndCacheInsights(
       VitalLog.exists({
         patient_id: patientId,
         date: {
-          $gte: nowLocal.clone().subtract(3, "days").startOf("day").toDate(),
+          $gte: nowLocal.clone().subtract(3, 'days').startOf('day').toDate(),
         },
       }),
       PatientHealthStateHistory.find({ patient_id: patientId })
@@ -163,17 +163,17 @@ async function generateAndCacheInsights(
     if (todayStatus && todayStatus.total_scheduled > 0) {
       const loggedSlotsCount = todayStatus.taken + todayStatus.missed; // taken or missed is logged
       medsScore = Math.round(
-        (loggedSlotsCount / todayStatus.total_scheduled) * 35,
+        (loggedSlotsCount / todayStatus.total_scheduled) * 35
       );
     }
 
     // Vitals logging score (Max 35)
     let vitalsScore = 0;
     const lastVital = vitalLogs30d.sort(
-      (a, b) => new Date(b.date) - new Date(a.date),
+      (a, b) => new Date(b.date) - new Date(a.date)
     )[0];
     if (lastVital) {
-      const hoursSinceVital = moment().diff(moment(lastVital.date), "hours");
+      const hoursSinceVital = moment().diff(moment(lastVital.date), 'hours');
       if (hoursSinceVital <= 24) vitalsScore = 35;
       else if (hoursSinceVital <= 48) vitalsScore = 20;
       else if (hoursSinceVital <= 72) vitalsScore = 10;
@@ -181,23 +181,23 @@ async function generateAndCacheInsights(
 
     // Wearable connection score (Max 15)
     const wearableScore =
-      patient.lifestyle?.device_sync_status !== "disconnected" ? 15 : 0;
+      patient.lifestyle?.device_sync_status !== 'disconnected' ? 15 : 0;
 
     // Mood score (Max 15)
     let moodScore = 0;
     const moodLogsSorted = (patient.moodHistory || []).sort(
-      (a, b) => new Date(b.date) - new Date(a.date),
+      (a, b) => new Date(b.date) - new Date(a.date)
     );
     const lastMoodLog = moodLogsSorted[0];
     if (lastMoodLog) {
-      const hoursSinceMood = moment().diff(moment(lastMoodLog.date), "hours");
+      const hoursSinceMood = moment().diff(moment(lastMoodLog.date), 'hours');
       if (hoursSinceMood <= 24) moodScore = 15;
       else if (hoursSinceMood <= 48) moodScore = 7;
     }
 
     const visibilityScore = medsScore + vitalsScore + wearableScore + moodScore;
     const visibilityLabel =
-      visibilityScore >= 80 ? "High" : visibilityScore >= 50 ? "Medium" : "Low";
+      visibilityScore >= 80 ? 'High' : visibilityScore >= 50 ? 'Medium' : 'Low';
     const visibilityBreakdown = {
       medications: medsScore,
       vitals: vitalsScore,
@@ -210,11 +210,11 @@ async function generateAndCacheInsights(
     if (vitalsCount14d >= 10) confidenceScore = 95;
     else if (vitalsCount14d >= 7) confidenceScore = 75;
     const confidenceLabel =
-      confidenceScore >= 90 ? "High" : confidenceScore >= 70 ? "Medium" : "Low";
+      confidenceScore >= 90 ? 'High' : confidenceScore >= 70 ? 'Medium' : 'Low';
 
     // 5. Run Deterministic Risk Engine & Compile Factors
     const riskFactors = [];
-    let riskLevel = "low";
+    let riskLevel = 'low';
     let riskScore = 15; // Baseline low risk score
 
     const todayAdherence =
@@ -226,10 +226,10 @@ async function generateAndCacheInsights(
       ? 100
       : weeklyAdherenceRaw;
     const vitalStatus =
-      patientContext.patient_health_state?.vitals?.status || "stable";
-    const predictedStatus = latestPrediction?.health_label || "Normal";
+      patientContext.patient_health_state?.vitals?.status || 'stable';
+    const predictedStatus = latestPrediction?.health_label || 'Normal';
     const moodTrend =
-      patientContext.patient_health_state?.mood?.trend || "stable";
+      patientContext.patient_health_state?.mood?.trend || 'stable';
 
     // Cumulative risk score calculation (finer-grained variance)
     let computedAdherenceLoss =
@@ -237,15 +237,15 @@ async function generateAndCacheInsights(
       Math.max(0, (100 - weeklyAdherence) * 0.2);
     riskScore += computedAdherenceLoss;
 
-    if (vitalStatus === "critical") riskScore += 50;
-    else if (vitalStatus === "watch") riskScore += 25;
+    if (vitalStatus === 'critical') riskScore += 50;
+    else if (vitalStatus === 'watch') riskScore += 25;
 
-    if (predictedStatus === "Critical") riskScore += 45;
-    else if (predictedStatus === "Warning") riskScore += 20;
+    if (predictedStatus === 'Critical') riskScore += 45;
+    else if (predictedStatus === 'Warning') riskScore += 20;
 
     if (!recentVitals3dExist) riskScore += 25;
-    if (moodTrend === "declining") riskScore += 15;
-    if (lastMoodLog?.value === "sad" || lastMoodLog?.mood === "sad")
+    if (moodTrend === 'declining') riskScore += 15;
+    if (lastMoodLog?.value === 'sad' || lastMoodLog?.mood === 'sad')
       riskScore += 10;
 
     // Flags check to enforce mapping category floors
@@ -256,22 +256,22 @@ async function generateAndCacheInsights(
     if (todayAdherence < 60) {
       hasHighRiskFlags = true;
       riskFactors.push(
-        `Today's medication adherence is critical (${todayAdherence}%)`,
+        `Today's medication adherence is critical (${todayAdherence}%)`
       );
     }
     if (weeklyAdherence < 60) {
       hasHighRiskFlags = true;
       riskFactors.push(
-        `Weekly medication compliance is critical (${weeklyAdherence}%)`,
+        `Weekly medication compliance is critical (${weeklyAdherence}%)`
       );
     }
-    if (vitalStatus === "critical") {
+    if (vitalStatus === 'critical') {
       hasHighRiskFlags = true;
-      riskFactors.push("Latest vital log indicates critical biometrics");
+      riskFactors.push('Latest vital log indicates critical biometrics');
     }
-    if (predictedStatus === "Critical") {
+    if (predictedStatus === 'Critical') {
       hasHighRiskFlags = true;
-      riskFactors.push("AI vital forecast predicts critical health risk");
+      riskFactors.push('AI vital forecast predicts critical health risk');
     }
 
     // Medium Risk Rules
@@ -279,7 +279,7 @@ async function generateAndCacheInsights(
       hasMediumRiskFlags = true;
       if (!hasHighRiskFlags) {
         riskFactors.push(
-          `Today's medication adherence is below target (${todayAdherence}%)`,
+          `Today's medication adherence is below target (${todayAdherence}%)`
         );
       }
     }
@@ -287,34 +287,34 @@ async function generateAndCacheInsights(
       hasMediumRiskFlags = true;
       if (!hasHighRiskFlags) {
         riskFactors.push(
-          `Weekly medication compliance is below target (${weeklyAdherence}%)`,
+          `Weekly medication compliance is below target (${weeklyAdherence}%)`
         );
       }
     }
-    if (vitalStatus === "watch") {
+    if (vitalStatus === 'watch') {
       hasMediumRiskFlags = true;
       if (!hasHighRiskFlags) {
         riskFactors.push(
-          "Latest vital log indicates moderate alert (watch status)",
+          'Latest vital log indicates moderate alert (watch status)'
         );
       }
     }
-    if (predictedStatus === "Warning") {
+    if (predictedStatus === 'Warning') {
       hasMediumRiskFlags = true;
       if (!hasHighRiskFlags) {
-        riskFactors.push("AI vital forecast predicts warning trend");
+        riskFactors.push('AI vital forecast predicts warning trend');
       }
     }
     if (!recentVitals3dExist) {
       hasMediumRiskFlags = true;
       if (!hasHighRiskFlags) {
-        riskFactors.push("No blood pressure or heart rate sync in over 3 days");
+        riskFactors.push('No blood pressure or heart rate sync in over 3 days');
       }
     }
-    if (moodTrend === "declining") {
+    if (moodTrend === 'declining') {
       hasMediumRiskFlags = true;
       if (!hasHighRiskFlags) {
-        riskFactors.push("Mood tracking shows declining emotional check-ins");
+        riskFactors.push('Mood tracking shows declining emotional check-ins');
       }
     }
 
@@ -330,25 +330,25 @@ async function generateAndCacheInsights(
 
     // Final level mapping
     if (riskScore >= 70) {
-      riskLevel = "high";
+      riskLevel = 'high';
     } else if (riskScore >= 40) {
-      riskLevel = "medium";
+      riskLevel = 'medium';
     } else {
-      riskLevel = "low";
+      riskLevel = 'low';
     }
 
     // 5.1 Calculate Risk Breakdown proportional components (summing up to riskScore)
     const adherenceLoss = Math.round(computedAdherenceLoss);
     const vitalsLoss =
-      (vitalStatus === "critical" ? 50 : vitalStatus === "watch" ? 25 : 0) +
-      (predictedStatus === "Critical"
+      (vitalStatus === 'critical' ? 50 : vitalStatus === 'watch' ? 25 : 0) +
+      (predictedStatus === 'Critical'
         ? 45
-        : predictedStatus === "Warning"
+        : predictedStatus === 'Warning'
           ? 20
           : 0);
     const moodLoss =
-      (moodTrend === "declining" ? 15 : 0) +
-      (lastMoodLog?.value === "sad" || lastMoodLog?.mood === "sad" ? 10 : 0);
+      (moodTrend === 'declining' ? 15 : 0) +
+      (lastMoodLog?.value === 'sad' || lastMoodLog?.mood === 'sad' ? 10 : 0);
     const visibilityLoss = !recentVitals3dExist ? 25 : 0;
 
     const sumComponents =
@@ -392,16 +392,16 @@ async function generateAndCacheInsights(
 
     if (existingInsight && existingInsight.risk_level !== riskLevel) {
       try {
-        const summary = `${patient.name.split(" ")[0]}'s risk status changed from ${(existingInsight.risk_level || "low").toUpperCase()} to ${riskLevel.toUpperCase()}`;
+        const summary = `${patient.name.split(' ')[0]}'s risk status changed from ${(existingInsight.risk_level || 'low').toUpperCase()} to ${riskLevel.toUpperCase()}`;
         const factors =
           riskFactors.length > 0
             ? riskFactors
-            : ["All tracked vitals and medication adherence are stable."];
-        const RiskTransition = require("../models/RiskTransition");
+            : ['All tracked vitals and medication adherence are stable.'];
+        const RiskTransition = require('../models/RiskTransition');
         await RiskTransition.create({
           patient_id: patientId,
           date: new Date(),
-          from: existingInsight.risk_level || "low",
+          from: existingInsight.risk_level || 'low',
           to: riskLevel,
           reason: {
             summary,
@@ -409,10 +409,10 @@ async function generateAndCacheInsights(
           },
         });
         logger.info(
-          `[CompanionAIService] Logged risk transition for patient ${patientId}: ${existingInsight.risk_level} -> ${riskLevel}`,
+          `[CompanionAIService] Logged risk transition for patient ${patientId}: ${existingInsight.risk_level} -> ${riskLevel}`
         );
       } catch (err) {
-        logger.error("[CompanionAIService] Failed to log risk transition", {
+        logger.error('[CompanionAIService] Failed to log risk transition', {
           error: err.message,
           patientId,
         });
@@ -420,9 +420,9 @@ async function generateAndCacheInsights(
     }
 
     let riskTrend = {
-      previous: "low",
+      previous: 'low',
       current: riskLevel,
-      direction: "stable",
+      direction: 'stable',
     };
     let trendDelta = {
       risk_score: 0,
@@ -431,14 +431,14 @@ async function generateAndCacheInsights(
     };
     if (existingInsight) {
       const prev = existingInsight.risk_level;
-      let direction = "stable";
+      let direction = 'stable';
 
       const levelScores = { low: 1, medium: 2, high: 3 };
       const prevScore = levelScores[prev] || 1;
       const currScore = levelScores[riskLevel] || 1;
 
-      if (currScore < prevScore) direction = "improving";
-      else if (currScore > prevScore) direction = "worsening";
+      if (currScore < prevScore) direction = 'improving';
+      else if (currScore > prevScore) direction = 'worsening';
 
       riskTrend = { previous: prev, current: riskLevel, direction };
 
@@ -460,14 +460,14 @@ async function generateAndCacheInsights(
     const logsByDate = {};
     medLogs30d.forEach((log) => {
       if (log.date) {
-        const dKey = moment(log.date).format("YYYY-MM-DD");
+        const dKey = moment(log.date).format('YYYY-MM-DD');
         logsByDate[dKey] = logsByDate[dKey] || {
           meds: [],
           vitals: [],
           mood: null,
         };
         const activeMeds = (log.medicines || []).filter(
-          (m) => m.is_active !== false,
+          (m) => m.is_active !== false
         );
         logsByDate[dKey].meds = activeMeds;
       }
@@ -475,7 +475,7 @@ async function generateAndCacheInsights(
 
     vitalLogs30d.forEach((log) => {
       if (log.date) {
-        const dKey = moment(log.date).format("YYYY-MM-DD");
+        const dKey = moment(log.date).format('YYYY-MM-DD');
         logsByDate[dKey] = logsByDate[dKey] || {
           meds: [],
           vitals: [],
@@ -487,7 +487,7 @@ async function generateAndCacheInsights(
 
     (patient.moodHistory || []).forEach((log) => {
       if (log.date) {
-        const dKey = moment(log.date).format("YYYY-MM-DD");
+        const dKey = moment(log.date).format('YYYY-MM-DD');
         logsByDate[dKey] = logsByDate[dKey] || {
           meds: [],
           vitals: [],
@@ -499,7 +499,7 @@ async function generateAndCacheInsights(
 
     // Loop backwards over past 30 days
     for (let i = 0; i < 30; i++) {
-      const dStr = nowLocal.clone().subtract(i, "days").format("YYYY-MM-DD");
+      const dStr = nowLocal.clone().subtract(i, 'days').format('YYYY-MM-DD');
       const dayData = logsByDate[dStr] || { meds: [], vitals: [], mood: null };
 
       // Assess day stability:
@@ -533,7 +533,7 @@ async function generateAndCacheInsights(
       }
 
       // 3. Mood: cannot be sad
-      if (dayStable && dayData.mood === "sad") {
+      if (dayStable && dayData.mood === 'sad') {
         dayStable = false;
       }
 
@@ -562,56 +562,56 @@ async function generateAndCacheInsights(
       unstable_since: currentlyStable
         ? null
         : lastStableAt
-          ? moment(lastStableAt).add(1, "day").toDate()
+          ? moment(lastStableAt).add(1, 'day').toDate()
           : thirtyDaysAgo,
     };
 
     // 8. Compile Priority Actions Queue with Severity
     const priorityActions = [];
 
-    if (vitalStatus === "critical" || predictedStatus === "Critical") {
+    if (vitalStatus === 'critical' || predictedStatus === 'Critical') {
       priorityActions.push({
-        action_type: "critical_vital",
+        action_type: 'critical_vital',
         priority: 1,
-        severity: "critical",
-        message: "Vitals trend indicates critical health risk",
+        severity: 'critical',
+        message: 'Vitals trend indicates critical health risk',
       });
     }
 
     if (todayAdherence < 60 || weeklyAdherence < 60) {
       priorityActions.push({
-        action_type: "medication",
+        action_type: 'medication',
         priority: 1,
-        severity: "critical",
-        message: "Patient compliance dropped below critical threshold (60%)",
+        severity: 'critical',
+        message: 'Patient compliance dropped below critical threshold (60%)',
       });
     } else if (todayAdherence < 75 || weeklyAdherence < 75) {
       priorityActions.push({
-        action_type: "medication",
+        action_type: 'medication',
         priority: 2,
-        severity: "warning",
-        message: "Patient medication compliance is below target (75%)",
+        severity: 'warning',
+        message: 'Patient medication compliance is below target (75%)',
       });
     }
 
     if (!recentVitals3dExist) {
       const daysSinceVital = lastVital
-        ? moment().diff(moment(lastVital.date), "days")
+        ? moment().diff(moment(lastVital.date), 'days')
         : 30;
       priorityActions.push({
-        action_type: "vital_sync",
+        action_type: 'vital_sync',
         priority: 2,
-        severity: "warning",
+        severity: 'warning',
         message: `No blood pressure readings synced in ${daysSinceVital} days`,
       });
     }
 
-    if (moodTrend === "declining" || lastMoodLog?.value === "sad") {
+    if (moodTrend === 'declining' || lastMoodLog?.value === 'sad') {
       priorityActions.push({
-        action_type: "mood_check",
+        action_type: 'mood_check',
         priority: 3,
-        severity: "info",
-        message: "Mood tracking shows declining emotional check-ins",
+        severity: 'info',
+        message: 'Mood tracking shows declining emotional check-ins',
       });
     }
 
@@ -619,10 +619,10 @@ async function generateAndCacheInsights(
     priorityActions.sort((a, b) => a.priority - b.priority);
 
     // 9. Generate AI Caregiver Briefing Summary & Recommendations
-    let summaryText = "";
+    let summaryText = '';
     let recommendations = [];
     let generationMeta = {
-      provider: "groq",
+      provider: 'groq',
       model: GROQ_MODEL,
       generated_with_ai: false,
       fallback_used: true,
@@ -645,7 +645,7 @@ async function generateAndCacheInsights(
       if (cacheAgeMs < 2 * 60 * 60 * 1000 && sameRisk && sameActions) {
         shouldReuseLlmCache = true;
         logger.info(
-          `[CompanionAIService] Reusing cached LLM briefing for patient ${patientId} (Cache age: ${Math.round(cacheAgeMs / 60000)}m)`,
+          `[CompanionAIService] Reusing cached LLM briefing for patient ${patientId} (Cache age: ${Math.round(cacheAgeMs / 60000)}m)`
         );
       }
     }
@@ -665,10 +665,10 @@ You are generating a caregiver briefing and specific recommendations for ${patie
 Here is the deterministic data and calculated metrics:
 - Patient Name: ${patient.name}
 - Risk Level: ${riskLevel.toUpperCase()}
-- Deterministic Risk Factors: ${riskFactors.join("; ") || "All metrics stable."}
+- Deterministic Risk Factors: ${riskFactors.join('; ') || 'All metrics stable.'}
 - Data Visibility: ${visibilityScore}% (${visibilityLabel})
 - Confidence Level: ${confidenceLabel} (Vitals sync count: ${vitalsCount14d})
-- Primary Action Items: ${priorityActions.map((a) => a.message).join("; ") || "No critical actions."}
+- Primary Action Items: ${priorityActions.map((a) => a.message).join('; ') || 'No critical actions.'}
 - Recent Medication Adherence: Today ${todayAdherence}%, Weekly ${weeklyAdherence}%
 
 Instructions:
@@ -687,16 +687,16 @@ JSON Schema:
           GROQ_URL,
           {
             model: GROQ_MODEL,
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" },
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' },
           },
           {
             headers: {
               Authorization: `Bearer ${GROQ_API_KEY}`,
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
             timeout: 25000,
-          },
+          }
         );
 
         const content = response.data?.choices?.[0]?.message?.content?.trim();
@@ -710,31 +710,31 @@ JSON Schema:
         }
       } catch (err) {
         logger.error(
-          "[CompanionAIService] Groq API call failed, using rule-based fallback.",
-          { error: err.message },
+          '[CompanionAIService] Groq API call failed, using rule-based fallback.',
+          { error: err.message }
         );
       }
     }
 
     // Apply local rule-based fallback if LLM failed or API key was missing
     if (!summaryText || recommendations.length === 0) {
-      if (riskLevel === "high") {
-        summaryText = `${patient.name} is currently flagged as High Risk due to: ${riskFactors.join(", ")}. Immediate care coordinator follow-up is advised.`;
+      if (riskLevel === 'high') {
+        summaryText = `${patient.name} is currently flagged as High Risk due to: ${riskFactors.join(', ')}. Immediate care coordinator follow-up is advised.`;
         recommendations = [
-          "Send an urgent medication reminder nudge to their device",
-          `Contact ${patient.name.split(" ")[0]} directly to check on their wellness`,
+          'Send an urgent medication reminder nudge to their device',
+          `Contact ${patient.name.split(' ')[0]} directly to check on their wellness`,
         ];
-      } else if (riskLevel === "medium") {
-        summaryText = `${patient.name}'s risk level is moderate. Main issues: ${riskFactors.join(", ")}. Monitor their tracking details closely.`;
+      } else if (riskLevel === 'medium') {
+        summaryText = `${patient.name}'s risk level is moderate. Main issues: ${riskFactors.join(', ')}. Monitor their tracking details closely.`;
         recommendations = [
           `Verify medication adherence before their evening doses`,
-          "Request a blood pressure log sync to improve data visibility and forecast quality",
+          'Request a blood pressure log sync to improve data visibility and forecast quality',
         ];
       } else {
         summaryText = `${patient.name}'s vitals and medication adherence are currently stable. Overall caregiver visibility is ${visibilityLabel}.`;
         recommendations = [
-          "Keep encouraging their daily medication logging routine",
-          `Schedule a routine care check-in call with ${patient.name.split(" ")[0]}`,
+          'Keep encouraging their daily medication logging routine',
+          `Schedule a routine care check-in call with ${patient.name.split(' ')[0]}`,
         ];
       }
     }
@@ -743,23 +743,23 @@ JSON Schema:
     const consistencyMetrics = calculateConsistency(healthHistorySnapshots);
     const riskTrendMetrics = calculateRiskTrends(
       healthHistorySnapshots,
-      riskScore,
+      riskScore
     );
     const recoveryMetrics = detectRecovery(
       healthHistorySnapshots,
       riskScore,
       priorityActions,
-      visibilityScore,
+      visibilityScore
     );
     const trajectoryMetrics = forecastTrajectory(
       healthHistorySnapshots,
-      patientContext.patient_health_state?.score ?? 82,
+      patientContext.patient_health_state?.score ?? 82
     );
     const momentumMetrics = calculateMomentum(healthHistorySnapshots, {
       score: patientContext.patient_health_state?.score ?? 82,
       adherence: todayAdherence,
       streak: patientContext.patient_health_state?.adherence?.streak ?? 0,
-      mood: lastMoodLog?.value || lastMoodLog?.mood || "good",
+      mood: lastMoodLog?.value || lastMoodLog?.mood || 'good',
     });
 
     const predictiveHealth = {
@@ -813,11 +813,11 @@ JSON Schema:
         generated_at: new Date(),
         expires_at: expiresAt,
       },
-      { upsert: true, new: true },
+      { upsert: true, new: true }
     );
 
     logger.info(
-      `[CompanionAIService] Saved companion AI insights for patient ${patientId} (Risk: ${riskLevel}, Score: ${riskScore}, Visibility: ${visibilityScore}%)`,
+      `[CompanionAIService] Saved companion AI insights for patient ${patientId} (Risk: ${riskLevel}, Score: ${riskScore}, Visibility: ${visibilityScore}%)`
     );
 
     // 11. Save historical snapshot (60-day expiration)
@@ -835,18 +835,18 @@ JSON Schema:
         expires_at: historyExpiresAt,
       });
       logger.info(
-        `[CompanionAIService] Saved companion AI historical snapshot for patient ${patientId}`,
+        `[CompanionAIService] Saved companion AI historical snapshot for patient ${patientId}`
       );
     } catch (histErr) {
       logger.error(
-        "[CompanionAIService] Failed to save historical companion snapshot",
-        { error: histErr.message, patientId },
+        '[CompanionAIService] Failed to save historical companion snapshot',
+        { error: histErr.message, patientId }
       );
     }
 
     return insightDoc;
   } catch (error) {
-    logger.error("[CompanionAIService] Insight generation process crashed", {
+    logger.error('[CompanionAIService] Insight generation process crashed', {
       error: error.message,
       patientId,
     });
@@ -879,12 +879,12 @@ async function getOrGenerateInsights(patientId, forceRefresh = false) {
   // If cached is stale but exists, return cached immediately to prevent blocking, and trigger background refresh (delayed 5s)
   if (cached) {
     logger.info(
-      `[CompanionAIService] Cached insights found (stale). Returning immediately and enqueuing background refresh for patient ${patientId}`,
+      `[CompanionAIService] Cached insights found (stale). Returning immediately and enqueuing background refresh for patient ${patientId}`
     );
     enqueueCompanionInsights(patientId, 5000).catch((err) => {
       logger.warn(
-        "[CompanionAIService] Failed to enqueue background insights update:",
-        err.message,
+        '[CompanionAIService] Failed to enqueue background insights update:',
+        err.message
       );
     });
     return cached;
@@ -892,19 +892,19 @@ async function getOrGenerateInsights(patientId, forceRefresh = false) {
 
   // If no cache exists at all, generate rule-based fallback instantly (non-blocking on LLM) and enqueue background Groq LLM immediately
   logger.info(
-    `[CompanionAIService] No insights cache. Generating instant rule-based fallback and enqueuing background LLM generation for patient ${patientId}`,
+    `[CompanionAIService] No insights cache. Generating instant rule-based fallback and enqueuing background LLM generation for patient ${patientId}`
   );
 
   const fallbackInsight = await generateAndCacheInsights(
     patientId,
     false,
-    true,
+    true
   );
 
   enqueueCompanionInsights(patientId, 0).catch((err) => {
     logger.warn(
-      "[CompanionAIService] Failed to enqueue background insights generation:",
-      err.message,
+      '[CompanionAIService] Failed to enqueue background insights generation:',
+      err.message
     );
   });
 

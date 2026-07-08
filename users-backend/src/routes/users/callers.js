@@ -1,9 +1,9 @@
-const express = require("express");
-const Caller = require("../../models/Caller");
-const Patient = require("../../models/Patient");
-const CallLog = require("../../models/CallLog");
-const Alert = require("../../models/Alert");
-const { authenticate } = require("../../middleware/authenticate");
+const express = require('express');
+const Caller = require('../../models/Caller');
+const Patient = require('../../models/Patient');
+const CallLog = require('../../models/CallLog');
+const Alert = require('../../models/Alert');
+const { authenticate } = require('../../middleware/authenticate');
 
 const router = express.Router();
 
@@ -16,12 +16,12 @@ router.use(async (req, res, next) => {
     try {
       await Caller.updateOne(
         { supabase_uid: req.user.id },
-        { $set: { last_active_at: new Date() } },
+        { $set: { last_active_at: new Date() } }
       );
     } catch (e) {
       console.error(
-        "Failed to update caller active timestamp (non-blocking):",
-        e,
+        'Failed to update caller active timestamp (non-blocking):',
+        e
       );
     }
   }
@@ -32,16 +32,16 @@ router.use(async (req, res, next) => {
  * GET /api/users/callers/me
  * Caller reads their own profile
  */
-router.get("/me", async (req, res) => {
+router.get('/me', async (req, res) => {
   try {
     const caller = await Caller.findOne({ supabase_uid: req.user.id });
     if (!caller) {
-      return res.status(404).json({ error: "Caller profile not found" });
+      return res.status(404).json({ error: 'Caller profile not found' });
     }
     res.json({ caller });
   } catch (error) {
-    console.error("Get caller profile error:", error);
-    res.status(500).json({ error: "Failed to get caller profile" });
+    console.error('Get caller profile error:', error);
+    res.status(500).json({ error: 'Failed to get caller profile' });
   }
 });
 
@@ -49,17 +49,17 @@ router.get("/me", async (req, res) => {
  * GET /api/users/callers/me/patients/today
  * Caller gets today's patient call list
  */
-router.get("/me/patients/today", authenticate, async (req, res) => {
+router.get('/me/patients/today', authenticate, async (req, res) => {
   try {
     const caller = await Caller.findOne({ supabase_uid: req.user.id });
     if (!caller) {
-      return res.status(404).json({ error: "Caller profile not found" });
+      return res.status(404).json({ error: 'Caller profile not found' });
     }
 
     // Get all assigned patients
     const patients = await Patient.find({
       _id: { $in: caller.patient_ids },
-    }).select("name email city conditions medications emergency_contact");
+    }).select('name email city conditions medications emergency_contact');
 
     // Get today's call logs
     const today = new Date();
@@ -75,11 +75,11 @@ router.get("/me/patients/today", authenticate, async (req, res) => {
     // Build patient list with call status
     const patientList = patients.map((patient) => {
       const callLog = todayCalls.find(
-        (c) => c.patientId.toString() === patient._id.toString(),
+        (c) => c.patientId.toString() === patient._id.toString()
       );
       return {
         ...patient.toJSON(),
-        call_status: callLog ? callLog.status : "pending",
+        call_status: callLog ? callLog.status : 'pending',
         call_log_id: callLog ? callLog._id : null,
       };
     });
@@ -95,11 +95,11 @@ router.get("/me/patients/today", authenticate, async (req, res) => {
     };
     patientList.sort(
       (a, b) =>
-        (statusOrder[a.call_status] || 0) - (statusOrder[b.call_status] || 0),
+        (statusOrder[a.call_status] || 0) - (statusOrder[b.call_status] || 0)
     );
 
     const calledCount = todayCalls.filter(
-      (c) => c.status === "completed",
+      (c) => c.status === 'completed'
     ).length;
 
     res.json({
@@ -112,7 +112,7 @@ router.get("/me/patients/today", authenticate, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get today patients error:", error);
+    console.error('Get today patients error:', error);
     res.status(500).json({ error: "Failed to get today's patient list" });
   }
 });
@@ -121,7 +121,7 @@ router.get("/me/patients/today", authenticate, async (req, res) => {
  * POST /api/users/callers/me/calls
  * Caller logs a call — mark as called, can't reach, or refused
  */
-router.post("/me/calls", authenticate, async (req, res) => {
+router.post('/me/calls', authenticate, async (req, res) => {
   try {
     const {
       patient_id,
@@ -133,12 +133,12 @@ router.post("/me/calls", authenticate, async (req, res) => {
 
     const caller = await Caller.findOne({ supabase_uid: req.user.id });
     if (!caller) {
-      return res.status(404).json({ error: "Caller profile not found" });
+      return res.status(404).json({ error: 'Caller profile not found' });
     }
 
     // Verify patient is assigned to this caller
     if (!caller.patient_ids.includes(patient_id)) {
-      return res.status(403).json({ error: "Patient not assigned to you" });
+      return res.status(403).json({ error: 'Patient not assigned to you' });
     }
 
     const callLog = new CallLog({
@@ -149,24 +149,24 @@ router.post("/me/calls", authenticate, async (req, res) => {
       duration: call_duration_seconds || 0,
       status,
       medicationConfirmations: medicine_adherence ? [medicine_adherence] : [],
-      notes: caller_notes || "",
+      notes: caller_notes || '',
     });
     await callLog.save();
 
     // Auto-escalation: if 3 consecutive misses today
-    if (status === "missed") {
+    if (status === 'missed') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const missCount = await CallLog.countDocuments({
         patientId: patient_id,
         caretakerId: caller._id,
-        status: "missed",
+        status: 'missed',
         scheduledTime: { $gte: today },
       });
 
       if (missCount >= 3) {
         const alert = new Alert({
-          type: "patient_unreachable_3attempts",
+          type: 'patient_unreachable_3attempts',
           patient_id,
           caller_id: caller._id,
           manager_id: caller.manager_id,
@@ -178,18 +178,18 @@ router.post("/me/calls", authenticate, async (req, res) => {
     }
 
     // Auto-escalation: medicine refusal
-    if (status === "refused") {
+    if (status === 'refused') {
       const threeDaysAgo = new Date();
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
       const refusalCount = await CallLog.countDocuments({
         patientId: patient_id,
-        status: "refused",
+        status: 'refused',
         scheduledTime: { $gte: threeDaysAgo },
       });
 
       if (refusalCount >= 3) {
         const alert = new Alert({
-          type: "medicine_refusal",
+          type: 'medicine_refusal',
           patient_id,
           caller_id: caller._id,
           manager_id: caller.manager_id,
@@ -202,32 +202,32 @@ router.post("/me/calls", authenticate, async (req, res) => {
 
     // Trigger Push Notifications to the Patient
     const patientTarget = await Patient.findById(patient_id).select(
-      "expo_push_token push_notifications_enabled",
+      'expo_push_token push_notifications_enabled'
     );
     if (
       patientTarget?.expo_push_token &&
       patientTarget?.push_notifications_enabled !== false
     ) {
-      const PushNotificationService = require("../../utils/pushNotifications");
-      if (status === "missed") {
+      const PushNotificationService = require('../../utils/pushNotifications');
+      if (status === 'missed') {
         PushNotificationService.sendPush(
           patientTarget.expo_push_token,
-          "We missed you! 📞",
-          "Your caretaker tried to reach you. Please check your dashboard or call back when you can.",
-        ).catch((err) => console.warn("Failed to send missed call push:", err));
-      } else if (status === "refused") {
+          'We missed you! 📞',
+          'Your caretaker tried to reach you. Please check your dashboard or call back when you can.'
+        ).catch((err) => console.warn('Failed to send missed call push:', err));
+      } else if (status === 'refused') {
         PushNotificationService.sendPush(
           patientTarget.expo_push_token,
-          "Medication Alert 💊",
-          "Please remember to keep up with your scheduled medications to stay healthy.",
-        ).catch((err) => console.warn("Failed to send medication push:", err));
+          'Medication Alert 💊',
+          'Please remember to keep up with your scheduled medications to stay healthy.'
+        ).catch((err) => console.warn('Failed to send medication push:', err));
       }
     }
 
-    res.status(201).json({ message: "Call logged successfully", callLog });
+    res.status(201).json({ message: 'Call logged successfully', callLog });
   } catch (error) {
-    console.error("Log call error:", error);
-    res.status(500).json({ error: "Failed to log call" });
+    console.error('Log call error:', error);
+    res.status(500).json({ error: 'Failed to log call' });
   }
 });
 
@@ -236,21 +236,21 @@ router.post("/me/calls", authenticate, async (req, res) => {
  * Caller reads a specific assigned patient's profile
  * NOTE: admin_notes and internal clinical notes are NOT visible
  */
-router.get("/me/patients/:patientId", authenticate, async (req, res) => {
+router.get('/me/patients/:patientId', authenticate, async (req, res) => {
   try {
     const caller = await Caller.findOne({ supabase_uid: req.user.id });
     if (!caller) {
-      return res.status(404).json({ error: "Caller profile not found" });
+      return res.status(404).json({ error: 'Caller profile not found' });
     }
 
     const { patientId } = req.params;
     if (!caller.patient_ids.map(String).includes(patientId)) {
-      return res.status(403).json({ error: "Patient not assigned to you" });
+      return res.status(403).json({ error: 'Patient not assigned to you' });
     }
 
     const patient = await Patient.findById(patientId);
     if (!patient) {
-      return res.status(404).json({ error: "Patient not found" });
+      return res.status(404).json({ error: 'Patient not found' });
     }
 
     // Get call history for this patient
@@ -263,8 +263,8 @@ router.get("/me/patients/:patientId", authenticate, async (req, res) => {
 
     res.json({ patient, calls });
   } catch (error) {
-    console.error("Get patient profile error:", error);
-    res.status(500).json({ error: "Failed to get patient profile" });
+    console.error('Get patient profile error:', error);
+    res.status(500).json({ error: 'Failed to get patient profile' });
   }
 });
 
@@ -273,33 +273,33 @@ router.get("/me/patients/:patientId", authenticate, async (req, res) => {
  * Caller updates a patient's medication list
  */
 router.patch(
-  "/me/patients/:patientId/medications",
+  '/me/patients/:patientId/medications',
   authenticate,
   async (req, res) => {
     try {
       const caller = await Caller.findOne({ supabase_uid: req.user.id });
       if (!caller)
-        return res.status(404).json({ error: "Caller profile not found" });
+        return res.status(404).json({ error: 'Caller profile not found' });
 
       const { patientId } = req.params;
       if (!caller.patient_ids.map(String).includes(patientId)) {
-        return res.status(403).json({ error: "Patient not assigned to you" });
+        return res.status(403).json({ error: 'Patient not assigned to you' });
       }
 
       const { medications } = req.body;
       if (!Array.isArray(medications)) {
-        return res.status(400).json({ error: "Medications must be an array" });
+        return res.status(400).json({ error: 'Medications must be an array' });
       }
 
       const patient = await Patient.findById(patientId);
-      if (!patient) return res.status(404).json({ error: "Patient not found" });
+      if (!patient) return res.status(404).json({ error: 'Patient not found' });
 
       // Update core patient profile
       patient.medications = medications;
       await patient.save();
 
       // Safely synchronize today's MedicineLog
-      const MedicineLog = require("../../models/MedicineLog");
+      const MedicineLog = require('../../models/MedicineLog');
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -317,13 +317,13 @@ router.patch(
           if (med.is_active !== false && med.times) {
             med.times.forEach((time) => {
               const VALID_TIMES = [
-                "morning",
-                "afternoon",
-                "evening",
-                "night",
-                "as_needed",
+                'morning',
+                'afternoon',
+                'evening',
+                'night',
+                'as_needed',
               ];
-              const mTime = VALID_TIMES.includes(time) ? time : "morning";
+              const mTime = VALID_TIMES.includes(time) ? time : 'morning';
               activeProfileMeds.set(`${med.name}_${mTime}`, {
                 name: med.name,
                 time: mTime,
@@ -358,25 +358,25 @@ router.patch(
       }
 
       res.json({
-        message: "Medications updated successfully",
+        message: 'Medications updated successfully',
         medications: patient.medications,
       });
     } catch (error) {
-      console.error("Update medications error:", error);
-      res.status(500).json({ error: "Failed to update medications" });
+      console.error('Update medications error:', error);
+      res.status(500).json({ error: 'Failed to update medications' });
     }
-  },
+  }
 );
 
 /**
  * GET /api/users/callers/me/stats
  * Caller reads their performance stats
  */
-router.get("/me/stats", authenticate, async (req, res) => {
+router.get('/me/stats', authenticate, async (req, res) => {
   try {
     const caller = await Caller.findOne({ supabase_uid: req.user.id });
     if (!caller) {
-      return res.status(404).json({ error: "Caller profile not found" });
+      return res.status(404).json({ error: 'Caller profile not found' });
     }
 
     // This week's calls
@@ -386,7 +386,7 @@ router.get("/me/stats", authenticate, async (req, res) => {
 
     const weekCalls = await CallLog.countDocuments({
       caretakerId: caller._id,
-      status: "completed",
+      status: 'completed',
       scheduledTime: { $gte: weekStart },
     });
 
@@ -398,8 +398,8 @@ router.get("/me/stats", authenticate, async (req, res) => {
       patient_count: caller.patient_ids.length,
     });
   } catch (error) {
-    console.error("Get caller stats error:", error);
-    res.status(500).json({ error: "Failed to get caller stats" });
+    console.error('Get caller stats error:', error);
+    res.status(500).json({ error: 'Failed to get caller stats' });
   }
 });
 
@@ -407,11 +407,11 @@ router.get("/me/stats", authenticate, async (req, res) => {
  * GET /api/users/callers/me/feed
  * Caller reads their activity feed (patient alerts, missed medications, unreachable)
  */
-router.get("/me/feed", authenticate, async (req, res) => {
+router.get('/me/feed', authenticate, async (req, res) => {
   try {
     const caller = await Caller.findOne({ supabase_uid: req.user.id });
     if (!caller) {
-      return res.status(404).json({ error: "Caller profile not found" });
+      return res.status(404).json({ error: 'Caller profile not found' });
     }
 
     const alerts = await Alert.find({
@@ -420,43 +420,43 @@ router.get("/me/feed", authenticate, async (req, res) => {
         { patient_id: { $in: caller.patient_ids } },
       ],
     })
-      .populate("patient_id", "name")
+      .populate('patient_id', 'name')
       .sort({ created_at: -1 })
       .limit(50);
 
     const feed = alerts.map((alert) => {
-      let color = "#718096"; // default gray
-      let title = "Alert";
+      let color = '#718096'; // default gray
+      let title = 'Alert';
 
       if (
-        alert.type === "missed_call" ||
-        alert.type === "patient_unreachable_3attempts"
+        alert.type === 'missed_call' ||
+        alert.type === 'patient_unreachable_3attempts'
       ) {
-        color = "#E53E3E"; // red
-        title = "Missed Contact";
+        color = '#E53E3E'; // red
+        title = 'Missed Contact';
       } else if (
-        alert.type === "medicine_refusal" ||
-        alert.type === "medication_missed"
+        alert.type === 'medicine_refusal' ||
+        alert.type === 'medication_missed'
       ) {
-        color = "#DD6B20"; // orange
-        title = "Medication Alert";
-      } else if (alert.type === "medication_modification") {
-        color = "#3182CE"; // blue
-        title = "Modification Request";
-      } else if (alert.type === "unresponsive_7days") {
-        color = "#D69E2E"; // yellow
-        title = "Unresponsive Alert";
+        color = '#DD6B20'; // orange
+        title = 'Medication Alert';
+      } else if (alert.type === 'medication_modification') {
+        color = '#3182CE'; // blue
+        title = 'Modification Request';
+      } else if (alert.type === 'unresponsive_7days') {
+        color = '#D69E2E'; // yellow
+        title = 'Unresponsive Alert';
       }
 
       return {
         id: alert._id,
         title,
-        patient: alert.patient_id?.name || "Assigned Patient",
+        patient: alert.patient_id?.name || 'Assigned Patient',
         patient_id: alert.patient_id?._id,
-        desc: alert.description || "Action required.",
+        desc: alert.description || 'Action required.',
         time: alert.created_at
           ? new Date(alert.created_at).toLocaleString()
-          : "Just now",
+          : 'Just now',
         color,
         type: alert.type,
         status: alert.status,
@@ -467,8 +467,8 @@ router.get("/me/feed", authenticate, async (req, res) => {
 
     res.json({ feed });
   } catch (error) {
-    console.error("Get caller activity feed error:", error);
-    res.status(500).json({ error: "Failed to get activity feed" });
+    console.error('Get caller activity feed error:', error);
+    res.status(500).json({ error: 'Failed to get activity feed' });
   }
 });
 
@@ -476,20 +476,20 @@ router.get("/me/feed", authenticate, async (req, res) => {
  * POST /api/users/callers/me/heartbeat
  * Update caller's last active heartbeat timestamp
  */
-router.post("/me/heartbeat", authenticate, async (req, res) => {
+router.post('/me/heartbeat', authenticate, async (req, res) => {
   try {
     const caller = await Caller.findOneAndUpdate(
       { supabase_uid: req.user.id },
       { $set: { last_active_at: new Date() } },
-      { new: true },
+      { new: true }
     );
     if (!caller) {
-      return res.status(404).json({ error: "Caller profile not found" });
+      return res.status(404).json({ error: 'Caller profile not found' });
     }
     res.json({ success: true, last_active_at: caller.last_active_at });
   } catch (error) {
-    console.error("Caller heartbeat error:", error);
-    res.status(500).json({ error: "Failed to update heartbeat" });
+    console.error('Caller heartbeat error:', error);
+    res.status(500).json({ error: 'Failed to update heartbeat' });
   }
 });
 
@@ -497,24 +497,24 @@ router.post("/me/heartbeat", authenticate, async (req, res) => {
  * POST /api/users/callers/me/alerts/:alertId/resolve
  * Resolve/Action an alert
  */
-router.post("/me/alerts/:alertId/resolve", authenticate, async (req, res) => {
+router.post('/me/alerts/:alertId/resolve', authenticate, async (req, res) => {
   try {
     const caller = await Caller.findOne({ supabase_uid: req.user.id });
     if (!caller)
-      return res.status(404).json({ error: "Caller profile not found" });
+      return res.status(404).json({ error: 'Caller profile not found' });
 
     const alert = await Alert.findOne({ _id: req.params.alertId });
-    if (!alert) return res.status(404).json({ error: "Alert not found" });
+    if (!alert) return res.status(404).json({ error: 'Alert not found' });
 
-    alert.status = "resolved";
+    alert.status = 'resolved';
     alert.resolved_at = new Date();
-    alert.action_taken = req.body.action_taken || "Resolved by caller";
+    alert.action_taken = req.body.action_taken || 'Resolved by caller';
     await alert.save();
 
     res.json({ success: true, alert });
   } catch (error) {
-    console.error("Resolve alert error:", error);
-    res.status(500).json({ error: "Failed to resolve alert" });
+    console.error('Resolve alert error:', error);
+    res.status(500).json({ error: 'Failed to resolve alert' });
   }
 });
 

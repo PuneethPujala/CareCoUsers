@@ -8,10 +8,10 @@
  *   restricted — Prescription-only, controlled, or high-risk drugs (opioids, blood thinners, steroids)
  */
 
-const MedicineCache = require("../models/MedicineCache");
+const MedicineCache = require('../models/MedicineCache');
 
-const GROQ_MODEL = "llama-3.3-70b-versatile";
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const SYSTEM_PROMPT = `You are a pharmaceutical safety classifier for a healthcare call center.
 
@@ -43,10 +43,10 @@ async function lookupMedicine(medicineName) {
   console.log(`[MedicineAI] lookupMedicine invoked for: "${medicineName}"`);
   console.log(
     `[MedicineAI] Current API Key:`,
-    process.env.GROQ_API_KEY ? "SET" : "NOT SET",
+    process.env.GROQ_API_KEY ? 'SET' : 'NOT SET'
   );
 
-  if (!medicineName || typeof medicineName !== "string") {
+  if (!medicineName || typeof medicineName !== 'string') {
     console.log(`[MedicineAI] Invalid medicineName provided`);
     return getDefaultResult(medicineName);
   }
@@ -58,7 +58,7 @@ async function lookupMedicine(medicineName) {
     const cached = await MedicineCache.findOne({ nameKey });
     if (cached) {
       console.log(
-        `[MedicineAI] Cache hit: "${medicineName}" → ${cached.riskTier}`,
+        `[MedicineAI] Cache hit: "${medicineName}" → ${cached.riskTier}`
       );
       return {
         riskTier: cached.riskTier,
@@ -72,13 +72,13 @@ async function lookupMedicine(medicineName) {
       };
     }
   } catch (err) {
-    console.warn("[MedicineAI] Cache lookup failed:", err.message);
+    console.warn('[MedicineAI] Cache lookup failed:', err.message);
   }
 
   // 2. Call Groq API
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    console.warn("[MedicineAI] No GROQ_API_KEY set, returning default caution");
+    console.warn('[MedicineAI] No GROQ_API_KEY set, returning default caution');
     return getDefaultResult(medicineName);
   }
 
@@ -86,17 +86,17 @@ async function lookupMedicine(medicineName) {
     console.log(`[MedicineAI] Calling Groq for: "${medicineName}"`);
 
     const response = await fetch(GROQ_URL, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: 'system', content: SYSTEM_PROMPT },
           {
-            role: "user",
+            role: 'user',
             content: `Classify this medicine: "${medicineName}"`,
           },
         ],
@@ -115,7 +115,7 @@ async function lookupMedicine(medicineName) {
     const content = data.choices?.[0]?.message?.content?.trim();
 
     if (!content) {
-      console.warn("[MedicineAI] Empty response from Groq");
+      console.warn('[MedicineAI] Empty response from Groq');
       return getDefaultResult(medicineName);
     }
 
@@ -123,25 +123,25 @@ async function lookupMedicine(medicineName) {
     let parsed;
     try {
       const jsonStr = content
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
         .trim();
       parsed = JSON.parse(jsonStr);
     } catch (parseErr) {
-      console.error("[MedicineAI] Failed to parse Groq response:", content);
+      console.error('[MedicineAI] Failed to parse Groq response:', content);
       return getDefaultResult(medicineName);
     }
 
     // Validate risk tier
-    const validTiers = ["safe", "caution", "restricted"];
+    const validTiers = ['safe', 'caution', 'restricted'];
     const riskTier = validTiers.includes(parsed.riskTier)
       ? parsed.riskTier
-      : "caution";
+      : 'caution';
 
     const result = {
       riskTier,
-      genericName: parsed.genericName || "",
-      aiSummary: parsed.summary || "",
+      genericName: parsed.genericName || '',
+      aiSummary: parsed.summary || '',
       sideEffects: Array.isArray(parsed.sideEffects) ? parsed.sideEffects : [],
       warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
       interactions: Array.isArray(parsed.interactions)
@@ -168,15 +168,15 @@ async function lookupMedicine(medicineName) {
           interactions: result.interactions,
           commonUses: result.commonUses,
         },
-        { upsert: true, new: true },
+        { upsert: true, new: true }
       );
     } catch (cacheErr) {
-      console.warn("[MedicineAI] Failed to cache result:", cacheErr.message);
+      console.warn('[MedicineAI] Failed to cache result:', cacheErr.message);
     }
 
     return result;
   } catch (err) {
-    console.error("[MedicineAI] Groq request failed:", err.message);
+    console.error('[MedicineAI] Groq request failed:', err.message);
     return getDefaultResult(medicineName);
   }
 }
@@ -186,12 +186,12 @@ async function lookupMedicine(medicineName) {
  */
 function getDefaultResult(medicineName) {
   return {
-    riskTier: "caution",
-    genericName: "",
+    riskTier: 'caution',
+    genericName: '',
     aiSummary:
-      "Could not verify this medicine. Please check with a doctor before reminding.",
+      'Could not verify this medicine. Please check with a doctor before reminding.',
     sideEffects: [],
-    warnings: ["AI verification unavailable — treat with caution"],
+    warnings: ['AI verification unavailable — treat with caution'],
     interactions: [],
     commonUses: [],
     fromCache: false,

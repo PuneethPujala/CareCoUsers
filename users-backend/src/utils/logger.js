@@ -17,7 +17,7 @@ const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 
 const activeLevel = process.env.LOG_LEVEL
   ? (LEVELS[process.env.LOG_LEVEL] ?? LEVELS.info)
-  : process.env.NODE_ENV === "production"
+  : process.env.NODE_ENV === 'production'
     ? LEVELS.info
     : LEVELS.debug;
 
@@ -47,7 +47,7 @@ function log(level, message, meta = {}) {
 
   let context;
   try {
-    const { getLogContext } = require("../middleware/correlationId");
+    const { getLogContext } = require('../middleware/correlationId');
     context = getLogContext();
   } catch (err) {
     // Ignore require error in environments where not initialized/available
@@ -57,7 +57,7 @@ function log(level, message, meta = {}) {
     level,
     timestamp: new Date().toISOString(),
     message,
-    ...(context && typeof context === "object"
+    ...(context && typeof context === 'object'
       ? {
           ...(context.correlationId
             ? { correlationId: context.correlationId }
@@ -65,7 +65,7 @@ function log(level, message, meta = {}) {
           ...(context.userId ? { userId: context.userId } : {}),
           ...(context.userType ? { userType: context.userType } : {}),
         }
-      : typeof context === "string"
+      : typeof context === 'string'
         ? { correlationId: context }
         : {}),
     ...serializeMeta(meta),
@@ -76,15 +76,15 @@ function log(level, message, meta = {}) {
   // Under sustained extreme traffic, this could lead to memory build-up if the output stream blocks.
   // This is a known pre-launch constraint and is acceptable at current volume.
   const stream =
-    level === "error" || level === "warn" ? process.stderr : process.stdout;
-  stream.write(logEntry + "\n");
+    level === 'error' || level === 'warn' ? process.stderr : process.stdout;
+  stream.write(logEntry + '\n');
 }
 
 const logger = {
-  debug: (message, meta = {}) => log("debug", message, meta),
-  info: (message, meta = {}) => log("info", message, meta),
-  warn: (message, meta = {}) => log("warn", message, meta),
-  error: (message, meta = {}) => log("error", message, meta),
+  debug: (message, meta = {}) => log('debug', message, meta),
+  info: (message, meta = {}) => log('info', message, meta),
+  warn: (message, meta = {}) => log('warn', message, meta),
+  error: (message, meta = {}) => log('error', message, meta),
 };
 
 module.exports = logger;

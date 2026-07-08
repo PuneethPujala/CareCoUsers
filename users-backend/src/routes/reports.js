@@ -1,14 +1,14 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const Profile = require("../models/Profile");
-const Organization = require("../models/Organization");
-const AuditLog = require("../models/AuditLog");
-const { authenticate, requireRole } = require("../middleware/authenticate");
-const { authorize } = require("../middleware/authorize");
+const express = require('express');
+const mongoose = require('mongoose');
+const Profile = require('../models/Profile');
+const Organization = require('../models/Organization');
+const AuditLog = require('../models/AuditLog');
+const { authenticate, requireRole } = require('../middleware/authenticate');
+const { authorize } = require('../middleware/authorize');
 const {
   getUserActivitySummary,
   getSecurityIncidents,
-} = require("../services/auditService");
+} = require('../services/auditService');
 
 const router = express.Router();
 
@@ -17,22 +17,22 @@ const router = express.Router();
  * Get user activity reports
  */
 router.get(
-  "/user-activity",
+  '/user-activity',
   authenticate,
-  authorize("reports", "read"),
+  authorize('reports', 'read'),
   async (req, res) => {
     try {
       const { userId, days = 30 } = req.query;
       const { role } = req.profile;
       let targetUserId = userId;
 
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         if (!userId) {
           return res
             .status(400)
-            .json({ error: "userId is required for super admin" });
+            .json({ error: 'userId is required for super admin' });
         }
-      } else if (["org_admin", "care_manager"].includes(role)) {
+      } else if (['org_admin', 'care_manager'].includes(role)) {
         if (!userId) {
           targetUserId = req.profile.supabaseUid;
         } else {
@@ -42,7 +42,7 @@ router.get(
             !user.organizationId.equals(req.profile.organizationId)
           ) {
             return res.status(403).json({
-              error: "Access denied to user outside your organization",
+              error: 'Access denied to user outside your organization',
             });
           }
         }
@@ -58,7 +58,7 @@ router.get(
 
       const activitySummary = await getUserActivitySummary(
         targetUserId,
-        parseInt(days),
+        parseInt(days)
       );
 
       res.json({
@@ -67,13 +67,13 @@ router.get(
         activitySummary,
       });
     } catch (error) {
-      console.error("Get user activity report error:", error);
+      console.error('Get user activity report error:', error);
       res.status(500).json({
-        error: "Failed to get user activity report",
+        error: 'Failed to get user activity report',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -81,22 +81,22 @@ router.get(
  * Get organisation statistics
  */
 router.get(
-  "/organization-stats",
+  '/organization-stats',
   authenticate,
-  authorize("reports", "read"),
+  authorize('reports', 'read'),
   async (req, res) => {
     try {
       const { organizationId } = req.query;
       const { role } = req.profile;
       let targetOrgId = organizationId;
 
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         if (!organizationId) {
           return res
             .status(400)
-            .json({ error: "organizationId is required for super admin" });
+            .json({ error: 'organizationId is required for super admin' });
         }
-      } else if (["org_admin", "care_manager"].includes(role)) {
+      } else if (['org_admin', 'care_manager'].includes(role)) {
         targetOrgId = req.profile.organizationId;
         if (
           organizationId &&
@@ -104,17 +104,17 @@ router.get(
         ) {
           return res
             .status(403)
-            .json({ error: "Access denied to other organizations" });
+            .json({ error: 'Access denied to other organizations' });
         }
       } else {
         return res
           .status(403)
-          .json({ error: "Access denied to organization reports" });
+          .json({ error: 'Access denied to organization reports' });
       }
 
       const organization = await Organization.findById(targetOrgId);
       if (!organization) {
-        return res.status(404).json({ error: "Organization not found" });
+        return res.status(404).json({ error: 'Organization not found' });
       }
 
       // User counts broken down by role
@@ -122,7 +122,7 @@ router.get(
         {
           $match: { organizationId: new mongoose.Types.ObjectId(targetOrgId) },
         },
-        { $group: { _id: "$role", count: { $sum: 1 } } },
+        { $group: { _id: '$role', count: { $sum: 1 } } },
       ]);
 
       // Activity over the last 30 days
@@ -130,16 +130,16 @@ router.get(
       const recentActivity = await AuditLog.aggregate([
         {
           $lookup: {
-            from: "profiles",
-            localField: "supabaseUid",
-            foreignField: "supabaseUid",
-            as: "profile",
+            from: 'profiles',
+            localField: 'supabaseUid',
+            foreignField: 'supabaseUid',
+            as: 'profile',
           },
         },
-        { $unwind: "$profile" },
+        { $unwind: '$profile' },
         {
           $match: {
-            "profile.organizationId": new mongoose.Types.ObjectId(targetOrgId),
+            'profile.organizationId': new mongoose.Types.ObjectId(targetOrgId),
             createdAt: { $gte: thirtyDaysAgo },
           },
         },
@@ -147,18 +147,18 @@ router.get(
           $group: {
             _id: {
               date: {
-                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+                $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
               },
-              action: "$action",
+              action: '$action',
             },
             count: { $sum: 1 },
           },
         },
         {
           $group: {
-            _id: "$_id.date",
-            actions: { $push: { action: "$_id.action", count: "$count" } },
-            totalActions: { $sum: "$count" },
+            _id: '$_id.date',
+            actions: { $push: { action: '$_id.action', count: '$count' } },
+            totalActions: { $sum: '$count' },
           },
         },
         { $sort: { _id: 1 } },
@@ -179,13 +179,13 @@ router.get(
         recentActivity,
       });
     } catch (error) {
-      console.error("Get organization stats report error:", error);
+      console.error('Get organization stats report error:', error);
       res.status(500).json({
-        error: "Failed to get organization stats report",
+        error: 'Failed to get organization stats report',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 /**
@@ -193,10 +193,10 @@ router.get(
  * Get security incidents — super_admin and org_admin only
  */
 router.get(
-  "/security-incidents",
+  '/security-incidents',
   authenticate,
-  requireRole("super_admin", "org_admin"),
-  authorize("reports", "read"),
+  requireRole('super_admin', 'org_admin'),
+  authorize('reports', 'read'),
   async (req, res) => {
     try {
       const { severity, startDate, endDate, limit = 50 } = req.query;
@@ -208,10 +208,10 @@ router.get(
       if (limit) filters.limit = parseInt(limit);
 
       // org_admin: scope incidents to their own org's users only
-      if (req.profile.role === "org_admin") {
+      if (req.profile.role === 'org_admin') {
         const orgUsers = await Profile.find({
           organizationId: req.profile.organizationId,
-        }).select("supabaseUid");
+        }).select('supabaseUid');
 
         filters.userIds = orgUsers.map((u) => u.supabaseUid);
       }
@@ -224,13 +224,13 @@ router.get(
         total: incidents.length,
       });
     } catch (error) {
-      console.error("Get security incidents report error:", error);
+      console.error('Get security incidents report error:', error);
       res.status(500).json({
-        error: "Failed to get security incidents report",
+        error: 'Failed to get security incidents report',
         details: error.message,
       });
     }
-  },
+  }
 );
 
 module.exports = router;

@@ -1,23 +1,23 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const CallSessionSchema = new mongoose.Schema(
   {
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
     caretakerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Caller",
+      ref: 'Caller',
       required: true,
       index: true,
     },
     status: {
       type: String,
-      enum: ["ringing", "accepted", "rejected", "missed", "completed"],
-      default: "ringing",
+      enum: ['ringing', 'accepted', 'rejected', 'missed', 'completed'],
+      default: 'ringing',
       index: true,
     },
     channelName: {
@@ -43,7 +43,7 @@ const CallSessionSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
-module.exports = mongoose.model("CallSession", CallSessionSchema);
+module.exports = mongoose.model('CallSession', CallSessionSchema);

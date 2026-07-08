@@ -1,18 +1,18 @@
-const express = require("express");
-const moment = require("moment-timezone"); // BUG 9 FIX: top-level require, not inside hot path
-const Patient = require("../../models/Patient");
-const MedicineLog = require("../../models/MedicineLog");
-const Medication = require("../../models/Medication");
-const Notification = require("../../models/Notification");
-const PushNotificationService = require("../../utils/pushNotifications");
-const { authenticateSession } = require("../../middleware/authenticate");
-const { getOrCreatePatient } = require("../../utils/patientHelpers");
-const logger = require("../../utils/logger");
+const express = require('express');
+const moment = require('moment-timezone'); // BUG 9 FIX: top-level require, not inside hot path
+const Patient = require('../../models/Patient');
+const MedicineLog = require('../../models/MedicineLog');
+const Medication = require('../../models/Medication');
+const Notification = require('../../models/Notification');
+const PushNotificationService = require('../../utils/pushNotifications');
+const { authenticateSession } = require('../../middleware/authenticate');
+const { getOrCreatePatient } = require('../../utils/patientHelpers');
+const logger = require('../../utils/logger');
 const {
   shouldNegotiateMarkdown,
   formatTodayMedicationsMarkdown,
   formatAdherenceDetailsMarkdown,
-} = require("../../utils/markdownFormatter");
+} = require('../../utils/markdownFormatter');
 
 const router = express.Router();
 
@@ -29,8 +29,8 @@ const router = express.Router();
  * log. All date derivation now goes through moment-timezone.
  */
 function getTodayUtcMidnight(timezone) {
-  const tz = timezone || "Asia/Kolkata";
-  const todayStr = moment().tz(tz).format("YYYY-MM-DD");
+  const tz = timezone || 'Asia/Kolkata';
+  const todayStr = moment().tz(tz).format('YYYY-MM-DD');
   return { todayStr, date: new Date(`${todayStr}T00:00:00.000Z`) };
 }
 
@@ -40,8 +40,8 @@ function getTodayUtcMidnight(timezone) {
  * in server local time, not patient timezone.
  */
 function getDaysAgoUtcMidnight(timezone, n) {
-  const tz = timezone || "Asia/Kolkata";
-  const dateStr = moment().tz(tz).subtract(n, "days").format("YYYY-MM-DD");
+  const tz = timezone || 'Asia/Kolkata';
+  const dateStr = moment().tz(tz).subtract(n, 'days').format('YYYY-MM-DD');
   return new Date(`${dateStr}T00:00:00.000Z`);
 }
 
@@ -49,25 +49,25 @@ function getDaysAgoUtcMidnight(timezone, n) {
  * Get UTC midnight from a YYYY-MM-DD string explicitly to avoid local timezone shifts.
  */
 function getUtcMidnightFromDateString(dateStr) {
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [year, month, day] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 }
 
 function mapTimeToLegacyBucket(timeStr) {
-  if (!timeStr) return "morning";
-  const isPM = timeStr.toLowerCase().includes("pm");
-  const isAM = timeStr.toLowerCase().includes("am");
+  if (!timeStr) return 'morning';
+  const isPM = timeStr.toLowerCase().includes('pm');
+  const isAM = timeStr.toLowerCase().includes('am');
   const match = timeStr.match(/(\d+):(\d+)/);
   if (match) {
     let hour = parseInt(match[1]);
     if (isPM && hour < 12) hour += 12;
     if (isAM && hour === 12) hour = 0;
-    if (hour >= 5 && hour < 12) return "morning";
-    if (hour >= 12 && hour < 17) return "afternoon";
-    if (hour >= 17 && hour < 21) return "evening";
-    return "night";
+    if (hour >= 5 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 21) return 'evening';
+    return 'night';
   }
-  return "morning";
+  return 'morning';
 }
 
 /**
@@ -80,7 +80,7 @@ async function buildMergedMeds(patient) {
   if (patient._id) searchIds.push(patient._id.toString());
   if (patient.profile_id) searchIds.push(patient.profile_id.toString());
   let query = Medication.find({ patientId: { $in: searchIds } });
-  if (query && typeof query.lean === "function") {
+  if (query && typeof query.lean === 'function') {
     query = query.lean();
   }
   const externalMeds = await query;
@@ -103,10 +103,10 @@ async function buildMergedMeds(patient) {
           ? extMed.times.map(mapTimeToLegacyBucket)
           : (extMed.scheduledTimes || []).map(mapTimeToLegacyBucket);
       mappedTimes = [...new Set(mappedTimes)];
-      if (mappedTimes.length === 0) mappedTimes = ["morning"];
+      if (mappedTimes.length === 0) mappedTimes = ['morning'];
 
       let refillInfo = extMed.refillInfo;
-      if (!refillInfo || typeof refillInfo.totalDoses !== "number") {
+      if (!refillInfo || typeof refillInfo.totalDoses !== 'number') {
         refillInfo = {
           totalDoses: 30,
           remainingDoses: 30,
@@ -137,7 +137,7 @@ async function buildMergedMeds(patient) {
       seenNames.add(name.toLowerCase());
 
       let refillInfo = med.refillInfo;
-      if (!refillInfo || typeof refillInfo.totalDoses !== "number") {
+      if (!refillInfo || typeof refillInfo.totalDoses !== 'number') {
         refillInfo = {
           totalDoses: 30,
           remainingDoses: 30,
@@ -147,7 +147,7 @@ async function buildMergedMeds(patient) {
       }
 
       const medObj =
-        typeof med.toObject === "function" ? med.toObject() : { ...med };
+        typeof med.toObject === 'function' ? med.toObject() : { ...med };
       medObj.refillInfo = refillInfo;
       medObj.startDate =
         medObj.startDate || patient.created_at || patient.createdAt;
@@ -188,21 +188,21 @@ function computeCurrentStreak(
   dailyLog,
   todayStr,
   startDateStr,
-  threshold = 50,
+  threshold = 50
 ) {
   let streak = 0;
-  let cursor = moment(todayStr, "YYYY-MM-DD");
-  const limit = moment(startDateStr, "YYYY-MM-DD");
+  let cursor = moment(todayStr, 'YYYY-MM-DD');
+  const limit = moment(startDateStr, 'YYYY-MM-DD');
 
   while (!cursor.isBefore(limit)) {
-    const dStr = cursor.format("YYYY-MM-DD");
+    const dStr = cursor.format('YYYY-MM-DD');
     const entry = dailyLog.find((d) => d.date === dStr);
 
     // No log exists for this day, or no meds were scheduled (rest day).
     // Treat as neutral — skip without breaking.
     // Exception: if this is a future day somehow, also just skip.
     if (!entry || entry.total === 0) {
-      cursor.subtract(1, "day");
+      cursor.subtract(1, 'day');
       continue;
     }
 
@@ -215,7 +215,7 @@ function computeCurrentStreak(
       // Past day with meds scheduled but threshold not met — streak broken
       break;
     }
-    cursor.subtract(1, "day");
+    cursor.subtract(1, 'day');
   }
   return streak;
 }
@@ -225,7 +225,7 @@ function computeCurrentStreak(
 /**
  * GET /api/users/medicines/today
  */
-router.get("/today", authenticateSession, async (req, res) => {
+router.get('/today', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
 
@@ -268,7 +268,7 @@ router.get("/today", authenticateSession, async (req, res) => {
 
       const originalCount = log.medicines.length;
       log.medicines = log.medicines.filter((m) =>
-        activeMedNames.includes(m.medicine_name),
+        activeMedNames.includes(m.medicine_name)
       );
       if (log.medicines.length !== originalCount) isModified = true;
 
@@ -276,7 +276,7 @@ router.get("/today", authenticateSession, async (req, res) => {
         if (med.is_active !== false) {
           for (const time of med.times) {
             const exists = log.medicines.some(
-              (m) => m.medicine_name === med.name && m.scheduled_time === time,
+              (m) => m.medicine_name === med.name && m.scheduled_time === time
             );
             if (!exists) {
               log.medicines.push({
@@ -294,9 +294,9 @@ router.get("/today", authenticateSession, async (req, res) => {
 
     const logObj = log ? log.toObject() : { medicines: [], date: today };
     const preferences = patient.medication_call_preferences || {
-      morning: "09:00",
-      afternoon: "14:00",
-      night: "20:00",
+      morning: '09:00',
+      afternoon: '14:00',
+      night: '20:00',
     };
 
     if (logObj.medicines) {
@@ -305,24 +305,24 @@ router.get("/today", authenticateSession, async (req, res) => {
         const patMed = allMedsRaw.find((p) => p.name === m.medicine_name);
         return {
           ...m,
-          dosage: patMed?.dosage || "",
-          instructions: patMed?.instructions || "",
-          preferred_time: preferences[m.scheduled_time] || "",
+          dosage: patMed?.dosage || '',
+          instructions: patMed?.instructions || '',
+          preferred_time: preferences[m.scheduled_time] || '',
           refillInfo: patMed?.refillInfo || null,
         };
       });
     }
 
-    res.setHeader("Vary", "Accept");
+    res.setHeader('Vary', 'Accept');
     if (shouldNegotiateMarkdown(req)) {
       const md = formatTodayMedicationsMarkdown(logObj, preferences);
-      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
       return res.send(md);
     }
 
     res.json({ log: logObj, preferences });
   } catch (error) {
-    logger.error("Get today medicines error", {
+    logger.error('Get today medicines error', {
       error: error.message,
       patientId: req.user?.id,
     });
@@ -333,19 +333,19 @@ router.get("/today", authenticateSession, async (req, res) => {
 /**
  * PUT /api/users/medicines/mark
  */
-router.put("/mark", authenticateSession, async (req, res) => {
+router.put('/mark', authenticateSession, async (req, res) => {
   try {
     const {
       medicine_name,
       scheduled_time,
       taken,
-      marked_by = "patient",
+      marked_by = 'patient',
       targetDate,
     } = req.body;
     const patient = await getOrCreatePatient(req);
 
     if (targetDate && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
-      return res.status(400).json({ error: "Invalid targetDate format" });
+      return res.status(400).json({ error: 'Invalid targetDate format' });
     }
 
     // BUG 2 FIX: same UTC date derivation fix as /today
@@ -357,9 +357,9 @@ router.put("/mark", authenticateSession, async (req, res) => {
 
     // STRICT TIME VALIDATION: Prevent marking future slots for today
     if (logDateStr === todayStr && taken) {
-      const formatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: patient.timezone || "Asia/Kolkata",
-        hour: "numeric",
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: patient.timezone || 'Asia/Kolkata',
+        hour: 'numeric',
         hour12: false,
       });
       const currentHour = parseInt(formatter.format(new Date()), 10);
@@ -403,11 +403,10 @@ router.put("/mark", authenticateSession, async (req, res) => {
 
     const med = log.medicines.find(
       (m) =>
-        m.medicine_name === medicine_name &&
-        m.scheduled_time === scheduled_time,
+        m.medicine_name === medicine_name && m.scheduled_time === scheduled_time
     );
     if (!med)
-      return res.status(404).json({ error: "Medicine not found in schedule" });
+      return res.status(404).json({ error: 'Medicine not found in schedule' });
 
     med.taken = taken;
     med.taken_at = taken ? new Date() : null;
@@ -415,13 +414,13 @@ router.put("/mark", authenticateSession, async (req, res) => {
     await log.save();
 
     const patientMed = patient.medications.find(
-      (m) => m.name === medicine_name,
+      (m) => m.name === medicine_name
     );
     if (patientMed) {
       if (!patientMed.takenLogs) patientMed.takenLogs = [];
       patientMed.takenLogs.push({
         timestamp: new Date(),
-        status: taken ? "taken" : "missed",
+        status: taken ? 'taken' : 'missed',
         markedBy: marked_by,
       });
 
@@ -429,7 +428,7 @@ router.put("/mark", authenticateSession, async (req, res) => {
         if (!patientMed.takenDates) patientMed.takenDates = [];
         const alreadyTakenToday = patientMed.takenDates.some((d) => {
           try {
-            return new Date(d).toISOString().split("T")[0] === logDateStr;
+            return new Date(d).toISOString().split('T')[0] === logDateStr;
           } catch {
             return false;
           }
@@ -439,7 +438,7 @@ router.put("/mark", authenticateSession, async (req, res) => {
         // Supply tracking deduction
         if (
           !patientMed.refillInfo ||
-          typeof patientMed.refillInfo.totalDoses !== "number"
+          typeof patientMed.refillInfo.totalDoses !== 'number'
         ) {
           patientMed.refillInfo = {
             totalDoses: 30,
@@ -450,7 +449,7 @@ router.put("/mark", authenticateSession, async (req, res) => {
         }
 
         if (
-          typeof patientMed.refillInfo.remainingDoses === "number" &&
+          typeof patientMed.refillInfo.remainingDoses === 'number' &&
           patientMed.refillInfo.remainingDoses > 0
         ) {
           patientMed.refillInfo.remainingDoses -= 1;
@@ -463,23 +462,23 @@ router.put("/mark", authenticateSession, async (req, res) => {
             try {
               await Notification.create({
                 patient_id: patient._id,
-                title: "⚠️ Low Medication Supply",
+                title: '⚠️ Low Medication Supply',
                 message: `You are running low on ${medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
-                type: "alert",
-                target_screen: "Medications",
+                type: 'alert',
+                target_screen: 'Medications',
               });
               if (patient.expo_push_token) {
                 await PushNotificationService.sendPushNotification(
                   patient.expo_push_token,
                   {
-                    title: "⚠️ Low Medication Supply",
+                    title: '⚠️ Low Medication Supply',
                     body: `You are running low on ${medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
-                    data: { screen: "Medications" },
-                  },
+                    data: { screen: 'Medications' },
+                  }
                 );
               }
             } catch (err) {
-              logger.error("Failed to send supply alert", {
+              logger.error('Failed to send supply alert', {
                 error: err.message,
               });
             }
@@ -501,7 +500,7 @@ router.put("/mark", authenticateSession, async (req, res) => {
         if (taken) {
           if (
             !extMed.refillInfo ||
-            typeof extMed.refillInfo.totalDoses !== "number"
+            typeof extMed.refillInfo.totalDoses !== 'number'
           ) {
             extMed.refillInfo = {
               totalDoses: 30,
@@ -512,7 +511,7 @@ router.put("/mark", authenticateSession, async (req, res) => {
           }
 
           if (
-            typeof extMed.refillInfo.remainingDoses === "number" &&
+            typeof extMed.refillInfo.remainingDoses === 'number' &&
             extMed.refillInfo.remainingDoses > 0
           ) {
             extMed.refillInfo.remainingDoses -= 1;
@@ -524,23 +523,23 @@ router.put("/mark", authenticateSession, async (req, res) => {
               try {
                 await Notification.create({
                   patient_id: patient._id,
-                  title: "⚠️ Low Medication Supply",
+                  title: '⚠️ Low Medication Supply',
                   message: `You are running low on ${medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
-                  type: "alert",
-                  target_screen: "Medications",
+                  type: 'alert',
+                  target_screen: 'Medications',
                 });
                 if (patient.expo_push_token) {
                   await PushNotificationService.sendPushNotification(
                     patient.expo_push_token,
                     {
-                      title: "⚠️ Low Medication Supply",
+                      title: '⚠️ Low Medication Supply',
                       body: `You are running low on ${medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
-                      data: { screen: "Medications" },
-                    },
+                      data: { screen: 'Medications' },
+                    }
                   );
                 }
               } catch (err) {
-                logger.error("Failed to send supply alert", {
+                logger.error('Failed to send supply alert', {
                   error: err.message,
                 });
               }
@@ -551,42 +550,42 @@ router.put("/mark", authenticateSession, async (req, res) => {
       }
     }
 
-    const streakService = require("../../services/streakService");
+    const streakService = require('../../services/streakService');
     await streakService.evaluateAndUpdateStreak(patient._id).catch((e) =>
-      logger.error("Streak Update Failed", {
+      logger.error('Streak Update Failed', {
         error: e.message,
         patientId: patient._id,
-      }),
+      })
     );
 
     // Trigger health state recomputation
     const {
       enqueueHealthStateRecompute,
-    } = require("../../services/patientHealthStateService");
+    } = require('../../services/patientHealthStateService');
     enqueueHealthStateRecompute(patient._id).catch((e) =>
-      logger.warn("Medication trigger recompute failed", { error: e.message }),
+      logger.warn('Medication trigger recompute failed', { error: e.message })
     );
 
     res.json({ log });
   } catch (error) {
-    logger.error("Mark medicine error", {
+    logger.error('Mark medicine error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to mark medicine" });
+    res.status(500).json({ error: 'Failed to mark medicine' });
   }
 });
 
 /**
  * PUT /api/users/medicines/mark-slot
  */
-router.put("/mark-slot", authenticateSession, async (req, res) => {
+router.put('/mark-slot', authenticateSession, async (req, res) => {
   try {
-    const { scheduled_time, marked_by = "patient", targetDate } = req.body;
+    const { scheduled_time, marked_by = 'patient', targetDate } = req.body;
     const patient = await getOrCreatePatient(req);
 
     if (targetDate && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
-      return res.status(400).json({ error: "Invalid targetDate format" });
+      return res.status(400).json({ error: 'Invalid targetDate format' });
     }
 
     const { todayStr, date: today } = getTodayUtcMidnight(patient.timezone);
@@ -597,9 +596,9 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
 
     // STRICT TIME VALIDATION: Prevent marking future slots for today
     if (logDateStr === todayStr) {
-      const formatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: patient.timezone || "Asia/Kolkata",
-        hour: "numeric",
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: patient.timezone || 'Asia/Kolkata',
+        hour: 'numeric',
         hour12: false,
       });
       const currentHour = parseInt(formatter.format(new Date()), 10);
@@ -648,19 +647,19 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
         updatedAny = true;
 
         const patientMed = patient.medications.find(
-          (pm) => pm.name === m.medicine_name,
+          (pm) => pm.name === m.medicine_name
         );
         if (patientMed) {
           if (!patientMed.takenLogs) patientMed.takenLogs = [];
           patientMed.takenLogs.push({
             timestamp: new Date(),
-            status: "taken",
+            status: 'taken',
             markedBy: marked_by,
           });
           if (!patientMed.takenDates) patientMed.takenDates = [];
           const alreadyTakenToday = patientMed.takenDates.some((d) => {
             try {
-              return new Date(d).toISOString().split("T")[0] === logDateStr;
+              return new Date(d).toISOString().split('T')[0] === logDateStr;
             } catch {
               return false;
             }
@@ -669,7 +668,7 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
 
           if (
             !patientMed.refillInfo ||
-            typeof patientMed.refillInfo.totalDoses !== "number"
+            typeof patientMed.refillInfo.totalDoses !== 'number'
           ) {
             patientMed.refillInfo = {
               totalDoses: 30,
@@ -680,7 +679,7 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
           }
 
           if (
-            typeof patientMed.refillInfo.remainingDoses === "number" &&
+            typeof patientMed.refillInfo.remainingDoses === 'number' &&
             patientMed.refillInfo.remainingDoses > 0
           ) {
             patientMed.refillInfo.remainingDoses -= 1;
@@ -692,23 +691,23 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
               try {
                 await Notification.create({
                   patient_id: patient._id,
-                  title: "⚠️ Low Medication Supply",
+                  title: '⚠️ Low Medication Supply',
                   message: `You are running low on ${m.medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
-                  type: "alert",
-                  target_screen: "Medications",
+                  type: 'alert',
+                  target_screen: 'Medications',
                 });
                 if (patient.expo_push_token) {
                   await PushNotificationService.sendPushNotification(
                     patient.expo_push_token,
                     {
-                      title: "⚠️ Low Medication Supply",
+                      title: '⚠️ Low Medication Supply',
                       body: `You are running low on ${m.medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
-                      data: { screen: "Medications" },
-                    },
+                      data: { screen: 'Medications' },
+                    }
                   );
                 }
               } catch (err) {
-                logger.error("Failed to send supply alert", {
+                logger.error('Failed to send supply alert', {
                   error: err.message,
                 });
               }
@@ -727,7 +726,7 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
 
             if (
               !extMed.refillInfo ||
-              typeof extMed.refillInfo.totalDoses !== "number"
+              typeof extMed.refillInfo.totalDoses !== 'number'
             ) {
               extMed.refillInfo = {
                 totalDoses: 30,
@@ -738,7 +737,7 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
             }
 
             if (
-              typeof extMed.refillInfo.remainingDoses === "number" &&
+              typeof extMed.refillInfo.remainingDoses === 'number' &&
               extMed.refillInfo.remainingDoses > 0
             ) {
               extMed.refillInfo.remainingDoses -= 1;
@@ -750,23 +749,23 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
                 try {
                   await Notification.create({
                     patient_id: patient._id,
-                    title: "⚠️ Low Medication Supply",
+                    title: '⚠️ Low Medication Supply',
                     message: `You are running low on ${m.medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
-                    type: "alert",
-                    target_screen: "Medications",
+                    type: 'alert',
+                    target_screen: 'Medications',
                   });
                   if (patient.expo_push_token) {
                     await PushNotificationService.sendPushNotification(
                       patient.expo_push_token,
                       {
-                        title: "⚠️ Low Medication Supply",
+                        title: '⚠️ Low Medication Supply',
                         body: `You are running low on ${m.medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
-                        data: { screen: "Medications" },
-                      },
+                        data: { screen: 'Medications' },
+                      }
                     );
                   }
                 } catch (err) {
-                  logger.error("Failed to send supply alert", {
+                  logger.error('Failed to send supply alert', {
                     error: err.message,
                   });
                 }
@@ -780,27 +779,27 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
 
     if (updatedAny) {
       await Promise.all([log.save(), patient.save()]);
-      const streakService = require("../../services/streakService");
+      const streakService = require('../../services/streakService');
       await streakService.evaluateAndUpdateStreak(patient._id);
     }
 
     // Trigger health state recomputation
     const {
       enqueueHealthStateRecompute,
-    } = require("../../services/patientHealthStateService");
+    } = require('../../services/patientHealthStateService');
     enqueueHealthStateRecompute(patient._id).catch((e) =>
-      logger.warn("Medication slot trigger recompute failed", {
+      logger.warn('Medication slot trigger recompute failed', {
         error: e.message,
-      }),
+      })
     );
 
     res.json({ success: true, log });
   } catch (error) {
-    logger.error("Mark slot error", {
+    logger.error('Mark slot error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to mark medications as taken" });
+    res.status(500).json({ error: 'Failed to mark medications as taken' });
   }
 });
 
@@ -816,7 +815,7 @@ const performRefill = (refillInfo, addQty) => {
  * POST /api/users/medicines/:name/refill
  * Add purchased doses to remainingDoses. If newTotal is provided, it is added to the supply.
  */
-router.post("/:name/refill", authenticateSession, async (req, res) => {
+router.post('/:name/refill', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const medName = req.params.name;
@@ -829,7 +828,7 @@ router.post("/:name/refill", authenticateSession, async (req, res) => {
     if (!Number.isInteger(addQty) || addQty <= 0 || addQty > 10000) {
       return res.status(400).json({
         error:
-          "Invalid refill quantity. Must be a positive integer up to 10,000.",
+          'Invalid refill quantity. Must be a positive integer up to 10,000.',
       });
     }
 
@@ -875,16 +874,16 @@ router.post("/:name/refill", authenticateSession, async (req, res) => {
     }
 
     if (!refilled) {
-      return res.status(404).json({ error: "Medication not found." });
+      return res.status(404).json({ error: 'Medication not found.' });
     }
 
-    res.json({ success: true, message: "Medication refilled successfully." });
+    res.json({ success: true, message: 'Medication refilled successfully.' });
   } catch (error) {
-    logger.error("Refill medicine error", {
+    logger.error('Refill medicine error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to refill medication" });
+    res.status(500).json({ error: 'Failed to refill medication' });
   }
 });
 
@@ -893,13 +892,13 @@ router.post("/:name/refill", authenticateSession, async (req, res) => {
  * Fetches the latest AI generated weekly summary
  */
 router.get(
-  "/adherence/weekly-summary",
+  '/adherence/weekly-summary',
   authenticateSession,
   async (req, res) => {
     try {
       const patient = await getOrCreatePatient(req);
 
-      const WeeklySummary = require("../../models/WeeklySummary");
+      const WeeklySummary = require('../../models/WeeklySummary');
       const summary = await WeeklySummary.findOne({ patient_id: patient._id })
         .sort({ week_start: -1 })
         .lean();
@@ -912,26 +911,26 @@ router.get(
       if (!summary.read_at) {
         await WeeklySummary.updateOne(
           { _id: summary._id },
-          { $set: { read_at: new Date() } },
+          { $set: { read_at: new Date() } }
         );
         summary.read_at = new Date();
       }
 
       res.json({ success: true, summary });
     } catch (error) {
-      logger.error("Fetch weekly summary error", {
+      logger.error('Fetch weekly summary error', {
         error: error.message,
         patientId: req.user?.id,
       });
-      res.status(500).json({ error: "Failed to fetch weekly summary" });
+      res.status(500).json({ error: 'Failed to fetch weekly summary' });
     }
-  },
+  }
 );
 
 /**
  * GET /api/users/medicines/adherence/weekly
  */
-router.get("/adherence/weekly", authenticateSession, async (req, res) => {
+router.get('/adherence/weekly', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
 
@@ -957,18 +956,18 @@ router.get("/adherence/weekly", authenticateSession, async (req, res) => {
 
     res.json({ adherence: weeklyData });
   } catch (error) {
-    logger.error("Get weekly adherence error", {
+    logger.error('Get weekly adherence error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get weekly adherence" });
+    res.status(500).json({ error: 'Failed to get weekly adherence' });
   }
 });
 
 /**
  * GET /api/users/medicines/adherence/monthly
  */
-router.get("/adherence/monthly", authenticateSession, async (req, res) => {
+router.get('/adherence/monthly', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
 
@@ -996,34 +995,34 @@ router.get("/adherence/monthly", authenticateSession, async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Get monthly adherence error", {
+    logger.error('Get monthly adherence error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get monthly adherence" });
+    res.status(500).json({ error: 'Failed to get monthly adherence' });
   }
 });
 
-router.get("/adherence/details", authenticateSession, async (req, res) => {
+router.get('/adherence/details', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
 
     // Fetch 180 days of history to support calendar scrolling
     const { todayStr } = getTodayUtcMidnight(timezone);
     const historyStartStr = moment()
       .tz(timezone)
-      .subtract(180, "days")
-      .format("YYYY-MM-DD");
+      .subtract(180, 'days')
+      .format('YYYY-MM-DD');
 
     const {
       buildDailyAdherenceTimeline,
-    } = require("../../services/adherenceGapFillService");
+    } = require('../../services/adherenceGapFillService');
     const dailyLog = await buildDailyAdherenceTimeline(
       patient,
       historyStartStr,
-      todayStr,
+      todayStr
     );
 
     const last7 = dailyLog.slice(-7);
@@ -1042,23 +1041,23 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
     let vitalsAdherence = 0;
     if (last30.length > 0) {
       vitalsAdherence = Math.round(
-        (last30.filter((d) => d.vitals).length / last30.length) * 100,
+        (last30.filter((d) => d.vitals).length / last30.length) * 100
       );
     }
 
     let level;
     if (monthlyScore >= 90)
-      level = { key: "optimal", label: "Optimal", emoji: "🏆" };
+      level = { key: 'optimal', label: 'Optimal', emoji: '🏆' };
     else if (monthlyScore >= 70)
-      level = { key: "consistent", label: "Consistent", emoji: "🌳" };
+      level = { key: 'consistent', label: 'Consistent', emoji: '🌳' };
     else if (monthlyScore >= 50)
-      level = { key: "improving", label: "Improving", emoji: "🌿" };
-    else level = { key: "beginner", label: "Beginner", emoji: "🌱" };
+      level = { key: 'improving', label: 'Improving', emoji: '🌿' };
+    else level = { key: 'beginner', label: 'Beginner', emoji: '🌱' };
 
     const last3 = dailyLog.slice(-3);
     const last3Avg = calcScore(last3);
     const momentum =
-      last3Avg >= 80 ? "rising" : last3Avg < 60 ? "falling" : "steady";
+      last3Avg >= 80 ? 'rising' : last3Avg < 60 ? 'falling' : 'steady';
 
     // BUG 6 FIX: was new Date().toISOString().slice(0,10) (UTC date) vs todayStr (TZ date)
     const todayEntry = dailyLog.find((d) => d.date === todayStr);
@@ -1100,10 +1099,10 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
       const meds = log.medicines || [];
 
       // Morning check
-      const hasMorning = meds.some((m) => m.time === "morning");
+      const hasMorning = meds.some((m) => m.time === 'morning');
       const allMorningTaken =
         hasMorning &&
-        meds.filter((m) => m.time === "morning").every((m) => m.taken);
+        meds.filter((m) => m.time === 'morning').every((m) => m.taken);
       if (allMorningTaken) {
         morningRun++;
         maxConsecutiveMorning = Math.max(maxConsecutiveMorning, morningRun);
@@ -1112,10 +1111,10 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
       }
 
       // Night check
-      const hasNight = meds.some((m) => m.time === "night");
+      const hasNight = meds.some((m) => m.time === 'night');
       const allNightTaken =
         hasNight &&
-        meds.filter((m) => m.time === "night").every((m) => m.taken);
+        meds.filter((m) => m.time === 'night').every((m) => m.taken);
       if (allNightTaken) {
         nightRun++;
         maxConsecutiveNight = Math.max(maxConsecutiveNight, nightRun);
@@ -1127,8 +1126,7 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
 
     // BP stabilized: count consecutive days with systolic BP logged
     const bpLoggedDays = dailyLog.filter(
-      (d) =>
-        d.vitals && (d.vitals.systolic || d.vitals.blood_pressure_systolic),
+      (d) => d.vitals && (d.vitals.systolic || d.vitals.blood_pressure_systolic)
     );
     let maxConsecutiveBP = 0,
       bpRun = 0;
@@ -1146,7 +1144,7 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
       patient.date_of_birth,
       patient.gender,
       patient.phone,
-      patient.blood_type && patient.blood_type !== "unknown",
+      patient.blood_type && patient.blood_type !== 'unknown',
       patient.lifestyle?.height_cm || patient.height_cm,
       patient.lifestyle?.weight_kg || patient.weight_kg,
       patient.conditions && patient.conditions.length > 0,
@@ -1166,18 +1164,18 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
     const moodDates = new Set(
       moodLogs.map((m) => {
         const d = new Date(m.date);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      }),
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      })
     );
     const moodLoggedDays = moodDates.size;
 
     const positiveMoodDays = new Set(
       moodLogs
-        .filter((m) => m.value === "good" || m.value === "great")
+        .filter((m) => m.value === 'good' || m.value === 'great')
         .map((m) => {
           const d = new Date(m.date);
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        }),
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        })
     );
     let maxConsecutivePositiveMood = 0;
     let currentPositiveMood = 0;
@@ -1186,7 +1184,7 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
         currentPositiveMood++;
         maxConsecutivePositiveMood = Math.max(
           maxConsecutivePositiveMood,
-          currentPositiveMood,
+          currentPositiveMood
         );
       } else {
         currentPositiveMood = 0;
@@ -1194,7 +1192,7 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
     }
 
     const hydrationDays = dailyLog.filter(
-      (d) => d.vitals && d.vitals.hydration != null,
+      (d) => d.vitals && d.vitals.hydration != null
     ).length;
 
     const comprehensiveVitalsDays = dailyLog.filter(
@@ -1203,7 +1201,7 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
         d.vitals.heart_rate != null &&
         (d.vitals.systolic != null ||
           d.vitals.blood_pressure_systolic != null) &&
-        d.vitals.oxygen_saturation != null,
+        d.vitals.oxygen_saturation != null
     ).length;
 
     // Current eligibility + progress for each badge
@@ -1211,41 +1209,41 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
     const badgeDefs = [
       // ── BRONZE TIER (Starter) ──
       {
-        key: "first_dose",
-        label: "First Dose",
-        description: "Log your very first medication dose",
-        emoji: "💊",
-        tier: "bronze",
+        key: 'first_dose',
+        label: 'First Dose',
+        description: 'Log your very first medication dose',
+        emoji: '💊',
+        tier: 'bronze',
         unlockCheck: totalTakenAllTime >= 1,
         progress: Math.min(totalTakenAllTime / 1, 1),
         progressLabel: `${Math.min(totalTakenAllTime, 1)}/1 dose`,
       },
       {
-        key: "first_vital",
-        label: "First Vital Logged",
-        description: "Log your first vital reading",
-        emoji: "❤️",
-        tier: "bronze",
+        key: 'first_vital',
+        label: 'First Vital Logged',
+        description: 'Log your first vital reading',
+        emoji: '❤️',
+        tier: 'bronze',
         unlockCheck: vitalsLoggedDays >= 1,
         progress: Math.min(vitalsLoggedDays / 1, 1),
         progressLabel: `${Math.min(vitalsLoggedDays, 1)}/1 day`,
       },
       {
-        key: "first_perfect_day",
-        label: "Perfect Day",
-        description: "Complete all scheduled medication doses in a single day",
-        emoji: "🌟",
-        tier: "bronze",
+        key: 'first_perfect_day',
+        label: 'Perfect Day',
+        description: 'Complete all scheduled medication doses in a single day',
+        emoji: '🌟',
+        tier: 'bronze',
         unlockCheck: perfectDays.length >= 1,
         progress: Math.min(perfectDays.length / 1, 1),
         progressLabel: `${Math.min(perfectDays.length, 1)}/1 day`,
       },
       {
-        key: "mood_check_in",
-        label: "Mood Check-In",
-        description: "Log your mood for the very first time",
-        emoji: "😊",
-        tier: "bronze",
+        key: 'mood_check_in',
+        label: 'Mood Check-In',
+        description: 'Log your mood for the very first time',
+        emoji: '😊',
+        tier: 'bronze',
         unlockCheck: moodLoggedDays >= 1,
         progress: Math.min(moodLoggedDays / 1, 1),
         progressLabel: `${Math.min(moodLoggedDays, 1)}/1 day`,
@@ -1253,23 +1251,23 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
 
       // ── SILVER TIER (Intermediate) ──
       {
-        key: "3_day_consistent",
-        label: "Hat Trick",
+        key: '3_day_consistent',
+        label: 'Hat Trick',
         description:
-          "Maintain an 80%+ medication log rate for 3 consecutive days",
-        emoji: "⚡",
-        tier: "silver",
+          'Maintain an 80%+ medication log rate for 3 consecutive days',
+        emoji: '⚡',
+        tier: 'silver',
         unlockCheck: maxConsecutive80 >= 3,
         progress:
           maxConsecutive80 >= 3 ? 1 : Math.min(maxConsecutive80 / 3, 0.99),
         progressLabel: `${Math.min(maxConsecutive80, 3)}/3 days`,
       },
       {
-        key: "never_missed_morning",
-        label: "Early Bird",
-        description: "Take morning medications on time for 3 days",
-        emoji: "🌅",
-        tier: "silver",
+        key: 'never_missed_morning',
+        label: 'Early Bird',
+        description: 'Take morning medications on time for 3 days',
+        emoji: '🌅',
+        tier: 'silver',
         unlockCheck: maxConsecutiveMorning >= 3,
         progress:
           maxConsecutiveMorning >= 3
@@ -1278,63 +1276,63 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
         progressLabel: `${Math.min(maxConsecutiveMorning, 3)}/3 mornings`,
       },
       {
-        key: "weekly_90",
-        label: "Weekly Star",
-        description: "Maintain 90%+ medication adherence for a full week",
-        emoji: "🎯",
-        tier: "silver",
+        key: 'weekly_90',
+        label: 'Weekly Star',
+        description: 'Maintain 90%+ medication adherence for a full week',
+        emoji: '🎯',
+        tier: 'silver',
         unlockCheck: weeklyScore >= 90,
         progress: Math.min(weeklyScore / 90, 1),
         progressLabel: `${weeklyScore}/90%`,
       },
       {
-        key: "streak_7",
-        label: "7-Day Streak",
-        description: "Log your vitals or medications for 7 consecutive days",
-        emoji: "🔥",
-        tier: "silver",
+        key: 'streak_7',
+        label: '7-Day Streak',
+        description: 'Log your vitals or medications for 7 consecutive days',
+        emoji: '🔥',
+        tier: 'silver',
         unlockCheck: maxConsecutive80 >= 7,
         progress:
           maxConsecutive80 >= 7 ? 1 : Math.min(maxConsecutive80 / 7, 0.99),
         progressLabel: `${Math.min(maxConsecutive80, 7)}/7 days`,
       },
       {
-        key: "bp_stabilized",
-        label: "BP Stabilized",
-        description: "Maintain stable blood pressure logs for 14 days",
-        emoji: "💓",
-        tier: "silver",
+        key: 'bp_stabilized',
+        label: 'BP Stabilized',
+        description: 'Maintain stable blood pressure logs for 14 days',
+        emoji: '💓',
+        tier: 'silver',
         unlockCheck: maxConsecutiveBP >= 14,
         progress:
           maxConsecutiveBP >= 14 ? 1 : Math.min(maxConsecutiveBP / 14, 0.99),
         progressLabel: `${Math.min(maxConsecutiveBP, 14)}/14 days`,
       },
       {
-        key: "profile_complete",
-        label: "Profile Complete",
-        description: "Fill in 100% of your health profile information",
-        emoji: "✅",
-        tier: "silver",
+        key: 'profile_complete',
+        label: 'Profile Complete',
+        description: 'Fill in 100% of your health profile information',
+        emoji: '✅',
+        tier: 'silver',
         unlockCheck: profilePct >= 100,
         progress: Math.min(profilePct / 100, profilePct >= 100 ? 1 : 0.99),
         progressLabel: `${profilePct}/100%`,
       },
       {
-        key: "hydration_hero",
-        label: "Hydration Hero",
-        description: "Log your hydration levels on 5 different days",
-        emoji: "💧",
-        tier: "silver",
+        key: 'hydration_hero',
+        label: 'Hydration Hero',
+        description: 'Log your hydration levels on 5 different days',
+        emoji: '💧',
+        tier: 'silver',
         unlockCheck: hydrationDays >= 5,
         progress: Math.min(hydrationDays / 5, 1),
         progressLabel: `${Math.min(hydrationDays, 5)}/5 days`,
       },
       {
-        key: "mindful_week",
-        label: "Mindful Week",
-        description: "Log your mood for 7 days",
-        emoji: "🧠",
-        tier: "silver",
+        key: 'mindful_week',
+        label: 'Mindful Week',
+        description: 'Log your mood for 7 days',
+        emoji: '🧠',
+        tier: 'silver',
         unlockCheck: moodLoggedDays >= 7,
         progress: Math.min(moodLoggedDays / 7, 1),
         progressLabel: `${Math.min(moodLoggedDays, 7)}/7 days`,
@@ -1342,21 +1340,21 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
 
       // ── GOLD TIER (Elite) ──
       {
-        key: "7_perfect_days",
-        label: "Perfect Week",
-        description: "Log 7 perfect days of 100% medication adherence",
-        emoji: "💎",
-        tier: "gold",
+        key: '7_perfect_days',
+        label: 'Perfect Week',
+        description: 'Log 7 perfect days of 100% medication adherence',
+        emoji: '💎',
+        tier: 'gold',
         unlockCheck: perfectDays.length >= 7,
         progress: Math.min(perfectDays.length / 7, 1),
         progressLabel: `${Math.min(perfectDays.length, 7)}/7 days`,
       },
       {
-        key: "night_owl",
-        label: "Night Owl",
-        description: "Log all evening and night doses on time for 5 days",
-        emoji: "🦉",
-        tier: "gold",
+        key: 'night_owl',
+        label: 'Night Owl',
+        description: 'Log all evening and night doses on time for 5 days',
+        emoji: '🦉',
+        tier: 'gold',
         unlockCheck: maxConsecutiveNight >= 5,
         progress:
           maxConsecutiveNight >= 5
@@ -1365,52 +1363,52 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
         progressLabel: `${Math.min(maxConsecutiveNight, 5)}/5 nights`,
       },
       {
-        key: "vitals_tracker",
-        label: "Vitals Pro",
-        description: "Log your health vitals on 10 or more days",
-        emoji: "❤️‍🔥",
-        tier: "gold",
+        key: 'vitals_tracker',
+        label: 'Vitals Pro',
+        description: 'Log your health vitals on 10 or more days',
+        emoji: '❤️‍🔥',
+        tier: 'gold',
         unlockCheck: vitalsLoggedDays >= 10,
         progress: Math.min(vitalsLoggedDays / 10, 1),
         progressLabel: `${Math.min(vitalsLoggedDays, 10)}/10 days`,
       },
       {
-        key: "streak_14",
-        label: "Two-Week Warrior",
-        description: "Maintain an 80%+ logging rate for 14 consecutive days",
-        emoji: "🔥",
-        tier: "gold",
+        key: 'streak_14',
+        label: 'Two-Week Warrior',
+        description: 'Maintain an 80%+ logging rate for 14 consecutive days',
+        emoji: '🔥',
+        tier: 'gold',
         unlockCheck: maxConsecutive80 >= 14,
         progress:
           maxConsecutive80 >= 14 ? 1 : Math.min(maxConsecutive80 / 14, 0.99),
         progressLabel: `${Math.min(maxConsecutive80, 14)}/14 days`,
       },
       {
-        key: "monthly_consistent",
-        label: "Monthly Legend",
-        description: "Maintain 80%+ consistency for a full month",
-        emoji: "🏆",
-        tier: "gold",
+        key: 'monthly_consistent',
+        label: 'Monthly Legend',
+        description: 'Maintain 80%+ consistency for a full month',
+        emoji: '🏆',
+        tier: 'gold',
         unlockCheck: monthlyScore >= 80 && last30.length >= 25,
         progress: Math.min(monthlyScore / 80, 1),
         progressLabel: `${monthlyScore}/80%`,
       },
       {
-        key: "adherence_30d_90",
-        label: "Compliance Champ",
-        description: "Maintain 90%+ medication adherence over 30 days",
-        emoji: "🛡️",
-        tier: "gold",
+        key: 'adherence_30d_90',
+        label: 'Compliance Champ',
+        description: 'Maintain 90%+ medication adherence over 30 days',
+        emoji: '🛡️',
+        tier: 'gold',
         unlockCheck: monthlyScore >= 90 && last30.length >= 25,
         progress: Math.min(monthlyScore / 90, 1),
         progressLabel: `${monthlyScore}/90%`,
       },
       {
-        key: "score_plus_20",
-        label: "Major Improvement",
-        description: "Improve your overall health score by 20+ points",
-        emoji: "📈",
-        tier: "gold",
+        key: 'score_plus_20',
+        label: 'Major Improvement',
+        description: 'Improve your overall health score by 20+ points',
+        emoji: '📈',
+        tier: 'gold',
         unlockCheck: scoreImprovement >= 20,
         progress:
           scoreImprovement >= 20
@@ -1419,21 +1417,21 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
         progressLabel: `${Math.max(Math.round(scoreImprovement), 0)}/20 pts`,
       },
       {
-        key: "100_doses",
-        label: "Century Club",
-        description: "Successfully log a total of 100 medication doses",
-        emoji: "💯",
-        tier: "gold",
+        key: '100_doses',
+        label: 'Century Club',
+        description: 'Successfully log a total of 100 medication doses',
+        emoji: '💯',
+        tier: 'gold',
         unlockCheck: totalTakenAllTime >= 100,
         progress: Math.min(totalTakenAllTime / 100, 1),
         progressLabel: `${Math.min(totalTakenAllTime, 100)}/100 doses`,
       },
       {
-        key: "positivity_streak",
-        label: "Positivity Streak",
+        key: 'positivity_streak',
+        label: 'Positivity Streak',
         description: "Report a 'good' or 'great' mood for 3 consecutive days",
-        emoji: "✨",
-        tier: "gold",
+        emoji: '✨',
+        tier: 'gold',
         unlockCheck: maxConsecutivePositiveMood >= 3,
         progress:
           maxConsecutivePositiveMood >= 3
@@ -1442,12 +1440,12 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
         progressLabel: `${Math.min(maxConsecutivePositiveMood, 3)}/3 days`,
       },
       {
-        key: "comprehensive_care",
-        label: "Comprehensive Care",
+        key: 'comprehensive_care',
+        label: 'Comprehensive Care',
         description:
-          "Log heart rate, blood pressure, and oxygen saturation on the same day",
-        emoji: "🩺",
-        tier: "gold",
+          'Log heart rate, blood pressure, and oxygen saturation on the same day',
+        emoji: '🩺',
+        tier: 'gold',
         unlockCheck: comprehensiveVitalsDays >= 1,
         progress: Math.min(comprehensiveVitalsDays / 1, 1),
         progressLabel: `${Math.min(comprehensiveVitalsDays, 1)}/1 day`,
@@ -1455,22 +1453,22 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
 
       // ── LEGENDARY TIER ──
       {
-        key: "streak_30",
-        label: "30-Day Streak",
-        description: "Log your medications or vitals for 30 consecutive days",
-        emoji: "👑",
-        tier: "legendary",
+        key: 'streak_30',
+        label: '30-Day Streak',
+        description: 'Log your medications or vitals for 30 consecutive days',
+        emoji: '👑',
+        tier: 'legendary',
         unlockCheck: maxConsecutive80 >= 30,
         progress:
           maxConsecutive80 >= 30 ? 1 : Math.min(maxConsecutive80 / 30, 0.99),
         progressLabel: `${Math.min(maxConsecutive80, 30)}/30 days`,
       },
       {
-        key: "30_perfect_days",
-        label: "Unstoppable",
-        description: "Record 30 days of perfect 100% medication adherence",
-        emoji: "👑",
-        tier: "legendary",
+        key: '30_perfect_days',
+        label: 'Unstoppable',
+        description: 'Record 30 days of perfect 100% medication adherence',
+        emoji: '👑',
+        tier: 'legendary',
         unlockCheck: perfectDays.length >= 30,
         progress: Math.min(perfectDays.length / 30, 1),
         progressLabel: `${Math.min(perfectDays.length, 30)}/30 days`,
@@ -1498,19 +1496,19 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
 
     // Persist any newly earned badges (fire-and-forget)
     if (newlyUnlocked.length > 0) {
-      const Patient = require("../../models/Patient");
+      const Patient = require('../../models/Patient');
       Patient.updateOne(
         { _id: patient._id },
-        { $addToSet: { unlockedAchievements: { $each: newlyUnlocked } } },
+        { $addToSet: { unlockedAchievements: { $each: newlyUnlocked } } }
       ).catch((e) =>
-        logger.warn("Achievement persist failed", { error: e.message }),
+        logger.warn('Achievement persist failed', { error: e.message })
       );
     }
 
     const insights = [];
     if (monthlyScore >= 90) {
       insights.push(
-        "Excellent consistency! Your medication routine is well-established.",
+        'Excellent consistency! Your medication routine is well-established.'
       );
     } else {
       const times = {
@@ -1539,35 +1537,35 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
       });
       if (lowestTime) {
         insights.push(
-          `Insight: You frequently miss your ${lowestTime} doses (${Math.round(lowestRate)}%). Consider setting an extra reminder!`,
+          `Insight: You frequently miss your ${lowestTime} doses (${Math.round(lowestRate)}%). Consider setting an extra reminder!`
         );
       } else if (monthlyScore > 0) {
         insights.push(
-          "Keep it up! Every dose counts toward your long-term health goals.",
+          'Keep it up! Every dose counts toward your long-term health goals.'
         );
       }
     }
     if (vitalsAdherence >= 80)
       insights.push(
-        "Great job consistently logging your vitals alongside your medications.",
+        'Great job consistently logging your vitals alongside your medications.'
       );
     else if (vitalsAdherence < 30)
       insights.push(
-        "Try to log your vitals more frequently to build a complete health profile.",
+        'Try to log your vitals more frequently to build a complete health profile.'
       );
 
     // BUG 5 FIX: replaced native Date arithmetic with TZ-safe moment string iteration
     const currentStreak = computeCurrentStreak(
       dailyLog,
       todayStr,
-      historyStartStr,
+      historyStartStr
     );
 
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const weeklyTrend = [];
     for (let i = 6; i >= 0; i--) {
-      const d = moment().tz(timezone).subtract(i, "days");
-      const dateStr = d.format("YYYY-MM-DD");
+      const d = moment().tz(timezone).subtract(i, 'days');
+      const dateStr = d.format('YYYY-MM-DD');
       const entry = dailyLog.find((e) => e.date === dateStr);
       weeklyTrend.push({
         day: dayNames[d.day()],
@@ -1590,49 +1588,49 @@ router.get("/adherence/details", authenticateSession, async (req, res) => {
       weekly_trend: weeklyTrend,
     };
 
-    res.setHeader("Vary", "Accept");
+    res.setHeader('Vary', 'Accept');
     if (shouldNegotiateMarkdown(req)) {
       const md = formatAdherenceDetailsMarkdown(detailsPayload);
-      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
       return res.send(md);
     }
 
     res.json(detailsPayload);
   } catch (error) {
-    logger.error("Get adherence details error", {
+    logger.error('Get adherence details error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get adherence details" });
+    res.status(500).json({ error: 'Failed to get adherence details' });
   }
 });
 
 /**
  * GET /api/users/medicines/adherence/recap
  */
-router.get("/adherence/recap", authenticateSession, async (req, res) => {
+router.get('/adherence/recap', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
 
-    const timezone = patient.timezone || "Asia/Kolkata";
+    const timezone = patient.timezone || 'Asia/Kolkata';
 
-    const period = req.query.period || "weekly";
+    const period = req.query.period || 'weekly';
     const now = moment().tz(timezone);
     const { todayStr } = getTodayUtcMidnight(timezone);
 
     let daysBack;
-    if (period === "yearly") daysBack = 365;
-    else if (period === "monthly") daysBack = 30;
+    if (period === 'yearly') daysBack = 365;
+    else if (period === 'monthly') daysBack = 30;
     else daysBack = 7;
 
     let startDateStr = now
       .clone()
-      .subtract(daysBack, "days")
-      .format("YYYY-MM-DD");
+      .subtract(daysBack, 'days')
+      .format('YYYY-MM-DD');
     let startDate = new Date(`${startDateStr}T00:00:00.000Z`);
     let isAllTimeFallback = false;
 
-    if (period === "yearly") {
+    if (period === 'yearly') {
       const firstLog = await MedicineLog.findOne({
         patient_id: patient._id,
       }).sort({ date: 1 });
@@ -1641,7 +1639,7 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
         startDateStr = startDate.toISOString().slice(0, 10);
         daysBack = Math.max(
           1,
-          Math.ceil((Date.now() - startDate.getTime()) / 86400000),
+          Math.ceil((Date.now() - startDate.getTime()) / 86400000)
         );
         isAllTimeFallback = true;
       }
@@ -1649,11 +1647,11 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
 
     const {
       buildDailyAdherenceTimeline,
-    } = require("../../services/adherenceGapFillService");
+    } = require('../../services/adherenceGapFillService');
     const dailyEntries = await buildDailyAdherenceTimeline(
       patient,
       startDateStr,
-      todayStr,
+      todayStr
     );
 
     let totalScheduled = 0,
@@ -1669,7 +1667,7 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
     const currentStreak = computeCurrentStreak(
       dailyEntries,
       todayStr,
-      startDateStr,
+      startDateStr
     );
 
     let bestStreak = 0,
@@ -1716,12 +1714,12 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
 
     let level;
     if (adherenceRate >= 90)
-      level = { key: "optimal", label: "Optimal", emoji: "🏆" };
+      level = { key: 'optimal', label: 'Optimal', emoji: '🏆' };
     else if (adherenceRate >= 70)
-      level = { key: "consistent", label: "Consistent", emoji: "🌳" };
+      level = { key: 'consistent', label: 'Consistent', emoji: '🌳' };
     else if (adherenceRate >= 50)
-      level = { key: "improving", label: "Improving", emoji: "🌿" };
-    else level = { key: "beginner", label: "Beginner", emoji: "🌱" };
+      level = { key: 'improving', label: 'Improving', emoji: '🌿' };
+    else level = { key: 'beginner', label: 'Beginner', emoji: '🌱' };
 
     const medStats = {};
     dailyEntries.forEach((entry) => {
@@ -1748,15 +1746,15 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
 
     const prevStartStr = now
       .clone()
-      .subtract(daysBack * 2, "days")
-      .format("YYYY-MM-DD");
+      .subtract(daysBack * 2, 'days')
+      .format('YYYY-MM-DD');
     const prevEndStr = moment(startDateStr)
-      .subtract(1, "day")
-      .format("YYYY-MM-DD");
+      .subtract(1, 'day')
+      .format('YYYY-MM-DD');
     const prevEntries = await buildDailyAdherenceTimeline(
       patient,
       prevStartStr,
-      prevEndStr,
+      prevEndStr
     );
 
     let prevTotal = 0,
@@ -1774,33 +1772,33 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
     const messages = {
       optimal: [
         "You're unstoppable! 🔥",
-        "Health champion status achieved! 💪",
-        "Consistency is your superpower! ⭐",
+        'Health champion status achieved! 💪',
+        'Consistency is your superpower! ⭐',
       ],
       consistent: [
-        "Great momentum — keep pushing! 🚀",
+        'Great momentum — keep pushing! 🚀',
         "You're building healthy habits! 🌟",
         "Almost at the top — don't stop! 💫",
       ],
       improving: [
         "Every dose counts — you're growing! 🌿",
-        "Progress is progress, no matter how small! 📈",
+        'Progress is progress, no matter how small! 📈',
         "Keep going, you're on the right track! 🛤️",
       ],
       beginner: [
-        "Today is a fresh start! 🌅",
+        'Today is a fresh start! 🌅',
         "One step at a time — you've got this! 💙",
-        "Small steps lead to big changes! 🦋",
+        'Small steps lead to big changes! 🦋',
       ],
     };
     const pool = messages[level.key] || messages.beginner;
     const motivationalMessage = pool[Math.floor(Math.random() * pool.length)];
 
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const weeklyTrend = [];
     for (let i = 6; i >= 0; i--) {
-      const d = moment().tz(timezone).subtract(i, "days");
-      const dateStr = d.format("YYYY-MM-DD");
+      const d = moment().tz(timezone).subtract(i, 'days');
+      const dateStr = d.format('YYYY-MM-DD');
       const entry = dailyEntries.find((e) => e.date === dateStr);
       weeklyTrend.push({
         day: dayNames[d.day()],
@@ -1811,8 +1809,8 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
 
     const monthlyTrend = [];
     for (let i = 29; i >= 0; i--) {
-      const d = moment().tz(timezone).subtract(i, "days");
-      const dateStr = d.format("YYYY-MM-DD");
+      const d = moment().tz(timezone).subtract(i, 'days');
+      const dateStr = d.format('YYYY-MM-DD');
       const entry = dailyEntries.find((e) => e.date === dateStr);
       monthlyTrend.push({
         date: dateStr,
@@ -1822,25 +1820,25 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
     }
 
     const monthNames = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     const yearlyTrend = [];
     for (let i = 11; i >= 0; i--) {
-      const d = moment().tz(timezone).subtract(i, "months");
-      const monthKey = d.format("YYYY-MM");
+      const d = moment().tz(timezone).subtract(i, 'months');
+      const monthKey = d.format('YYYY-MM');
       const monthEntries = dailyEntries.filter((e) =>
-        e.date.startsWith(monthKey),
+        e.date.startsWith(monthKey)
       );
       const monthTotal = monthEntries.reduce((s, e) => s + e.total, 0);
       const monthTaken = monthEntries.reduce((s, e) => s + e.taken, 0);
@@ -1877,22 +1875,22 @@ router.get("/adherence/recap", authenticateSession, async (req, res) => {
       yearly_trend: yearlyTrend,
     });
   } catch (error) {
-    logger.error("Get adherence recap error", {
+    logger.error('Get adherence recap error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to get adherence recap" });
+    res.status(500).json({ error: 'Failed to get adherence recap' });
   }
 });
 
-const TempMedication = require("../../models/TempMedication");
-const { lookupMedicine } = require("../../services/medicineAIService");
+const TempMedication = require('../../models/TempMedication');
+const { lookupMedicine } = require('../../services/medicineAIService');
 
 /**
  * GET /api/users/medicines/temp-meds
  * Fetches active temporary medications for the authenticated patient.
  */
-router.get("/temp-meds", authenticateSession, async (req, res) => {
+router.get('/temp-meds', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const searchIds = [patient._id];
@@ -1907,11 +1905,11 @@ router.get("/temp-meds", authenticateSession, async (req, res) => {
 
     res.json({ tempMedications: tempMeds });
   } catch (error) {
-    logger.error("Fetch temp-meds error", {
+    logger.error('Fetch temp-meds error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to fetch temporary medications" });
+    res.status(500).json({ error: 'Failed to fetch temporary medications' });
   }
 });
 
@@ -1919,19 +1917,19 @@ router.get("/temp-meds", authenticateSession, async (req, res) => {
  * POST /api/users/medicines/temp-meds
  * Adds a temporary medication for the patient.
  */
-router.post("/temp-meds", authenticateSession, async (req, res) => {
+router.post('/temp-meds', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const { name, dosage, frequency, reason, shift } = req.body;
 
     if (!name || !name.trim()) {
-      return res.status(400).json({ error: "Medicine name is required." });
+      return res.status(400).json({ error: 'Medicine name is required.' });
     }
 
-    const validShifts = ["morning", "afternoon", "night"];
+    const validShifts = ['morning', 'afternoon', 'night'];
     if (!validShifts.includes(shift)) {
       return res.status(400).json({
-        error: "Valid shift (morning, afternoon, night) is required.",
+        error: 'Valid shift (morning, afternoon, night) is required.',
       });
     }
 
@@ -1944,20 +1942,20 @@ router.post("/temp-meds", authenticateSession, async (req, res) => {
     if (!orgId) {
       return res
         .status(400)
-        .json({ error: "Could not determine organization." });
+        .json({ error: 'Could not determine organization.' });
     }
 
     const tempMed = new TempMedication({
       patientId: targetPatientId,
       organizationId: orgId,
       name: name.trim(),
-      dosage: dosage?.trim() || "",
-      frequency: frequency?.trim() || "As needed",
+      dosage: dosage?.trim() || '',
+      frequency: frequency?.trim() || 'As needed',
       shift,
-      reason: reason?.trim() || "",
+      reason: reason?.trim() || '',
       addedBy: targetPatientId,
-      addedByRole: "patient",
-      addedByName: patient.name || "Patient",
+      addedByRole: 'patient',
+      addedByName: patient.name || 'Patient',
       riskTier: aiResult.riskTier,
       genericName: aiResult.genericName,
       aiSummary: aiResult.aiSummary,
@@ -1969,15 +1967,15 @@ router.post("/temp-meds", authenticateSession, async (req, res) => {
     await tempMed.save();
 
     res.status(201).json({
-      message: "Temporary medicine added.",
+      message: 'Temporary medicine added.',
       tempMedication: tempMed.toObject(),
     });
   } catch (error) {
-    logger.error("Add temp-med error", {
+    logger.error('Add temp-med error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to add temporary medication." });
+    res.status(500).json({ error: 'Failed to add temporary medication.' });
   }
 });
 
@@ -1985,16 +1983,16 @@ router.post("/temp-meds", authenticateSession, async (req, res) => {
  * DELETE /api/users/medicines/temp-meds/:medId
  * Soft-deletes a temporary medication for the patient.
  */
-router.delete("/temp-meds/:medId", authenticateSession, async (req, res) => {
+router.delete('/temp-meds/:medId', authenticateSession, async (req, res) => {
   try {
     const patient = await getOrCreatePatient(req);
     const { medId } = req.params;
 
-    const mongoose = require("mongoose");
+    const mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(medId)) {
       return res
         .status(400)
-        .json({ error: "Invalid temporary medicine ID format." });
+        .json({ error: 'Invalid temporary medicine ID format.' });
     }
 
     const searchIds = [patient._id];
@@ -2013,20 +2011,20 @@ router.delete("/temp-meds/:medId", authenticateSession, async (req, res) => {
           deletedAt: new Date(),
         },
       },
-      { new: true },
+      { new: true }
     );
 
     if (!tempMed) {
-      return res.status(404).json({ error: "Temporary medicine not found." });
+      return res.status(404).json({ error: 'Temporary medicine not found.' });
     }
 
-    res.json({ message: "Temporary medicine removed." });
+    res.json({ message: 'Temporary medicine removed.' });
   } catch (error) {
-    logger.error("Delete temp-med error", {
+    logger.error('Delete temp-med error', {
       error: error.message,
       patientId: req.user?.id,
     });
-    res.status(500).json({ error: "Failed to remove temporary medication." });
+    res.status(500).json({ error: 'Failed to remove temporary medication.' });
   }
 });
 

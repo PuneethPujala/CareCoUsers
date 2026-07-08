@@ -1,4 +1,4 @@
-process.env.NODE_ENV = "test";
+process.env.NODE_ENV = 'test';
 
 /**
  * tests/users/callers.test.js
@@ -14,36 +14,36 @@ const mockAuthState = { rejectAuth: false };
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock("../../src/middleware/authenticate", () => ({
+jest.mock('../../src/middleware/authenticate', () => ({
   authenticate: (req, res, next) => {
     if (mockAuthState.rejectAuth)
-      return res.status(401).json({ error: "Unauthorized" });
-    req.user = { id: "sup-uid-caller" };
+      return res.status(401).json({ error: 'Unauthorized' });
+    req.user = { id: 'sup-uid-caller' };
     next();
   },
   authenticateSession: (req, res, next) => {
     if (mockAuthState.rejectAuth)
-      return res.status(401).json({ error: "Unauthorized" });
-    req.user = { id: "sup-uid-caller" };
+      return res.status(401).json({ error: 'Unauthorized' });
+    req.user = { id: 'sup-uid-caller' };
     next();
   },
   requireRole: () => (req, res, next) => next(),
 }));
 
-jest.mock("../../src/models/Caller");
-jest.mock("../../src/models/Patient");
+jest.mock('../../src/models/Caller');
+jest.mock('../../src/models/Patient');
 // CallLog used as constructor + statics — mock as class
-jest.mock("../../src/models/CallLog");
-jest.mock("../../src/models/Alert");
+jest.mock('../../src/models/CallLog');
+jest.mock('../../src/models/Alert');
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
-const request = require("supertest");
-const app = require("../../src/server");
-const Caller = require("../../src/models/Caller");
-const Patient = require("../../src/models/Patient");
-const CallLog = require("../../src/models/CallLog");
-const Alert = require("../../src/models/Alert");
+const request = require('supertest');
+const app = require('../../src/server');
+const Caller = require('../../src/models/Caller');
+const Patient = require('../../src/models/Patient');
+const CallLog = require('../../src/models/CallLog');
+const Alert = require('../../src/models/Alert');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,18 +58,18 @@ function fakeId(val) {
 
 function makeCaller(overrides = {}) {
   return {
-    _id: fakeId(overrides._id || "caller-id"),
-    supabase_uid: "sup-uid-caller",
-    name: overrides.name || "Priya Sharma",
-    email: "caller@caremymed.in",
-    organization_id: fakeId(overrides.organization_id || "org-id"),
+    _id: fakeId(overrides._id || 'caller-id'),
+    supabase_uid: 'sup-uid-caller',
+    name: overrides.name || 'Priya Sharma',
+    email: 'caller@caremymed.in',
+    organization_id: fakeId(overrides.organization_id || 'org-id'),
     manager_id: overrides.manager_id
       ? fakeId(overrides.manager_id)
-      : fakeId("manager-id"),
+      : fakeId('manager-id'),
     patient_ids:
       overrides.patient_ids !== undefined
         ? overrides.patient_ids
-        : ["patient-id"],
+        : ['patient-id'],
     performance: overrides.performance || {
       calls_this_week: 12,
       adherence_rate: 94,
@@ -81,12 +81,12 @@ function makeCaller(overrides = {}) {
 }
 
 function makePatient(overrides = {}) {
-  const id = fakeId(overrides._id || "patient-id");
+  const id = fakeId(overrides._id || 'patient-id');
   return {
     _id: id,
-    name: overrides.name || "Test Patient",
-    email: "patient@caremymed.in",
-    city: "Hyderabad",
+    name: overrides.name || 'Test Patient',
+    email: 'patient@caremymed.in',
+    city: 'Hyderabad',
     conditions: [],
     medications: [],
     toJSON: function () {
@@ -114,7 +114,7 @@ function makePatientFindChain(patients) {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("User Callers Routes", () => {
+describe('User Callers Routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuthState.rejectAuth = false;
@@ -122,53 +122,53 @@ describe("User Callers Routes", () => {
 
   // ── GET /api/users/callers/me ──────────────────────────────────────────────
 
-  describe("GET /api/users/callers/me", () => {
-    it("returns own caller profile", async () => {
+  describe('GET /api/users/callers/me', () => {
+    it('returns own caller profile', async () => {
       Caller.findOne = jest
         .fn()
-        .mockResolvedValue(makeCaller({ name: "Priya Sharma" }));
+        .mockResolvedValue(makeCaller({ name: 'Priya Sharma' }));
 
-      const res = await request(app).get("/api/users/callers/me");
+      const res = await request(app).get('/api/users/callers/me');
 
       expect(res.status).toBe(200);
-      expect(res.body.caller.name).toBe("Priya Sharma");
+      expect(res.body.caller.name).toBe('Priya Sharma');
     });
 
-    it("returns 404 when caller not found", async () => {
+    it('returns 404 when caller not found', async () => {
       Caller.findOne = jest.fn().mockResolvedValue(null);
 
-      const res = await request(app).get("/api/users/callers/me");
+      const res = await request(app).get('/api/users/callers/me');
 
       expect(res.status).toBe(404);
-      expect(res.body.error).toBe("Caller profile not found");
+      expect(res.body.error).toBe('Caller profile not found');
     });
 
-    it("returns 500 on database error", async () => {
-      Caller.findOne = jest.fn().mockRejectedValue(new Error("DB error"));
+    it('returns 500 on database error', async () => {
+      Caller.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
 
-      const res = await request(app).get("/api/users/callers/me");
+      const res = await request(app).get('/api/users/callers/me');
 
       expect(res.status).toBe(500);
-      expect(res.body.error).toBe("Failed to get caller profile");
+      expect(res.body.error).toBe('Failed to get caller profile');
     });
   });
 
   // ── GET /api/users/callers/me/patients/today ───────────────────────────────
 
-  describe("GET /api/users/callers/me/patients/today", () => {
-    it("returns today patient list with call status", async () => {
-      const caller = makeCaller({ patient_ids: ["patient-1", "patient-2"] });
+  describe('GET /api/users/callers/me/patients/today', () => {
+    it('returns today patient list with call status', async () => {
+      const caller = makeCaller({ patient_ids: ['patient-1', 'patient-2'] });
       const patients = [
-        makePatient({ _id: "patient-1", name: "Alpha" }),
-        makePatient({ _id: "patient-2", name: "Beta" }),
+        makePatient({ _id: 'patient-1', name: 'Alpha' }),
+        makePatient({ _id: 'patient-2', name: 'Beta' }),
       ];
       // One completed call for patient-1
       const todayCalls = [
         {
-          patientId: fakeId("patient-1"),
-          patient_id: "patient-1",
-          status: "completed",
-          _id: fakeId("call-1"),
+          patientId: fakeId('patient-1'),
+          patient_id: 'patient-1',
+          status: 'completed',
+          _id: fakeId('call-1'),
         },
       ];
 
@@ -177,7 +177,7 @@ describe("User Callers Routes", () => {
       CallLog.find = jest.fn().mockResolvedValue(todayCalls);
 
       const res = await request(app).get(
-        "/api/users/callers/me/patients/today",
+        '/api/users/callers/me/patients/today'
       );
 
       expect(res.status).toBe(200);
@@ -186,19 +186,19 @@ describe("User Callers Routes", () => {
       expect(res.body.summary.called).toBe(1);
     });
 
-    it("sorts patients: pending before completed", async () => {
-      const caller = makeCaller({ patient_ids: ["p1", "p2"] });
+    it('sorts patients: pending before completed', async () => {
+      const caller = makeCaller({ patient_ids: ['p1', 'p2'] });
       const patients = [
-        makePatient({ _id: "p1", name: "Completed" }),
-        makePatient({ _id: "p2", name: "Pending" }),
+        makePatient({ _id: 'p1', name: 'Completed' }),
+        makePatient({ _id: 'p2', name: 'Pending' }),
       ];
       // Only p1 has a completed call
       const todayCalls = [
         {
-          patientId: fakeId("p1"),
-          patient_id: "p1",
-          status: "completed",
-          _id: fakeId("call-1"),
+          patientId: fakeId('p1'),
+          patient_id: 'p1',
+          status: 'completed',
+          _id: fakeId('call-1'),
         },
       ];
 
@@ -207,19 +207,19 @@ describe("User Callers Routes", () => {
       CallLog.find = jest.fn().mockResolvedValue(todayCalls);
 
       const res = await request(app).get(
-        "/api/users/callers/me/patients/today",
+        '/api/users/callers/me/patients/today'
       );
 
       expect(res.status).toBe(200);
       // pending (p2) comes before completed (p1)
-      expect(res.body.patients[0].name).toBe("Pending");
-      expect(res.body.patients[1].name).toBe("Completed");
+      expect(res.body.patients[0].name).toBe('Pending');
+      expect(res.body.patients[1].name).toBe('Completed');
     });
 
-    it("returns 404 when caller not found", async () => {
+    it('returns 404 when caller not found', async () => {
       Caller.findOne = jest.fn().mockResolvedValue(null);
       const res = await request(app).get(
-        "/api/users/callers/me/patients/today",
+        '/api/users/callers/me/patients/today'
       );
       expect(res.status).toBe(404);
     });
@@ -227,11 +227,11 @@ describe("User Callers Routes", () => {
 
   // ── POST /api/users/callers/me/calls ──────────────────────────────────────
 
-  describe("POST /api/users/callers/me/calls", () => {
-    it("logs a completed call successfully", async () => {
-      const caller = makeCaller({ patient_ids: ["patient-id"] });
+  describe('POST /api/users/callers/me/calls', () => {
+    it('logs a completed call successfully', async () => {
+      const caller = makeCaller({ patient_ids: ['patient-id'] });
       const callLog = {
-        _id: fakeId("call-1"),
+        _id: fakeId('call-1'),
         save: jest.fn().mockResolvedValue(true),
       };
 
@@ -242,34 +242,34 @@ describe("User Callers Routes", () => {
         .fn()
         .mockReturnValue(makePatientFindChain(makePatient()));
 
-      const res = await request(app).post("/api/users/callers/me/calls").send({
-        patient_id: "patient-id",
-        status: "completed",
+      const res = await request(app).post('/api/users/callers/me/calls').send({
+        patient_id: 'patient-id',
+        status: 'completed',
         call_duration_seconds: 300,
       });
 
       expect(res.status).toBe(201);
-      expect(res.body.message).toBe("Call logged successfully");
+      expect(res.body.message).toBe('Call logged successfully');
       expect(callLog.save).toHaveBeenCalled();
     });
 
-    it("returns 403 when patient not assigned to caller", async () => {
+    it('returns 403 when patient not assigned to caller', async () => {
       Caller.findOne = jest
         .fn()
-        .mockResolvedValue(makeCaller({ patient_ids: ["other-patient"] }));
+        .mockResolvedValue(makeCaller({ patient_ids: ['other-patient'] }));
 
       const res = await request(app)
-        .post("/api/users/callers/me/calls")
-        .send({ patient_id: "unassigned-patient", status: "completed" });
+        .post('/api/users/callers/me/calls')
+        .send({ patient_id: 'unassigned-patient', status: 'completed' });
 
       expect(res.status).toBe(403);
-      expect(res.body.error).toBe("Patient not assigned to you");
+      expect(res.body.error).toBe('Patient not assigned to you');
     });
 
-    it("creates alert after 3 consecutive missed calls", async () => {
-      const caller = makeCaller({ patient_ids: ["patient-id"] });
+    it('creates alert after 3 consecutive missed calls', async () => {
+      const caller = makeCaller({ patient_ids: ['patient-id'] });
       const callLog = {
-        _id: fakeId("call-1"),
+        _id: fakeId('call-1'),
         save: jest.fn().mockResolvedValue(true),
       };
       const alert = { save: jest.fn().mockResolvedValue(true) };
@@ -283,16 +283,16 @@ describe("User Callers Routes", () => {
         .mockReturnValue(makePatientFindChain(makePatient()));
 
       await request(app)
-        .post("/api/users/callers/me/calls")
-        .send({ patient_id: "patient-id", status: "missed" });
+        .post('/api/users/callers/me/calls')
+        .send({ patient_id: 'patient-id', status: 'missed' });
 
       expect(alert.save).toHaveBeenCalled();
     });
 
-    it("does not create alert when missed calls < 3", async () => {
-      const caller = makeCaller({ patient_ids: ["patient-id"] });
+    it('does not create alert when missed calls < 3', async () => {
+      const caller = makeCaller({ patient_ids: ['patient-id'] });
       const callLog = {
-        _id: fakeId("call-1"),
+        _id: fakeId('call-1'),
         save: jest.fn().mockResolvedValue(true),
       };
       const alert = { save: jest.fn().mockResolvedValue(true) };
@@ -306,16 +306,16 @@ describe("User Callers Routes", () => {
         .mockReturnValue(makePatientFindChain(makePatient()));
 
       await request(app)
-        .post("/api/users/callers/me/calls")
-        .send({ patient_id: "patient-id", status: "missed" });
+        .post('/api/users/callers/me/calls')
+        .send({ patient_id: 'patient-id', status: 'missed' });
 
       expect(alert.save).not.toHaveBeenCalled();
     });
 
-    it("creates alert after 3 medicine refusals", async () => {
-      const caller = makeCaller({ patient_ids: ["patient-id"] });
+    it('creates alert after 3 medicine refusals', async () => {
+      const caller = makeCaller({ patient_ids: ['patient-id'] });
       const callLog = {
-        _id: fakeId("call-1"),
+        _id: fakeId('call-1'),
         save: jest.fn().mockResolvedValue(true),
       };
       const alert = { save: jest.fn().mockResolvedValue(true) };
@@ -329,18 +329,18 @@ describe("User Callers Routes", () => {
         .mockReturnValue(makePatientFindChain(makePatient()));
 
       await request(app)
-        .post("/api/users/callers/me/calls")
-        .send({ patient_id: "patient-id", status: "refused" });
+        .post('/api/users/callers/me/calls')
+        .send({ patient_id: 'patient-id', status: 'refused' });
 
       expect(alert.save).toHaveBeenCalled();
     });
 
-    it("returns 404 when caller not found", async () => {
+    it('returns 404 when caller not found', async () => {
       Caller.findOne = jest.fn().mockResolvedValue(null);
 
       const res = await request(app)
-        .post("/api/users/callers/me/calls")
-        .send({ patient_id: "patient-id", status: "completed" });
+        .post('/api/users/callers/me/calls')
+        .send({ patient_id: 'patient-id', status: 'completed' });
 
       expect(res.status).toBe(404);
     });
@@ -348,66 +348,66 @@ describe("User Callers Routes", () => {
 
   // ── GET /api/users/callers/me/patients/:patientId ─────────────────────────
 
-  describe("GET /api/users/callers/me/patients/:patientId", () => {
-    it("returns patient profile and call history", async () => {
-      const caller = makeCaller({ patient_ids: ["patient-id"] });
-      const patient = makePatient({ _id: "patient-id", name: "Test Patient" });
-      const calls = [{ _id: fakeId("call-1"), status: "completed" }];
+  describe('GET /api/users/callers/me/patients/:patientId', () => {
+    it('returns patient profile and call history', async () => {
+      const caller = makeCaller({ patient_ids: ['patient-id'] });
+      const patient = makePatient({ _id: 'patient-id', name: 'Test Patient' });
+      const calls = [{ _id: fakeId('call-1'), status: 'completed' }];
 
       Caller.findOne = jest.fn().mockResolvedValue(caller);
       Patient.findById = jest.fn().mockResolvedValue(patient);
       CallLog.find = jest.fn().mockReturnValue(makeCallLogChain(calls));
 
       const res = await request(app).get(
-        "/api/users/callers/me/patients/patient-id",
+        '/api/users/callers/me/patients/patient-id'
       );
 
       expect(res.status).toBe(200);
-      expect(res.body.patient.name).toBe("Test Patient");
+      expect(res.body.patient.name).toBe('Test Patient');
       expect(res.body.calls).toHaveLength(1);
     });
 
-    it("returns 403 when patient not assigned to caller", async () => {
+    it('returns 403 when patient not assigned to caller', async () => {
       Caller.findOne = jest
         .fn()
-        .mockResolvedValue(makeCaller({ patient_ids: ["other-patient"] }));
+        .mockResolvedValue(makeCaller({ patient_ids: ['other-patient'] }));
 
       const res = await request(app).get(
-        "/api/users/callers/me/patients/patient-id",
+        '/api/users/callers/me/patients/patient-id'
       );
 
       expect(res.status).toBe(403);
-      expect(res.body.error).toBe("Patient not assigned to you");
+      expect(res.body.error).toBe('Patient not assigned to you');
     });
 
-    it("returns 404 when patient not found", async () => {
+    it('returns 404 when patient not found', async () => {
       Caller.findOne = jest
         .fn()
-        .mockResolvedValue(makeCaller({ patient_ids: ["patient-id"] }));
+        .mockResolvedValue(makeCaller({ patient_ids: ['patient-id'] }));
       Patient.findById = jest.fn().mockResolvedValue(null);
       CallLog.find = jest.fn().mockReturnValue(makeCallLogChain([]));
 
       const res = await request(app).get(
-        "/api/users/callers/me/patients/patient-id",
+        '/api/users/callers/me/patients/patient-id'
       );
 
       expect(res.status).toBe(404);
-      expect(res.body.error).toBe("Patient not found");
+      expect(res.body.error).toBe('Patient not found');
     });
   });
 
   // ── GET /api/users/callers/me/stats ───────────────────────────────────────
 
-  describe("GET /api/users/callers/me/stats", () => {
-    it("returns caller performance stats with live week count", async () => {
+  describe('GET /api/users/callers/me/stats', () => {
+    it('returns caller performance stats with live week count', async () => {
       const caller = makeCaller({
-        patient_ids: ["p1", "p2", "p3"],
+        patient_ids: ['p1', 'p2', 'p3'],
         performance: { calls_this_week: 0, adherence_rate: 92, escalations: 1 },
       });
       Caller.findOne = jest.fn().mockResolvedValue(caller);
       CallLog.countDocuments = jest.fn().mockResolvedValue(10);
 
-      const res = await request(app).get("/api/users/callers/me/stats");
+      const res = await request(app).get('/api/users/callers/me/stats');
 
       expect(res.status).toBe(200);
       // Route overwrites calls_this_week with live count
@@ -416,27 +416,27 @@ describe("User Callers Routes", () => {
       expect(res.body.patient_count).toBe(3);
     });
 
-    it("returns 404 when caller not found", async () => {
+    it('returns 404 when caller not found', async () => {
       Caller.findOne = jest.fn().mockResolvedValue(null);
 
-      const res = await request(app).get("/api/users/callers/me/stats");
+      const res = await request(app).get('/api/users/callers/me/stats');
 
       expect(res.status).toBe(404);
-      expect(res.body.error).toBe("Caller profile not found");
+      expect(res.body.error).toBe('Caller profile not found');
     });
   });
 
   // ── GET /api/users/callers/me/feed ─────────────────────────────────────────
 
-  describe("GET /api/users/callers/me/feed", () => {
-    it("returns formatted activity feed for caller and assigned patients", async () => {
-      const caller = makeCaller({ patient_ids: ["patient-id"] });
+  describe('GET /api/users/callers/me/feed', () => {
+    it('returns formatted activity feed for caller and assigned patients', async () => {
+      const caller = makeCaller({ patient_ids: ['patient-id'] });
       const mockAlerts = [
         {
-          _id: fakeId("alert-1"),
-          type: "missed_call",
-          patient_id: { name: "Alpha Patient" },
-          description: "Missed contact request",
+          _id: fakeId('alert-1'),
+          type: 'missed_call',
+          patient_id: { name: 'Alpha Patient' },
+          description: 'Missed contact request',
           created_at: new Date(),
         },
       ];
@@ -450,29 +450,29 @@ describe("User Callers Routes", () => {
         }),
       });
 
-      const res = await request(app).get("/api/users/callers/me/feed");
+      const res = await request(app).get('/api/users/callers/me/feed');
 
       expect(res.status).toBe(200);
       expect(res.body.feed).toHaveLength(1);
-      expect(res.body.feed[0].title).toBe("Missed Contact");
-      expect(res.body.feed[0].patient).toBe("Alpha Patient");
+      expect(res.body.feed[0].title).toBe('Missed Contact');
+      expect(res.body.feed[0].patient).toBe('Alpha Patient');
     });
 
-    it("returns 404 when caller not found", async () => {
+    it('returns 404 when caller not found', async () => {
       Caller.findOne = jest.fn().mockResolvedValue(null);
-      const res = await request(app).get("/api/users/callers/me/feed");
+      const res = await request(app).get('/api/users/callers/me/feed');
       expect(res.status).toBe(404);
     });
   });
 
   // ── POST /api/users/callers/me/alerts/:alertId/resolve ────────────────────
 
-  describe("POST /api/users/callers/me/alerts/:alertId/resolve", () => {
-    it("resolves an alert successfully", async () => {
+  describe('POST /api/users/callers/me/alerts/:alertId/resolve', () => {
+    it('resolves an alert successfully', async () => {
       const caller = makeCaller();
       const alert = {
-        _id: fakeId("alert-id"),
-        status: "open",
+        _id: fakeId('alert-id'),
+        status: 'open',
         save: jest.fn().mockResolvedValue(true),
       };
 
@@ -480,27 +480,27 @@ describe("User Callers Routes", () => {
       Alert.findOne = jest.fn().mockResolvedValue(alert);
 
       const res = await request(app)
-        .post("/api/users/callers/me/alerts/alert-id/resolve")
-        .send({ action_taken: "Resolved manually" });
+        .post('/api/users/callers/me/alerts/alert-id/resolve')
+        .send({ action_taken: 'Resolved manually' });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(alert.status).toBe("resolved");
-      expect(alert.action_taken).toBe("Resolved manually");
+      expect(alert.status).toBe('resolved');
+      expect(alert.action_taken).toBe('Resolved manually');
       expect(alert.save).toHaveBeenCalled();
     });
 
-    it("returns 404 when alert not found", async () => {
+    it('returns 404 when alert not found', async () => {
       const caller = makeCaller();
       Caller.findOne = jest.fn().mockResolvedValue(caller);
       Alert.findOne = jest.fn().mockResolvedValue(null);
 
       const res = await request(app)
-        .post("/api/users/callers/me/alerts/nonexistent/resolve")
-        .send({ action_taken: "Resolved manually" });
+        .post('/api/users/callers/me/alerts/nonexistent/resolve')
+        .send({ action_taken: 'Resolved manually' });
 
       expect(res.status).toBe(404);
-      expect(res.body.error).toBe("Alert not found");
+      expect(res.body.error).toBe('Alert not found');
     });
   });
 });

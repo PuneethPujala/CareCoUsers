@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const ProfileSchema = new mongoose.Schema(
   {
@@ -24,7 +24,7 @@ const ProfileSchema = new mongoose.Schema(
         validator: function (v) {
           return /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
         },
-        message: "Please enter a valid email address",
+        message: 'Please enter a valid email address',
       },
     },
     fullName: {
@@ -47,7 +47,7 @@ const ProfileSchema = new mongoose.Schema(
         validator: function (v) {
           return !v || /^[+]?[1-9]\d{0,15}$/.test(v);
         },
-        message: "Please enter a valid phone number",
+        message: 'Please enter a valid phone number',
       },
     },
 
@@ -62,19 +62,19 @@ const ProfileSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: [
-        "super_admin",
-        "org_admin",
-        "care_manager",
-        "caller",
-        "patient",
-        "companion",
+        'super_admin',
+        'org_admin',
+        'care_manager',
+        'caller',
+        'patient',
+        'companion',
       ],
       index: true,
     },
 
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
+      ref: 'Organization',
       index: true,
     },
     avatarUrl: {
@@ -83,7 +83,7 @@ const ProfileSchema = new mongoose.Schema(
         validator: function (v) {
           return !v || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i.test(v);
         },
-        message: "Please enter a valid image URL",
+        message: 'Please enter a valid image URL',
       },
     },
     isActive: {
@@ -97,7 +97,7 @@ const ProfileSchema = new mongoose.Schema(
     },
     languages_spoken: {
       type: [String],
-      default: ["English"],
+      default: ['English'],
     },
 
     // ── Password Management ───────────────────────
@@ -114,7 +114,7 @@ const ProfileSchema = new mongoose.Schema(
     // ── Account Metadata ──────────────────────────
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
@@ -138,7 +138,7 @@ const ProfileSchema = new mongoose.Schema(
     },
     lastWorkspace: {
       type: String,
-      enum: ["patient", "companion"],
+      enum: ['patient', 'companion'],
     },
     // ── MFA / TOTP ────────────────────────────────
     mfaEnabled: {
@@ -177,7 +177,7 @@ const ProfileSchema = new mongoose.Schema(
       },
     },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // ── Indexes ───────────────────────────────────────
@@ -186,14 +186,14 @@ ProfileSchema.index({ organizationId: 1, isActive: 1 });
 ProfileSchema.index({ role: 1, isActive: 1 });
 
 // ── Virtuals ──────────────────────────────────────
-ProfileSchema.virtual("isLocked").get(function () {
+ProfileSchema.virtual('isLocked').get(function () {
   return !!(this.accountLockedUntil && this.accountLockedUntil > Date.now());
 });
 
 // ── Middleware ────────────────────────────────────
-ProfileSchema.pre("save", function (next) {
+ProfileSchema.pre('save', function (next) {
   // Keep only last 3 password hashes
-  if (this.isModified("passwordHistory") && this.passwordHistory.length > 3) {
+  if (this.isModified('passwordHistory') && this.passwordHistory.length > 3) {
     this.passwordHistory = this.passwordHistory.slice(-3);
   }
   next();
@@ -206,7 +206,7 @@ ProfileSchema.statics.findActive = function (filter = {}) {
 
 ProfileSchema.statics.findByOrganization = function (
   organizationId,
-  filter = {},
+  filter = {}
 ) {
   return this.find({ organizationId, ...filter });
 };
@@ -236,4 +236,4 @@ ProfileSchema.methods.resetFailedLogin = function () {
   return this.save();
 };
 
-module.exports = mongoose.model("Profile", ProfileSchema);
+module.exports = mongoose.model('Profile', ProfileSchema);

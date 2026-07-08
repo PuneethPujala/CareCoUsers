@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const CitySchema = new mongoose.Schema(
   {
@@ -22,11 +22,11 @@ const CitySchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // Prevent duplicate city+state combos
 CitySchema.index({ name: 1, state: 1 }, { unique: true });
 CitySchema.index({ isActive: 1, name: 1 });
 
-module.exports = mongoose.model("City", CitySchema);
+module.exports = mongoose.model('City', CitySchema);

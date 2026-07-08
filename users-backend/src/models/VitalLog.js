@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 // ─── VitalLog Schema ────────────────────────────────────────────
 // Tracks a patient's vital signs for a specific date.
@@ -7,7 +7,7 @@ const VitalLogSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
@@ -22,50 +22,50 @@ const VitalLogSchema = new mongoose.Schema(
     },
     heart_rate: {
       type: Number,
-      min: [30, "Heart rate must be at least 30 bpm"],
-      max: [250, "Heart rate cannot exceed 250 bpm"],
+      min: [30, 'Heart rate must be at least 30 bpm'],
+      max: [250, 'Heart rate cannot exceed 250 bpm'],
     },
     blood_pressure: {
       systolic: {
         type: Number,
-        min: [60, "Systolic BP must be at least 60 mmHg"],
-        max: [250, "Systolic BP cannot exceed 250 mmHg"],
+        min: [60, 'Systolic BP must be at least 60 mmHg'],
+        max: [250, 'Systolic BP cannot exceed 250 mmHg'],
       },
       diastolic: {
         type: Number,
-        min: [40, "Diastolic BP must be at least 40 mmHg"],
-        max: [150, "Diastolic BP cannot exceed 150 mmHg"],
+        min: [40, 'Diastolic BP must be at least 40 mmHg'],
+        max: [150, 'Diastolic BP cannot exceed 150 mmHg'],
       },
     },
     oxygen_saturation: {
       type: Number,
-      min: [0, "SpO₂ cannot be below 0%"],
-      max: [100, "SpO₂ cannot exceed 100%"],
+      min: [0, 'SpO₂ cannot be below 0%'],
+      max: [100, 'SpO₂ cannot exceed 100%'],
     },
     hydration: {
       type: Number,
-      min: [0, "Hydration cannot be below 0%"],
-      max: [100, "Hydration cannot exceed 100%"],
+      min: [0, 'Hydration cannot be below 0%'],
+      max: [100, 'Hydration cannot exceed 100%'],
     },
     temperature: {
       type: Number,
-      min: [90, "Temperature must be at least 90°F"],
-      max: [110, "Temperature cannot exceed 110°F"],
+      min: [90, 'Temperature must be at least 90°F'],
+      max: [110, 'Temperature cannot exceed 110°F'],
     },
     notes: {
       type: String,
-      maxlength: [500, "Notes cannot exceed 500 characters"],
+      maxlength: [500, 'Notes cannot exceed 500 characters'],
       trim: true,
     },
     blood_glucose: {
       type: Number,
-      min: [20, "Blood glucose must be at least 20 mg/dL"],
-      max: [600, "Blood glucose cannot exceed 600 mg/dL"],
+      min: [20, 'Blood glucose must be at least 20 mg/dL'],
+      max: [600, 'Blood glucose cannot exceed 600 mg/dL'],
     },
     respiratory_rate: {
       type: Number,
-      min: [4, "Respiratory rate must be at least 4 breaths/min"],
-      max: [60, "Respiratory rate cannot exceed 60 breaths/min"],
+      min: [4, 'Respiratory rate must be at least 4 breaths/min'],
+      max: [60, 'Respiratory rate cannot exceed 60 breaths/min'],
     },
     metadata: {
       device_name: String,
@@ -79,34 +79,34 @@ const VitalLogSchema = new mongoose.Schema(
     source: {
       type: String,
       enum: [
-        "manual",
-        "health_connect",
-        "healthkit",
-        "google_fit",
-        "fitbit",
-        "garmin",
-        "oura",
-        "whoop",
-        "samsung_health",
-        "withings",
-        "polar",
+        'manual',
+        'health_connect',
+        'healthkit',
+        'google_fit',
+        'fitbit',
+        'garmin',
+        'oura',
+        'whoop',
+        'samsung_health',
+        'withings',
+        'polar',
       ],
-      default: "manual",
+      default: 'manual',
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 // ─── Conditional validation ─────────────────────────────────────
 // Manual entries must have core fields; device sources may send partial data
-VitalLogSchema.pre("validate", function (next) {
-  if (this.source === "manual") {
+VitalLogSchema.pre('validate', function (next) {
+  if (this.source === 'manual') {
     if (this.heart_rate == null) {
-      return next(new Error("Heart rate is required for manual entries"));
+      return next(new Error('Heart rate is required for manual entries'));
     }
     if (
       this.blood_pressure?.systolic == null ||
@@ -114,17 +114,17 @@ VitalLogSchema.pre("validate", function (next) {
     ) {
       return next(
         new Error(
-          "Blood pressure (systolic & diastolic) is required for manual entries",
-        ),
+          'Blood pressure (systolic & diastolic) is required for manual entries'
+        )
       );
     }
     if (this.oxygen_saturation == null) {
       return next(
-        new Error("Oxygen saturation is required for manual entries"),
+        new Error('Oxygen saturation is required for manual entries')
       );
     }
     if (this.hydration == null) {
-      return next(new Error("Hydration is required for manual entries"));
+      return next(new Error('Hydration is required for manual entries'));
     }
   }
   next();
@@ -139,7 +139,7 @@ VitalLogSchema.index(
   {
     unique: true,
     partialFilterExpression: { raw_timestamp: { $exists: true } },
-  },
+  }
 );
 
-module.exports = mongoose.model("VitalLog", VitalLogSchema);
+module.exports = mongoose.model('VitalLog', VitalLogSchema);

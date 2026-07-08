@@ -16,7 +16,7 @@ function fakeId(val) {
     toString: () => String(val),
     equals: (other) => String(val) === String(other?._id ?? other),
     toJSON: () => String(val),
-    _bsontype: "ObjectId",
+    _bsontype: 'ObjectId',
   };
 }
 
@@ -27,19 +27,19 @@ function fakeId(val) {
  * Matches Patient.js schema field names (snake_case).
  */
 function mockPatient(overrides = {}) {
-  const rawId = overrides._id || "test-patient-id";
+  const rawId = overrides._id || 'test-patient-id';
   const id = fakeId(rawId);
 
   return {
     _id: id,
     supabase_uid: overrides.supabase_uid || `sup-uid-pat-${rawId}`,
     profile_id: overrides.profile_id || null,
-    role: overrides.role || "patient",
-    name: overrides.name || "Test Patient",
-    email: overrides.email || "patient@caremymed.in",
-    phone: overrides.phone || "+919999999999",
-    city: overrides.city || "Hyderabad",
-    organization_id: fakeId(overrides.organization_id || "test-org-id"),
+    role: overrides.role || 'patient',
+    name: overrides.name || 'Test Patient',
+    email: overrides.email || 'patient@caremymed.in',
+    phone: overrides.phone || '+919999999999',
+    city: overrides.city || 'Hyderabad',
+    organization_id: fakeId(overrides.organization_id || 'test-org-id'),
     assigned_caller_id: overrides.assigned_caller_id
       ? fakeId(overrides.assigned_caller_id)
       : null,
@@ -52,15 +52,15 @@ function mockPatient(overrides = {}) {
       overrides.profile_complete !== undefined
         ? overrides.profile_complete
         : true,
-    risk_level: overrides.risk_level || "low",
+    risk_level: overrides.risk_level || 'low',
     conditions: overrides.conditions || [],
     medications: overrides.medications || [],
     medical_history: overrides.medical_history || [],
     allergies: overrides.allergies || [],
     trusted_contacts: overrides.trusted_contacts || [],
-    care_instructions: overrides.care_instructions || "",
-    notes: overrides.notes || "",
-    subscription: overrides.subscription || { status: "active", plan: "basic" },
+    care_instructions: overrides.care_instructions || '',
+    notes: overrides.notes || '',
+    subscription: overrides.subscription || { status: 'active', plan: 'basic' },
     deactivated_at: overrides.deactivated_at || null,
     deactivated_reason: overrides.deactivated_reason || null,
     expireAt: overrides.expireAt || null,
@@ -87,7 +87,7 @@ function mockPatient(overrides = {}) {
     ...overrides,
     // Re-apply fakeId fields that overrides might have stomped with plain strings
     _id: id,
-    organization_id: fakeId(overrides.organization_id || "test-org-id"),
+    organization_id: fakeId(overrides.organization_id || 'test-org-id'),
     assigned_caller_id: overrides.assigned_caller_id
       ? fakeId(overrides.assigned_caller_id)
       : null,
@@ -99,7 +99,7 @@ function mockPatient(overrides = {}) {
  * Matches Organization.js schema — nested counts/limits, canAdd() method.
  */
 function mockOrganization(overrides = {}) {
-  const rawId = overrides._id || "test-org-id";
+  const rawId = overrides._id || 'test-org-id';
   const id = fakeId(rawId);
 
   const counts = {
@@ -118,24 +118,24 @@ function mockOrganization(overrides = {}) {
 
   return {
     _id: id,
-    name: overrides.name || "Test Org",
-    city: overrides.city || "Hyderabad",
-    email: overrides.email || "admin@testorg.in",
-    phone: overrides.phone || "+919999999999",
+    name: overrides.name || 'Test Org',
+    city: overrides.city || 'Hyderabad',
+    email: overrides.email || 'admin@testorg.in',
+    phone: overrides.phone || '+919999999999',
     isActive: overrides.isActive !== undefined ? overrides.isActive : true,
-    subscriptionPlan: overrides.subscriptionPlan || "basic",
+    subscriptionPlan: overrides.subscriptionPlan || 'basic',
     counts,
     limits,
     settings: overrides.settings || {},
     // canAdd mirrors Organization.js instance method
     canAdd(role) {
-      const countKey = role === "care_manager" ? "managers" : `${role}s`;
+      const countKey = role === 'care_manager' ? 'managers' : `${role}s`;
       const limitKey =
-        role === "care_manager"
-          ? "max_managers"
-          : role === "caller"
-            ? "max_callers"
-            : "max_patients";
+        role === 'care_manager'
+          ? 'max_managers'
+          : role === 'caller'
+            ? 'max_callers'
+            : 'max_patients';
       return (this.counts[countKey] || 0) < (this.limits[limitKey] || 999);
     },
     save: jest.fn().mockResolvedValue(true),
@@ -153,18 +153,18 @@ function mockOrganization(overrides = {}) {
  * Matches Profile.js schema (camelCase).
  */
 function mockProfile(overrides = {}) {
-  const rawId = overrides._id || "test-profile-id";
+  const rawId = overrides._id || 'test-profile-id';
   const id = fakeId(rawId);
 
   return {
     _id: id,
     supabaseUid: overrides.supabaseUid || `sup-uid-${rawId}`,
-    email: overrides.email || "staff@caremymed.in",
-    fullName: overrides.fullName || "Test Staff",
-    role: overrides.role || "care_manager",
+    email: overrides.email || 'staff@caremymed.in',
+    fullName: overrides.fullName || 'Test Staff',
+    role: overrides.role || 'care_manager',
     organizationId: overrides.organizationId
       ? fakeId(overrides.organizationId)
-      : fakeId("test-org-id"),
+      : fakeId('test-org-id'),
     phone: overrides.phone || null,
     isActive: overrides.isActive !== undefined ? overrides.isActive : true,
     emailVerified:
@@ -190,23 +190,23 @@ function mockProfile(overrides = {}) {
  * Fake Caller document.
  */
 function mockCaller(overrides = {}) {
-  const rawId = overrides._id || "test-caller-id";
+  const rawId = overrides._id || 'test-caller-id';
   const id = fakeId(rawId);
 
   return {
     _id: id,
     supabase_uid: overrides.supabase_uid || `sup-uid-call-${rawId}`,
-    name: overrides.name || "Test Caller",
-    email: overrides.email || "caller@caremymed.in",
-    employee_id: overrides.employee_id || "CC-1234",
-    city: overrides.city || "Hyderabad",
-    organization_id: fakeId(overrides.organization_id || "test-org-id"),
+    name: overrides.name || 'Test Caller',
+    email: overrides.email || 'caller@caremymed.in',
+    employee_id: overrides.employee_id || 'CC-1234',
+    city: overrides.city || 'Hyderabad',
+    organization_id: fakeId(overrides.organization_id || 'test-org-id'),
     patient_ids: overrides.patient_ids || [],
     is_active: overrides.is_active !== undefined ? overrides.is_active : true,
     save: jest.fn().mockResolvedValue(true),
     ...overrides,
     _id: id,
-    organization_id: fakeId(overrides.organization_id || "test-org-id"),
+    organization_id: fakeId(overrides.organization_id || 'test-org-id'),
   };
 }
 
@@ -214,23 +214,23 @@ function mockCaller(overrides = {}) {
  * Fake MedicineLog document.
  */
 function mockMedicineLog(overrides = {}) {
-  const rawId = overrides._id || "test-medicine-log-id";
+  const rawId = overrides._id || 'test-medicine-log-id';
   return {
     _id: fakeId(rawId),
-    patient_id: fakeId(overrides.patient_id || "test-patient-id"),
-    caller_id: fakeId(overrides.caller_id || "test-caller-id"),
+    patient_id: fakeId(overrides.patient_id || 'test-patient-id'),
+    caller_id: fakeId(overrides.caller_id || 'test-caller-id'),
     date: overrides.date || new Date(),
     medicines: overrides.medicines || [
       {
-        medicine_name: "Aspirin",
-        scheduled_time: "08:00",
-        status: "unknown",
+        medicine_name: 'Aspirin',
+        scheduled_time: '08:00',
+        status: 'unknown',
         taken_at: null,
       },
       {
-        medicine_name: "Metformin",
-        scheduled_time: "20:00",
-        status: "unknown",
+        medicine_name: 'Metformin',
+        scheduled_time: '20:00',
+        status: 'unknown',
         taken_at: null,
       },
     ],
@@ -245,14 +245,14 @@ function mockMedicineLog(overrides = {}) {
  */
 function mockAuditLog(overrides = {}) {
   return {
-    _id: fakeId(overrides._id || "test-audit-log-id"),
-    supabaseUid: overrides.supabaseUid || "test-user-id",
-    action: overrides.action || "login",
-    resourceType: overrides.resourceType || "profile",
+    _id: fakeId(overrides._id || 'test-audit-log-id'),
+    supabaseUid: overrides.supabaseUid || 'test-user-id',
+    action: overrides.action || 'login',
+    resourceType: overrides.resourceType || 'profile',
     resourceId: overrides.resourceId || null,
-    ipAddress: overrides.ipAddress || "127.0.0.1",
-    userAgent: overrides.userAgent || "test-agent",
-    outcome: overrides.outcome || "success",
+    ipAddress: overrides.ipAddress || '127.0.0.1',
+    userAgent: overrides.userAgent || 'test-agent',
+    outcome: overrides.outcome || 'success',
     details: overrides.details || {},
     createdAt: overrides.createdAt || new Date(),
     save: jest.fn().mockResolvedValue(true),

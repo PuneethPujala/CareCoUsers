@@ -1,5 +1,5 @@
-const BodyCompositionLog = require("../models/BodyCompositionLog");
-const Patient = require("../models/Patient");
+const BodyCompositionLog = require('../models/BodyCompositionLog');
+const Patient = require('../models/Patient');
 
 class BodyCompositionService {
   /**
@@ -15,13 +15,13 @@ class BodyCompositionService {
     if (!data || !data.date) {
       return {
         accepted: false,
-        reason: "Missing body composition data or date",
+        reason: 'Missing body composition data or date',
       };
     }
 
     const date = new Date(data.date);
     if (isNaN(date.getTime())) {
-      return { accepted: false, reason: "Invalid date" };
+      return { accepted: false, reason: 'Invalid date' };
     }
 
     // Normalize date to day level for single daily composition snapshot
@@ -39,12 +39,12 @@ class BodyCompositionService {
 
     // If one is missing from data, try to retrieve the other from the patient profile to compute BMI
     if (weight && !height) {
-      const patient = await Patient.findById(patientId).select("height_cm");
+      const patient = await Patient.findById(patientId).select('height_cm');
       if (patient?.height_cm) {
         height = patient.height_cm;
       }
     } else if (!weight && height) {
-      const patient = await Patient.findById(patientId).select("weight_kg");
+      const patient = await Patient.findById(patientId).select('weight_kg');
       if (patient?.weight_kg) {
         weight = patient.weight_kg;
       }
@@ -88,7 +88,7 @@ class BodyCompositionService {
     const savedLog = await BodyCompositionLog.findOneAndUpdate(
       { patient_id: patientId, date: startOfDay },
       doc,
-      { upsert: true, new: true, runValidators: true },
+      { upsert: true, new: true, runValidators: true }
     );
 
     // Cache to Patient profile if this log's date is newer than or equal to the latest measurement
@@ -96,7 +96,7 @@ class BodyCompositionService {
       patient_id: patientId,
     })
       .sort({ date: -1 })
-      .select("date weight_kg height_cm")
+      .select('date weight_kg height_cm')
       .lean();
 
     if (latestLog && savedLog.date.getTime() >= latestLog.date.getTime()) {

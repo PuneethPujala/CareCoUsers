@@ -35,9 +35,9 @@ function calculateRiskTrends(history = [], currentRiskScore = 0) {
 
   // Map risk levels to baseline scores if risk score is not directly stored in history
   const mapRiskToScore = (level) => {
-    if (level === "high") return 80;
-    if (level === "medium") return 50;
-    if (level === "low") return 20;
+    if (level === 'high') return 80;
+    if (level === 'medium') return 50;
+    if (level === 'low') return 20;
     return 50; // unknown
   };
 

@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const AIChatLogSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
@@ -26,7 +26,7 @@ const AIChatLogSchema = new mongoose.Schema(
     },
     translated_language: {
       type: String,
-      default: "en",
+      default: 'en',
     },
     emergency_ruleset: {
       type: String,
@@ -66,11 +66,11 @@ const AIChatLogSchema = new mongoose.Schema(
     },
     provider: {
       type: String,
-      default: "ollama",
+      default: 'ollama',
     },
     model: {
       type: String,
-      default: "unknown",
+      default: 'unknown',
     },
     is_fallback: {
       type: Boolean,
@@ -90,7 +90,7 @@ const AIChatLogSchema = new mongoose.Schema(
     },
     session_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "AIChatSession",
+      ref: 'AIChatSession',
       default: null,
       index: true,
     },
@@ -101,8 +101,8 @@ const AIChatLogSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
-module.exports = mongoose.model("AIChatLog", AIChatLogSchema);
+module.exports = mongoose.model('AIChatLog', AIChatLogSchema);

@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
-const RolePermission = require("../models/RolePermission");
-const AuditLog = require("../models/AuditLog");
+const mongoose = require('mongoose');
+const RolePermission = require('../models/RolePermission');
+const AuditLog = require('../models/AuditLog');
 
 function auditUid(profile) {
-  if (!profile) return "anonymous";
-  return profile.supabaseUid || profile.supabase_uid || "anonymous";
+  if (!profile) return 'anonymous';
+  return profile.supabaseUid || profile.supabase_uid || 'anonymous';
 }
 
 /**
@@ -25,15 +25,15 @@ const authorize = (resource, action, options = {}) => {
       // Ensure user is authenticated
       if (!req.profile) {
         return res.status(401).json({
-          error: "Authentication required",
-          code: "AUTH_REQUIRED",
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED',
         });
       }
 
       const { role } = req.profile;
 
       // Super admin bypasses all permission checks
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         return next();
       }
 
@@ -41,7 +41,7 @@ const authorize = (resource, action, options = {}) => {
       const hasPermission = await RolePermission.hasPermission(
         role,
         resource,
-        action,
+        action
       );
 
       if (!hasPermission) {
@@ -49,11 +49,11 @@ const authorize = (resource, action, options = {}) => {
         if (logFailures) {
           await AuditLog.createLog({
             supabaseUid: auditUid(req.profile),
-            action: "permission_denied",
+            action: 'permission_denied',
             resourceType: resource,
             ipAddress: req.ip,
-            userAgent: req.headers["user-agent"],
-            outcome: "failure",
+            userAgent: req.headers['user-agent'],
+            outcome: 'failure',
             details: {
               requiredAction: action,
               userRole: role,
@@ -65,22 +65,22 @@ const authorize = (resource, action, options = {}) => {
         }
 
         return res.status(403).json({
-          error: "Insufficient permissions",
-          code: "PERMISSION_DENIED",
+          error: 'Insufficient permissions',
+          code: 'PERMISSION_DENIED',
           required: { resource, action },
           current: role,
         });
       }
 
       // Log successful authorization for sensitive operations
-      if (["create", "update", "delete", "assign", "revoke"].includes(action)) {
+      if (['create', 'update', 'delete', 'assign', 'revoke'].includes(action)) {
         await AuditLog.createLog({
           supabaseUid: auditUid(req.profile),
           action: `${action}_authorized`,
           resourceType: resource,
           ipAddress: req.ip,
-          userAgent: req.headers["user-agent"],
-          outcome: "success",
+          userAgent: req.headers['user-agent'],
+          outcome: 'success',
           details: {
             authorizedAction: action,
             resource,
@@ -91,16 +91,16 @@ const authorize = (resource, action, options = {}) => {
 
       next();
     } catch (err) {
-      console.error("Authorization error:", err);
+      console.error('Authorization error:', err);
 
       // Log system error
       await AuditLog.createLog({
         supabaseUid: auditUid(req.profile),
-        action: "authorization_error",
-        resourceType: "system",
+        action: 'authorization_error',
+        resourceType: 'system',
         ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
-        outcome: "failure",
+        userAgent: req.headers['user-agent'],
+        outcome: 'failure',
         details: {
           error: err.message,
           resource,
@@ -110,8 +110,8 @@ const authorize = (resource, action, options = {}) => {
       });
 
       return res.status(500).json({
-        error: "Authorization error",
-        code: "AUTH_SYSTEM_ERROR",
+        error: 'Authorization error',
+        code: 'AUTH_SYSTEM_ERROR',
       });
     }
   };
@@ -128,15 +128,15 @@ const authorizeAny = (permissions, options = {}) => {
     try {
       if (!req.profile) {
         return res.status(401).json({
-          error: "Authentication required",
-          code: "AUTH_REQUIRED",
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED',
         });
       }
 
       const { role } = req.profile;
 
       // Super admin bypasses all permission checks
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         return next();
       }
 
@@ -148,7 +148,7 @@ const authorizeAny = (permissions, options = {}) => {
         const hasPermission = await RolePermission.hasPermission(
           role,
           resource,
-          action,
+          action
         );
         if (hasPermission) {
           hasAnyPermission = true;
@@ -161,11 +161,11 @@ const authorizeAny = (permissions, options = {}) => {
         if (logFailures) {
           await AuditLog.createLog({
             supabaseUid: auditUid(req.profile),
-            action: "permission_denied",
-            resourceType: "system",
+            action: 'permission_denied',
+            resourceType: 'system',
             ipAddress: req.ip,
-            userAgent: req.headers["user-agent"],
-            outcome: "failure",
+            userAgent: req.headers['user-agent'],
+            outcome: 'failure',
             details: {
               requiredPermissions: permissions,
               userRole: role,
@@ -176,8 +176,8 @@ const authorizeAny = (permissions, options = {}) => {
         }
 
         return res.status(403).json({
-          error: "Insufficient permissions",
-          code: "PERMISSION_DENIED",
+          error: 'Insufficient permissions',
+          code: 'PERMISSION_DENIED',
           required: permissions,
           current: role,
         });
@@ -189,8 +189,8 @@ const authorizeAny = (permissions, options = {}) => {
         action: `${grantedPermission.action}_authorized`,
         resourceType: grantedPermission.resource,
         ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
-        outcome: "success",
+        userAgent: req.headers['user-agent'],
+        outcome: 'success',
         details: {
           authorizedAction: grantedPermission.action,
           resource: grantedPermission.resource,
@@ -200,10 +200,10 @@ const authorizeAny = (permissions, options = {}) => {
 
       next();
     } catch (err) {
-      console.error("Authorization error:", err);
+      console.error('Authorization error:', err);
       return res.status(500).json({
-        error: "Authorization error",
-        code: "AUTH_SYSTEM_ERROR",
+        error: 'Authorization error',
+        code: 'AUTH_SYSTEM_ERROR',
       });
     }
   };
@@ -220,40 +220,40 @@ const authorizeAll = (permissions, options = {}) => {
     try {
       if (!req.profile) {
         return res.status(401).json({
-          error: "Authentication required",
-          code: "AUTH_REQUIRED",
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED',
         });
       }
 
       const { role } = req.profile;
 
       // Super admin bypasses all permission checks
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         return next();
       }
 
       // Check if user has all required permissions
       const permissionChecks = await Promise.all(
         permissions.map(({ resource, action }) =>
-          RolePermission.hasPermission(role, resource, action),
-        ),
+          RolePermission.hasPermission(role, resource, action)
+        )
       );
 
       const hasAllPermissions = permissionChecks.every(Boolean);
 
       if (!hasAllPermissions) {
         const missingPermissions = permissions.filter(
-          (_, index) => !permissionChecks[index],
+          (_, index) => !permissionChecks[index]
         );
 
         if (logFailures) {
           await AuditLog.createLog({
             supabaseUid: auditUid(req.profile),
-            action: "permission_denied",
-            resourceType: "system",
+            action: 'permission_denied',
+            resourceType: 'system',
             ipAddress: req.ip,
-            userAgent: req.headers["user-agent"],
-            outcome: "failure",
+            userAgent: req.headers['user-agent'],
+            outcome: 'failure',
             details: {
               requiredPermissions: permissions,
               missingPermissions,
@@ -265,8 +265,8 @@ const authorizeAll = (permissions, options = {}) => {
         }
 
         return res.status(403).json({
-          error: "Insufficient permissions",
-          code: "PERMISSION_DENIED",
+          error: 'Insufficient permissions',
+          code: 'PERMISSION_DENIED',
           required: permissions,
           missing: missingPermissions,
           current: role,
@@ -276,11 +276,11 @@ const authorizeAll = (permissions, options = {}) => {
       // Log successful authorization
       await AuditLog.createLog({
         supabaseUid: auditUid(req.profile),
-        action: "multiple_actions_authorized",
-        resourceType: "system",
+        action: 'multiple_actions_authorized',
+        resourceType: 'system',
         ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
-        outcome: "success",
+        userAgent: req.headers['user-agent'],
+        outcome: 'success',
         details: {
           authorizedPermissions: permissions,
           endpoint: req.path,
@@ -289,10 +289,10 @@ const authorizeAll = (permissions, options = {}) => {
 
       next();
     } catch (err) {
-      console.error("Authorization error:", err);
+      console.error('Authorization error:', err);
       return res.status(500).json({
-        error: "Authorization error",
-        code: "AUTH_SYSTEM_ERROR",
+        error: 'Authorization error',
+        code: 'AUTH_SYSTEM_ERROR',
       });
     }
   };
@@ -307,15 +307,15 @@ const authorizeResource = (resource, action, getResourceOwner) => {
     try {
       if (!req.profile) {
         return res.status(401).json({
-          error: "Authentication required",
-          code: "AUTH_REQUIRED",
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED',
         });
       }
 
       const { role } = req.profile;
 
       // Super admin bypasses all checks
-      if (role === "super_admin") {
+      if (role === 'super_admin') {
         return next();
       }
 
@@ -323,20 +323,20 @@ const authorizeResource = (resource, action, getResourceOwner) => {
       const hasPermission = await RolePermission.hasPermission(
         role,
         resource,
-        action,
+        action
       );
 
       if (!hasPermission) {
         return res.status(403).json({
-          error: "Insufficient permissions",
-          code: "PERMISSION_DENIED",
+          error: 'Insufficient permissions',
+          code: 'PERMISSION_DENIED',
           required: { resource, action },
           current: role,
         });
       }
 
       // For certain actions, check resource ownership
-      if (["read", "update", "delete"].includes(action) && getResourceOwner) {
+      if (['read', 'update', 'delete'].includes(action) && getResourceOwner) {
         const resourceOwnerId = await getResourceOwner(req);
 
         if (resourceOwnerId) {
@@ -350,13 +350,13 @@ const authorizeResource = (resource, action, getResourceOwner) => {
               req.profile,
               resource,
               action,
-              resourceOwnerId,
+              resourceOwnerId
             );
 
             if (!hasSpecialAccess) {
               return res.status(403).json({
-                error: "Access denied - resource ownership required",
-                code: "RESOURCE_OWNERSHIP_REQUIRED",
+                error: 'Access denied - resource ownership required',
+                code: 'RESOURCE_OWNERSHIP_REQUIRED',
               });
             }
           }
@@ -365,10 +365,10 @@ const authorizeResource = (resource, action, getResourceOwner) => {
 
       next();
     } catch (err) {
-      console.error("Resource authorization error:", err);
+      console.error('Resource authorization error:', err);
       return res.status(500).json({
-        error: "Authorization error",
-        code: "AUTH_SYSTEM_ERROR",
+        error: 'Authorization error',
+        code: 'AUTH_SYSTEM_ERROR',
       });
     }
   };
@@ -379,17 +379,17 @@ const authorizeResource = (resource, action, getResourceOwner) => {
  * (e.g., care manager accessing patient data, caller accessing assigned patients)
  */
 async function checkSpecialAccess(profile, resource, action, resourceOwnerId) {
-  const Profile = mongoose.model("Profile");
-  const Patient = mongoose.model("Patient");
+  const Profile = mongoose.model('Profile');
+  const Patient = mongoose.model('Patient');
 
   switch (profile.role) {
-    case "care_manager":
-    case "org_admin": {
+    case 'care_manager':
+    case 'org_admin': {
       // Can access resources within their organization
       let resourceOwner = await Profile.findById(resourceOwnerId);
       if (
         !resourceOwner &&
-        (resource === "patients" || resource === "patient")
+        (resource === 'patients' || resource === 'patient')
       ) {
         resourceOwner = await Patient.findById(resourceOwnerId);
       }

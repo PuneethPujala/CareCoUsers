@@ -1,38 +1,38 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const InterventionSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
     },
     companion_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Profile",
+      ref: 'Profile',
       index: true,
     },
     type: {
       type: String,
       enum: [
-        "medication_reminder",
-        "bp_request",
-        "checkin_call",
-        "escalation_contact",
+        'medication_reminder',
+        'bp_request',
+        'checkin_call',
+        'escalation_contact',
       ],
       required: true,
       index: true,
     },
     source: {
       type: String,
-      enum: ["system", "companion"],
-      default: "system",
+      enum: ['system', 'companion'],
+      default: 'system',
       index: true,
     },
     status: {
       type: String,
-      enum: ["generated", "completed", "dismissed"],
-      default: "generated",
+      enum: ['generated', 'completed', 'dismissed'],
+      default: 'generated',
       index: true,
     },
     priority_score: {
@@ -56,8 +56,8 @@ const InterventionSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
+  }
 );
 
 // Compound index for cooldown check and sorting by creation date
@@ -66,4 +66,4 @@ InterventionSchema.index({ patient_id: 1, type: 1, status: 1, created_at: -1 });
 // Compound index for active interventions sorted by priority score
 InterventionSchema.index({ patient_id: 1, status: 1, priority_score: -1 });
 
-module.exports = mongoose.model("Intervention", InterventionSchema);
+module.exports = mongoose.model('Intervention', InterventionSchema);

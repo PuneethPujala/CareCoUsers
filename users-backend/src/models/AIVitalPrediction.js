@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const PredictionSchema = new mongoose.Schema(
   {
@@ -12,21 +12,21 @@ const PredictionSchema = new mongoose.Schema(
     hydration: { type: Number, required: true },
     temperature: { type: Number },
   },
-  { _id: false },
+  { _id: false }
 );
 
 const AIVitalPredictionSchema = new mongoose.Schema(
   {
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Patient",
+      ref: 'Patient',
       required: true,
       index: true,
     },
     health_label: {
       type: String,
-      enum: ["Normal", "Warning", "Critical"],
-      default: "Normal",
+      enum: ['Normal', 'Warning', 'Critical'],
+      default: 'Normal',
     },
     consecutive_critical_days: {
       type: Number,
@@ -41,10 +41,10 @@ const AIVitalPredictionSchema = new mongoose.Schema(
     predictions: [PredictionSchema],
   },
   {
-    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
-module.exports = mongoose.model("AIVitalPrediction", AIVitalPredictionSchema);
+module.exports = mongoose.model('AIVitalPrediction', AIVitalPredictionSchema);
