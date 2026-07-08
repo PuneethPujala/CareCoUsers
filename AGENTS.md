@@ -191,3 +191,14 @@ Zustand store (`usePatientStore`) is the single source of truth for patient dash
 Maestro flows are in `users-mobile/.maestro/flows/`:
 - `happy_path_signup.yaml`
 - `session_expiry.yaml`
+
+### Wearable Integration Onboarding Flow
+The `HealthConnectSetupScreen` implements a 2-screen onboarding flow before granting full dashboard access:
+1. **Pre-Permission Explainer (`explain` step)**: Renders benefits, requested data categories, and system-level privacy declarations.
+2. **Post-Permission Confirmation (`confirm` step)**: Shows initial sync outcomes (reads steps, distance, active calories, weight) or falls back to an honest empty state ("No health records yet") if the wearable hasn't synced recently.
+
+To generate standalone APKs for testing, use the `preview` EAS profile:
+```bash
+cd users-mobile
+eas build --platform android --profile preview
+```

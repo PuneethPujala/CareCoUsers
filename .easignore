@@ -67,3 +67,14 @@ ehthumbs.db
 *.tgz
 *.zip
 users-backend/src/scratch/
+
+# Exclude other monorepo projects for users-mobile build
+users-backend/
+backend/
+admin-app/
+users-ai-vitals/
+scratch_bot_repo/
+widget-source/
+node_modules/
+**/node_modules/
+
