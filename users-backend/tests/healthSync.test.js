@@ -40,10 +40,16 @@ jest.mock("../src/middleware/authenticate", () => ({
     req.patientId = mockAuthState.profile._id.toString();
     next();
   },
-  requireRole: (...allowed) => (req, res, next) => next(),
+  requireRole:
+    (...allowed) =>
+    (req, res, next) =>
+      next(),
 }));
 
-jest.mock("../src/middleware/requireSubscription", () => (req, res, next) => next());
+jest.mock(
+  "../src/middleware/requireSubscription",
+  () => (req, res, next) => next(),
+);
 
 // ─── Mock Models ─────────────────────────────────────────────────────────────
 jest.mock("../src/models/Patient", () => {
@@ -84,7 +90,12 @@ jest.mock("../src/models/VitalLog", () => {
     findOne: jest.fn().mockReturnValue({
       sort: jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue({ date: mockFixedDate, source: "health_connect" }),
+          lean: jest
+            .fn()
+            .mockResolvedValue({
+              date: mockFixedDate,
+              source: "health_connect",
+            }),
         }),
       }),
     }),
@@ -116,7 +127,13 @@ jest.mock("../src/models/BodyCompositionLog", () => {
     findOne: jest.fn().mockReturnValue({
       sort: jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue({ date: mockFixedDate, weight_kg: 75, height_cm: 180 }),
+          lean: jest
+            .fn()
+            .mockResolvedValue({
+              date: mockFixedDate,
+              weight_kg: 75,
+              height_cm: 180,
+            }),
         }),
       }),
     }),
@@ -175,7 +192,7 @@ describe("Health Integration Sync System tests", () => {
       const result = await VitalsIngestionService.processBatch(
         "patient123",
         readings,
-        "health_connect"
+        "health_connect",
       );
 
       expect(result.invalid).toBe(0);
@@ -188,14 +205,14 @@ describe("Health Integration Sync System tests", () => {
         {
           timestamp: new Date().toISOString(),
           heart_rate: 195, // critically high
-          blood_glucose: 45,  // critically low
+          blood_glucose: 45, // critically low
         },
       ];
 
       const result = await VitalsIngestionService.processBatch(
         "patient123",
         readings,
-        "health_connect"
+        "health_connect",
       );
 
       expect(result.anomalies.length).toBe(1);
@@ -221,7 +238,7 @@ describe("Health Integration Sync System tests", () => {
       const result = await ActivityIngestionService.processDaily(
         "patient123",
         activityData,
-        "health_connect"
+        "health_connect",
       );
 
       expect(result.accepted).toBe(true);
@@ -240,14 +257,14 @@ describe("Health Integration Sync System tests", () => {
       const result = await BodyCompositionService.processSnapshot(
         "patient123",
         bodyData,
-        "health_connect"
+        "health_connect",
       );
 
       expect(result.accepted).toBe(true);
       expect(BodyCompositionLog.findOneAndUpdate).toHaveBeenCalled();
       expect(Patient.findByIdAndUpdate).toHaveBeenCalledWith(
         "patient123",
-        expect.objectContaining({ weight_kg: 81, height_cm: 180 })
+        expect.objectContaining({ weight_kg: 81, height_cm: 180 }),
       );
     });
   });
@@ -255,9 +272,7 @@ describe("Health Integration Sync System tests", () => {
   describe("Health Sync Orchestrator", () => {
     it("processes single unified payload sections and updates HealthSyncState", async () => {
       const payload = {
-        vitals: [
-          { timestamp: new Date().toISOString(), heart_rate: 72 },
-        ],
+        vitals: [{ timestamp: new Date().toISOString(), heart_rate: 72 }],
         activity: {
           date: new Date().toISOString(),
           steps: 4000,
@@ -274,7 +289,10 @@ describe("Health Integration Sync System tests", () => {
         },
       };
 
-      const result = await HealthSyncOrchestrator.processSync("patient123", payload);
+      const result = await HealthSyncOrchestrator.processSync(
+        "patient123",
+        payload,
+      );
 
       expect(result.success).toBe(true);
       expect(HealthSyncState.findOneAndUpdate).toHaveBeenCalled();
@@ -284,9 +302,7 @@ describe("Health Integration Sync System tests", () => {
   describe("POST /api/health/sync Unified Endpoint", () => {
     it("successfully registers route and returns sync ingestion results", async () => {
       const payload = {
-        vitals: [
-          { timestamp: new Date().toISOString(), heart_rate: 72 },
-        ],
+        vitals: [{ timestamp: new Date().toISOString(), heart_rate: 72 }],
         activity: {
           date: new Date().toISOString(),
           steps: 4000,

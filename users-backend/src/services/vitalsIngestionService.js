@@ -152,9 +152,13 @@ class VitalsIngestionService {
           device_manufacturer: reading.metadata.device_manufacturer,
           device_model: reading.metadata.device_model,
           record_id: reading.metadata.record_id,
-          last_modified: reading.metadata.last_modified ? new Date(reading.metadata.last_modified) : undefined,
+          last_modified: reading.metadata.last_modified
+            ? new Date(reading.metadata.last_modified)
+            : undefined,
           timezone: reading.metadata.timezone,
-          recorded_at: reading.metadata.recorded_at ? new Date(reading.metadata.recorded_at) : undefined,
+          recorded_at: reading.metadata.recorded_at
+            ? new Date(reading.metadata.recorded_at)
+            : undefined,
         };
       }
 
@@ -255,16 +259,22 @@ class VitalsIngestionService {
         alerts.push(`Blood glucose critically low: ${doc.blood_glucose} mg/dL`);
       }
       if (doc.blood_glucose > DANGER_THRESHOLDS.blood_glucose.max) {
-        alerts.push(`Blood glucose critically high: ${doc.blood_glucose} mg/dL`);
+        alerts.push(
+          `Blood glucose critically high: ${doc.blood_glucose} mg/dL`,
+        );
       }
     }
 
     if (doc.respiratory_rate != null) {
       if (doc.respiratory_rate < DANGER_THRESHOLDS.respiratory_rate.min) {
-        alerts.push(`Respiratory rate critically low: ${doc.respiratory_rate} breaths/min`);
+        alerts.push(
+          `Respiratory rate critically low: ${doc.respiratory_rate} breaths/min`,
+        );
       }
       if (doc.respiratory_rate > DANGER_THRESHOLDS.respiratory_rate.max) {
-        alerts.push(`Respiratory rate critically high: ${doc.respiratory_rate} breaths/min`);
+        alerts.push(
+          `Respiratory rate critically high: ${doc.respiratory_rate} breaths/min`,
+        );
       }
     }
 

@@ -15,8 +15,7 @@ class HealthSyncOrchestrator {
     const { vitals, activity, body, metadata } = payload || {};
     const effectiveSource = payload.source || "health_connect";
     const platform =
-      payload.platform ||
-      (effectiveSource === "healthkit" ? "ios" : "android");
+      payload.platform || (effectiveSource === "healthkit" ? "ios" : "android");
 
     const results = {
       vitals: null,
@@ -34,7 +33,7 @@ class HealthSyncOrchestrator {
           results.vitals = await VitalsIngestionService.processBatch(
             patientId,
             vitals,
-            effectiveSource
+            effectiveSource,
           );
         } catch (err) {
           hasErrors = true;
@@ -48,7 +47,7 @@ class HealthSyncOrchestrator {
           results.activity = await ActivityIngestionService.processDaily(
             patientId,
             activity,
-            effectiveSource
+            effectiveSource,
           );
         } catch (err) {
           hasErrors = true;
@@ -62,7 +61,7 @@ class HealthSyncOrchestrator {
           results.body = await BodyCompositionService.processSnapshot(
             patientId,
             body,
-            effectiveSource
+            effectiveSource,
           );
         } catch (err) {
           hasErrors = true;
@@ -99,7 +98,7 @@ class HealthSyncOrchestrator {
       await HealthSyncState.findOneAndUpdate(
         { patient_id: patientId },
         syncUpdate,
-        { upsert: true, new: true }
+        { upsert: true, new: true },
       );
 
       return {
@@ -117,7 +116,7 @@ class HealthSyncOrchestrator {
             last_error: e.message,
             last_error_at: new Date(),
           },
-          { upsert: true }
+          { upsert: true },
         );
       } catch (err) {}
       throw e;

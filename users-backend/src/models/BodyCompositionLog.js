@@ -64,7 +64,7 @@ const BodyCompositionLogSchema = new mongoose.Schema(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Compound unique index for daily composition snapshots

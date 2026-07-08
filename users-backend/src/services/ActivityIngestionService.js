@@ -76,7 +76,7 @@ class ActivityIngestionService {
           : [];
 
         const newExercises = validExercises.filter(
-          (e) => !e.source_id || !existingSourceIds.includes(e.source_id)
+          (e) => !e.source_id || !existingSourceIds.includes(e.source_id),
         );
 
         if (newExercises.length > 0) {
@@ -96,7 +96,9 @@ class ActivityIngestionService {
                     ? Number(e.distance_meters)
                     : undefined,
                 avg_heart_rate:
-                  e.avg_heart_rate != null ? Number(e.avg_heart_rate) : undefined,
+                  e.avg_heart_rate != null
+                    ? Number(e.avg_heart_rate)
+                    : undefined,
                 source_id: e.source_id,
               })),
             },
@@ -125,7 +127,7 @@ class ActivityIngestionService {
     await ActivityLog.findOneAndUpdate(
       { patient_id: patientId, date: startOfDay },
       update,
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, new: true, runValidators: true },
     );
 
     return {

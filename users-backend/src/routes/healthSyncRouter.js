@@ -83,14 +83,14 @@ router.post(
 
       const result = await HealthSyncOrchestrator.processSync(
         patientId,
-        payload
+        payload,
       );
       res.json(result);
     } catch (err) {
       console.error("POST /api/health/sync error:", err);
       res.status(500).json({ error: "Failed to process health sync" });
     }
-  }
+  },
 );
 
 // GET /api/health/sync/state

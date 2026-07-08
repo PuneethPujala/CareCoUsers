@@ -13,7 +13,10 @@ class BodyCompositionService {
    */
   static async processSnapshot(patientId, data, source) {
     if (!data || !data.date) {
-      return { accepted: false, reason: "Missing body composition data or date" };
+      return {
+        accepted: false,
+        reason: "Missing body composition data or date",
+      };
     }
 
     const date = new Date(data.date);
@@ -85,19 +88,23 @@ class BodyCompositionService {
     const savedLog = await BodyCompositionLog.findOneAndUpdate(
       { patient_id: patientId, date: startOfDay },
       doc,
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, new: true, runValidators: true },
     );
 
     // Cache to Patient profile if this log's date is newer than or equal to the latest measurement
-    const latestLog = await BodyCompositionLog.findOne({ patient_id: patientId })
+    const latestLog = await BodyCompositionLog.findOne({
+      patient_id: patientId,
+    })
       .sort({ date: -1 })
       .select("date weight_kg height_cm")
       .lean();
 
     if (latestLog && savedLog.date.getTime() >= latestLog.date.getTime()) {
       const patientUpdate = {};
-      if (savedLog.weight_kg != null) patientUpdate.weight_kg = savedLog.weight_kg;
-      if (savedLog.height_cm != null) patientUpdate.height_cm = savedLog.height_cm;
+      if (savedLog.weight_kg != null)
+        patientUpdate.weight_kg = savedLog.weight_kg;
+      if (savedLog.height_cm != null)
+        patientUpdate.height_cm = savedLog.height_cm;
 
       if (Object.keys(patientUpdate).length > 0) {
         await Patient.findByIdAndUpdate(patientId, patientUpdate);
