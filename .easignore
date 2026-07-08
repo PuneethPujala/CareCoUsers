@@ -74,7 +74,7 @@ backend/
 admin-app/
 users-ai-vitals/
 scratch_bot_repo/
-widget-source/
 node_modules/
 **/node_modules/
+
 
