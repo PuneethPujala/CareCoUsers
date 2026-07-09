@@ -49,6 +49,7 @@ const linking = {
             ResetPassword: 'reset-password',
             VerifyEmail: 'verify-email',
             Login: 'login',
+            HealthConnectSetup: 'health-connect-setup',
         },
     },
 };

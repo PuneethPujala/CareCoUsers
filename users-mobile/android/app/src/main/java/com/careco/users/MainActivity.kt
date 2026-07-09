@@ -21,6 +21,20 @@ class MainActivity : ReactActivity() {
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
     super.onCreate(null)
+    intent?.let { handleHealthConnectIntent(it) }
+  }
+
+  override fun onNewIntent(intent: android.content.Intent?) {
+    super.onNewIntent(intent)
+    intent?.let { handleHealthConnectIntent(it) }
+  }
+
+  private fun handleHealthConnectIntent(intent: android.content.Intent) {
+    val action = intent.action
+    if ("androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" == action ||
+        "android.intent.action.VIEW_PERMISSION_USAGE" == action) {
+      intent.data = android.net.Uri.parse("CareMyMed-app://health-connect-setup?rationale=true")
+    }
   }
 
   /**
