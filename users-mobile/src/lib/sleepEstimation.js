@@ -113,65 +113,66 @@ export const estimateSleep = async () => {
           now,
         );
         if (events && events.length > 0) {
+          // Sort events chronologically (ascending)
           const sortedEvents = [...events].sort(
-            (a, b) => b.timeStamp - a.timeStamp,
+            (a, b) => a.timeStamp - b.timeStamp,
           );
 
-          // Find the last event indicating user interaction
-          const lastActiveEvent = sortedEvents.find(
-            (e) =>
-              e.eventType === 1 || // MOVE_TO_FOREGROUND / ACTIVITY_RESUMED
-              e.eventType === 2 || // MOVE_TO_BACKGROUND / ACTIVITY_PAUSED
-              e.eventType === 7 || // USER_INTERACTION
-              e.eventTypeName?.includes("FOREGROUND") ||
-              e.eventTypeName?.includes("RESUMED"),
-          );
+          let maxGapMs = 0;
+          let sleepStart = null;
+          let sleepEnd = null;
 
-          if (lastActiveEvent) {
-            const lastActiveTime = lastActiveEvent.timeStamp;
-            const durationMs = now - lastActiveTime;
-            const durationHours = durationMs / (1000 * 60 * 60);
-
-            const currentDate = new Date(now);
-            const currentHour = currentDate.getHours();
-
-            // Only show if duration is between 3 and 14 hours AND current hour is between 4 AM and 1 PM
-            if (
-              durationHours >= 3 &&
-              durationHours <= 14 &&
-              currentHour >= 4 &&
-              currentHour < 13
-            ) {
-              const lastActiveDate = new Date(lastActiveTime);
-
-              const formatTime = (date) => {
-                let hrs = date.getHours();
-                const minutes = date.getMinutes();
-                const ampm = hrs >= 12 ? "PM" : "AM";
-                hrs = hrs % 12;
-                hrs = hrs ? hrs : 12;
-                const minStr = minutes < 10 ? "0" + minutes : minutes;
-                return `${hrs}:${minStr} ${ampm}`;
-              };
-
-              return {
-                estimate: {
-                  hours: Math.round(durationHours * 10) / 10,
-                  rawHours: durationHours,
-                  startTime: formatTime(lastActiveDate),
-                  endTime: formatTime(currentDate),
-                  dateStr: todayStr,
-                  lastActiveTime,
-                  currentTime: now,
-                  source: "device_inactivity",
-                },
-                source: "usage_stats",
-                confidenceLabel: "estimated",
-                needsPermission: null,
-                displayTitle: "🌙 Estimated Sleep",
-                displaySubtitle: "Based on device activity",
-              };
+          for (let i = 0; i < sortedEvents.length - 1; i++) {
+            const gap =
+              sortedEvents[i + 1].timeStamp - sortedEvents[i].timeStamp;
+            if (gap > maxGapMs) {
+              maxGapMs = gap;
+              sleepStart = sortedEvents[i].timeStamp;
+              sleepEnd = sortedEvents[i + 1].timeStamp;
             }
+          }
+
+          const durationHours = maxGapMs / (1000 * 60 * 60);
+          const currentDate = new Date(now);
+          const currentHour = currentDate.getHours();
+
+          // Only show if the overnight gap is between 3 and 14 hours and checked during morning/noon hours
+          if (
+            durationHours >= 3 &&
+            durationHours <= 14 &&
+            currentHour >= 4 &&
+            currentHour < 13
+          ) {
+            const lastActiveDate = new Date(sleepStart);
+            const wakeUpDate = new Date(sleepEnd);
+
+            const formatTime = (date) => {
+              let hrs = date.getHours();
+              const minutes = date.getMinutes();
+              const ampm = hrs >= 12 ? "PM" : "AM";
+              hrs = hrs % 12;
+              hrs = hrs ? hrs : 12;
+              const minStr = minutes < 10 ? "0" + minutes : minutes;
+              return `${hrs}:${minStr} ${ampm}`;
+            };
+
+            return {
+              estimate: {
+                hours: Math.round(durationHours * 10) / 10,
+                rawHours: durationHours,
+                startTime: formatTime(lastActiveDate),
+                endTime: formatTime(wakeUpDate),
+                dateStr: todayStr,
+                lastActiveTime: sleepStart,
+                currentTime: sleepEnd,
+                source: "device_inactivity",
+              },
+              source: "usage_stats",
+              confidenceLabel: "estimated",
+              needsPermission: null,
+              displayTitle: "🌙 Estimated Sleep",
+              displaySubtitle: "Based on device activity",
+            };
           }
         }
       } else {
