@@ -1,22 +1,22 @@
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   initializeHealthPlatform,
   checkPermissionStatus,
-  fetchSleepSessions
-} from './healthIntegration';
+  fetchSleepSessions,
+} from "./healthIntegration";
 
 let ExpoAndroidUsagestats = null;
-if (Platform.OS === 'android') {
+if (Platform.OS === "android") {
   try {
-    ExpoAndroidUsagestats = require('expo-android-usagestats');
+    ExpoAndroidUsagestats = require("expo-android-usagestats");
   } catch (e) {
     console.warn("Failed to require expo-android-usagestats:", e);
   }
 }
 
 export const hasUsageStatsPermission = async () => {
-  if (Platform.OS !== 'android' || !ExpoAndroidUsagestats) return false;
+  if (Platform.OS !== "android" || !ExpoAndroidUsagestats) return false;
   try {
     return await ExpoAndroidUsagestats.hasUsageStatsPermission();
   } catch (e) {
@@ -26,7 +26,7 @@ export const hasUsageStatsPermission = async () => {
 };
 
 export const requestUsageStatsPermission = async () => {
-  if (Platform.OS !== 'android' || !ExpoAndroidUsagestats) return;
+  if (Platform.OS !== "android" || !ExpoAndroidUsagestats) return;
   try {
     await ExpoAndroidUsagestats.requestUsageStatsPermission();
   } catch (e) {
@@ -37,14 +37,14 @@ export const requestUsageStatsPermission = async () => {
 export const estimateSleep = async () => {
   try {
     const todayStr = new Date().toDateString();
-    
+
     // Check if user already prompted/logged today
     const lastPrompted = await AsyncStorage.getItem("last_sleep_prompt_date");
     if (lastPrompted === todayStr) {
       return {
         estimate: null,
-        source: 'manual',
-        confidenceLabel: 'manual',
+        source: "manual",
+        confidenceLabel: "manual",
         needsPermission: null,
       };
     }
@@ -60,12 +60,13 @@ export const estimateSleep = async () => {
         if (sessions && sessions.length > 0) {
           // Sort by endTime descending to get the latest completed sleep session
           const sorted = [...sessions].sort(
-            (a, b) => new Date(b.endTime) - new Date(a.endTime)
+            (a, b) => new Date(b.endTime) - new Date(a.endTime),
           );
           const latestSession = sorted[0];
           const start = new Date(latestSession.startTime);
           const end = new Date(latestSession.endTime);
-          const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          const durationHours =
+            (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
           if (durationHours >= 3 && durationHours <= 16) {
             const formatTime = (date) => {
@@ -101,23 +102,29 @@ export const estimateSleep = async () => {
     }
 
     // --- Tier 2: UsageStats (Android only) ---
-    if (Platform.OS === 'android' && ExpoAndroidUsagestats) {
+    if (Platform.OS === "android" && ExpoAndroidUsagestats) {
       const hasUsagePerm = await hasUsageStatsPermission();
       if (hasUsagePerm) {
         const now = Date.now();
         const eighteenHoursAgo = now - 18 * 60 * 60 * 1000;
-        
-        const events = await ExpoAndroidUsagestats.getUsageEvents(eighteenHoursAgo, now);
+
+        const events = await ExpoAndroidUsagestats.getUsageEvents(
+          eighteenHoursAgo,
+          now,
+        );
         if (events && events.length > 0) {
-          const sortedEvents = [...events].sort((a, b) => b.timeStamp - a.timeStamp);
-          
+          const sortedEvents = [...events].sort(
+            (a, b) => b.timeStamp - a.timeStamp,
+          );
+
           // Find the last event indicating user interaction
-          const lastActiveEvent = sortedEvents.find(e => 
-            e.eventType === 1 || // MOVE_TO_FOREGROUND / ACTIVITY_RESUMED
-            e.eventType === 2 || // MOVE_TO_BACKGROUND / ACTIVITY_PAUSED
-            e.eventType === 7 || // USER_INTERACTION
-            e.eventTypeName?.includes('FOREGROUND') ||
-            e.eventTypeName?.includes('RESUMED')
+          const lastActiveEvent = sortedEvents.find(
+            (e) =>
+              e.eventType === 1 || // MOVE_TO_FOREGROUND / ACTIVITY_RESUMED
+              e.eventType === 2 || // MOVE_TO_BACKGROUND / ACTIVITY_PAUSED
+              e.eventType === 7 || // USER_INTERACTION
+              e.eventTypeName?.includes("FOREGROUND") ||
+              e.eventTypeName?.includes("RESUMED"),
           );
 
           if (lastActiveEvent) {
@@ -129,9 +136,14 @@ export const estimateSleep = async () => {
             const currentHour = currentDate.getHours();
 
             // Only show if duration is between 3 and 14 hours AND current hour is between 4 AM and 1 PM
-            if (durationHours >= 3 && durationHours <= 14 && currentHour >= 4 && currentHour < 13) {
+            if (
+              durationHours >= 3 &&
+              durationHours <= 14 &&
+              currentHour >= 4 &&
+              currentHour < 13
+            ) {
               const lastActiveDate = new Date(lastActiveTime);
-              
+
               const formatTime = (date) => {
                 let hrs = date.getHours();
                 const minutes = date.getMinutes();
@@ -166,31 +178,46 @@ export const estimateSleep = async () => {
         // UsageStats permission is not granted - needs permission
         return {
           estimate: null,
-          source: 'none',
-          confidenceLabel: 'unavailable',
-          needsPermission: 'usage_stats',
+          source: "none",
+          confidenceLabel: "unavailable",
+          needsPermission: "usage_stats",
         };
       }
     }
-
     // --- Tier 4: No data / unavailable ---
-    const hasUsagePerm = Platform.OS === 'android' && ExpoAndroidUsagestats
-      ? await hasUsageStatsPermission()
-      : false;
+    let needsPerm = "manual";
+    if (Platform.OS === "android") {
+      const hasUsagePerm = ExpoAndroidUsagestats
+        ? await hasUsageStatsPermission()
+        : false;
+      if (!hasUsagePerm) {
+        needsPerm = "usage_stats";
+      }
+    } else if (Platform.OS === "ios") {
+      const isHealthInit = await initializeHealthPlatform();
+      let hasHealthPerm = false;
+      if (isHealthInit) {
+        const permStatus = await checkPermissionStatus();
+        hasHealthPerm = permStatus === "granted";
+      }
+      if (!hasHealthPerm) {
+        needsPerm = "health_connect";
+      }
+    }
 
     return {
       estimate: null,
-      source: 'none',
-      confidenceLabel: 'unavailable',
-      needsPermission: Platform.OS === 'android' && !hasUsagePerm ? 'usage_stats' : null,
+      source: "none",
+      confidenceLabel: "unavailable",
+      needsPermission: needsPerm,
     };
   } catch (e) {
     console.warn("Failed to check estimated sleep:", e.message);
     return {
       estimate: null,
-      source: 'none',
-      confidenceLabel: 'unavailable',
-      needsPermission: null,
+      source: "none",
+      confidenceLabel: "unavailable",
+      needsPermission: "manual",
     };
   }
 };

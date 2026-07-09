@@ -354,15 +354,18 @@ export default function PatientHomeScreen({ navigation }) {
   const getVitalsTourSteps = () => {
     return [
       {
-        title: t("home.guide_dashboard_title", { defaultValue: "👋 Welcome to your Dashboard" }),
+        title: t("home.guide_dashboard_title", {
+          defaultValue: "👋 Welcome to your Dashboard",
+        }),
         desc: t("home.guide_dashboard_desc", {
-          defaultValue: "This page is your daily health tracker. Here, you can monitor your health vitals, track your medication plan, review AI insights, and easily call your care companion.",
+          defaultValue:
+            "This page is your daily health tracker. Here, you can monitor your health vitals, track your medication plan, review AI insights, and easily call your care companion.",
         }),
         icon: Sparkles,
         iconColor: "#8B5CF6",
         ref: vitalsCardRef,
         visible: true,
-      }
+      },
     ];
   };
 
@@ -386,12 +389,13 @@ export default function PatientHomeScreen({ navigation }) {
       vitalsTourTriggeredRef.current = true;
       const initVitalsTour = async () => {
         const vitalsHeuristic = async () => {
-          const hasVitalsHistory = (vitalsHistory && vitalsHistory.length > 0) || (
+          const hasVitalsHistory =
+            (vitalsHistory && vitalsHistory.length > 0) ||
             vitals?.heart_rate ||
             vitals?.blood_pressure?.systolic ||
-            (vitals?.oxygen_saturation != null && vitals?.oxygen_saturation !== undefined) ||
-            (vitals?.hydration != null && vitals?.hydration !== undefined)
-          );
+            (vitals?.oxygen_saturation != null &&
+              vitals?.oxygen_saturation !== undefined) ||
+            (vitals?.hydration != null && vitals?.hydration !== undefined);
           const isExistingAccount =
             patient?.created_at &&
             new Date(patient.created_at) < new Date("2026-06-27T00:00:00Z");
@@ -699,7 +703,8 @@ export default function PatientHomeScreen({ navigation }) {
   };
 
   const handleConfirmSleep = async () => {
-    if (!estimatedSleep || estimatedSleep.needsPermission || sleepLogging) return;
+    if (!estimatedSleep || estimatedSleep.needsPermission || sleepLogging)
+      return;
     setSleepLogging(true);
     try {
       const apiSource =
@@ -733,10 +738,7 @@ export default function PatientHomeScreen({ navigation }) {
     if (!estimatedSleep) return;
     try {
       const dateStr = estimatedSleep.dateStr || new Date().toDateString();
-      await AsyncStorage.setItem(
-        "last_sleep_prompt_date",
-        dateStr,
-      );
+      await AsyncStorage.setItem("last_sleep_prompt_date", dateStr);
       setEstimatedSleep(null);
     } catch (e) {
       console.warn("Failed to dismiss sleep prompt:", e.message);
@@ -745,22 +747,25 @@ export default function PatientHomeScreen({ navigation }) {
 
   const handleEnableDeviceActivity = () => {
     AlertManager.alert(
-      t("home.usage_permission_title", { defaultValue: "Enable Activity Access" }),
+      t("home.usage_permission_title", {
+        defaultValue: "Enable Activity Access",
+      }),
       t("home.usage_permission_desc", {
-        defaultValue: "We will open your settings. Find 'CareMyMed' in the list and turn on 'Allow usage tracking'.\n\nThis lets us estimate your sleep duration without needing a smartwatch."
+        defaultValue:
+          "We will open your settings. Find 'CareMyMed' in the list and turn on 'Allow usage tracking'.\n\nThis lets us estimate your sleep duration without needing a smartwatch.",
       }),
       [
         {
           text: t("home.cancel", { defaultValue: "Cancel" }),
-          style: "cancel"
+          style: "cancel",
         },
         {
           text: t("home.open_settings", { defaultValue: "Open Settings" }),
           onPress: async () => {
             await sleepEstimation.requestUsageStatsPermission();
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
@@ -769,7 +774,7 @@ export default function PatientHomeScreen({ navigation }) {
     setSleepLogging(true);
     try {
       const apiSource = "manual";
-      const logDate = estimatedSleep.lastActiveTime 
+      const logDate = estimatedSleep.lastActiveTime
         ? new Date(estimatedSleep.lastActiveTime).toISOString()
         : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const dateStr = estimatedSleep.dateStr || new Date().toDateString();
@@ -780,10 +785,7 @@ export default function PatientHomeScreen({ navigation }) {
         quality: "good",
         source: apiSource,
       });
-      await AsyncStorage.setItem(
-        "last_sleep_prompt_date",
-        dateStr,
-      );
+      await AsyncStorage.setItem("last_sleep_prompt_date", dateStr);
       setEstimatedSleep(null);
       AlertManager.alert(
         "Success",
@@ -1168,7 +1170,8 @@ export default function PatientHomeScreen({ navigation }) {
   const hasVitalsToday = !!(
     vitals?.heart_rate ||
     vitals?.blood_pressure?.systolic ||
-    (vitals?.oxygen_saturation != null && vitals?.oxygen_saturation !== undefined) ||
+    (vitals?.oxygen_saturation != null &&
+      vitals?.oxygen_saturation !== undefined) ||
     (vitals?.hydration != null && vitals?.hydration !== undefined)
   );
 
@@ -1695,599 +1698,593 @@ export default function PatientHomeScreen({ navigation }) {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-      <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
-        <StatusBar
-          barStyle="dark-content"
-          backgroundColor="transparent"
-          translucent
-        />
+        <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
+          <StatusBar
+            barStyle="dark-content"
+            backgroundColor="transparent"
+            translucent
+          />
 
-        {/* Ambient Background Decorations */}
-        <View style={StyleSheet.absoluteFill}>
-          <Svg
-            height="100%"
-            width="100%"
-            viewBox="0 0 400 850"
-            preserveAspectRatio="none"
-          >
-            <Defs>
-              <SvgLinearGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
-                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-              </SvgLinearGradient>
-              <SvgLinearGradient
-                id="bottomBg"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
-                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-              </SvgLinearGradient>
-            </Defs>
+          {/* Ambient Background Decorations */}
+          <View style={StyleSheet.absoluteFill}>
+            <Svg
+              height="100%"
+              width="100%"
+              viewBox="0 0 400 850"
+              preserveAspectRatio="none"
+            >
+              <Defs>
+                <SvgLinearGradient
+                  id="topBg"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                  <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                </SvgLinearGradient>
+                <SvgLinearGradient
+                  id="bottomBg"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
+                  <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                </SvgLinearGradient>
+              </Defs>
 
-            {/* Top right curvy gradient backdrop */}
-            <Path
-              d="M180 0 C260 120, 320 150, 400 120 L400 0 Z"
-              fill="url(#topBg)"
-            />
+              {/* Top right curvy gradient backdrop */}
+              <Path
+                d="M180 0 C260 120, 320 150, 400 120 L400 0 Z"
+                fill="url(#topBg)"
+              />
 
-            {/* Bottom left curvy gradient backdrop */}
-            <Path
-              d="M0 620 C60 700, 140 720, 220 850 L0 850 Z"
-              fill="url(#bottomBg)"
-            />
+              {/* Bottom left curvy gradient backdrop */}
+              <Path
+                d="M0 620 C60 700, 140 720, 220 850 L0 850 Z"
+                fill="url(#bottomBg)"
+              />
 
-            {/* Top-right overlapping wavy contours */}
-            <Path
-              d="M220 0 C280 80, 320 100, 400 70"
-              stroke={colors.primary}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.08"
-            />
-            <Path
-              d="M200 0 C265 95, 310 115, 400 90"
-              stroke={colors.primary}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.08"
-            />
-            <Path
-              d="M180 0 C250 110, 300 130, 400 110"
-              stroke={colors.primary}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.08"
-            />
-            <Path
-              d="M160 0 C235 125, 290 145, 400 130"
-              stroke={colors.primary}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.08"
-            />
-            <Path
-              d="M140 0 C220 140, 280 160, 400 150"
-              stroke={colors.borderLight}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.12"
-            />
-            <Path
-              d="M120 0 C205 155, 270 175, 400 170"
-              stroke={colors.borderLight}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.12"
-            />
+              {/* Top-right overlapping wavy contours */}
+              <Path
+                d="M220 0 C280 80, 320 100, 400 70"
+                stroke={colors.primary}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.08"
+              />
+              <Path
+                d="M200 0 C265 95, 310 115, 400 90"
+                stroke={colors.primary}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.08"
+              />
+              <Path
+                d="M180 0 C250 110, 300 130, 400 110"
+                stroke={colors.primary}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.08"
+              />
+              <Path
+                d="M160 0 C235 125, 290 145, 400 130"
+                stroke={colors.primary}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.08"
+              />
+              <Path
+                d="M140 0 C220 140, 280 160, 400 150"
+                stroke={colors.borderLight}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.12"
+              />
+              <Path
+                d="M120 0 C205 155, 270 175, 400 170"
+                stroke={colors.borderLight}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.12"
+              />
 
-            {/* Bottom-left overlapping wavy contours */}
-            <Path
-              d="M0 640 C60 670, 100 710, 160 850"
-              stroke={colors.danger}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.08"
-            />
-            <Path
-              d="M0 620 C70 655, 115 700, 185 850"
-              stroke={colors.danger}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.08"
-            />
-            <Path
-              d="M0 600 C80 640, 130 690, 210 850"
-              stroke={colors.danger}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.08"
-            />
-            <Path
-              d="M0 580 C90 625, 145 680, 235 850"
-              stroke={colors.borderLight}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.12"
-            />
-            <Path
-              d="M0 560 C100 610, 160 670, 260 850"
-              stroke={colors.borderLight}
-              strokeWidth="0.8"
-              fill="none"
-              opacity="0.12"
-            />
+              {/* Bottom-left overlapping wavy contours */}
+              <Path
+                d="M0 640 C60 670, 100 710, 160 850"
+                stroke={colors.danger}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.08"
+              />
+              <Path
+                d="M0 620 C70 655, 115 700, 185 850"
+                stroke={colors.danger}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.08"
+              />
+              <Path
+                d="M0 600 C80 640, 130 690, 210 850"
+                stroke={colors.danger}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.08"
+              />
+              <Path
+                d="M0 580 C90 625, 145 680, 235 850"
+                stroke={colors.borderLight}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.12"
+              />
+              <Path
+                d="M0 560 C100 610, 160 670, 260 850"
+                stroke={colors.borderLight}
+                strokeWidth="0.8"
+                fill="none"
+                opacity="0.12"
+              />
 
-            {/* Stylized sweeping curve lines */}
-            <Path
-              d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310"
-              stroke={colors.borderLight}
-              strokeWidth="1.5"
-              fill="none"
-              opacity="0.4"
-            />
-            <Path
-              d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340"
-              stroke={colors.borderLight}
-              strokeWidth="1"
-              fill="none"
-              opacity="0.25"
-            />
+              {/* Stylized sweeping curve lines */}
+              <Path
+                d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310"
+                stroke={colors.borderLight}
+                strokeWidth="1.5"
+                fill="none"
+                opacity="0.4"
+              />
+              <Path
+                d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340"
+                stroke={colors.borderLight}
+                strokeWidth="1"
+                fill="none"
+                opacity="0.25"
+              />
 
-            {/* Concentric abstract rings */}
-            <SvgCircle
-              cx="320"
-              cy="480"
-              r="130"
-              stroke={colors.borderLight}
-              strokeWidth="1"
-              fill="none"
-              opacity="0.2"
-            />
-            <SvgCircle
-              cx="320"
-              cy="480"
-              r="90"
-              stroke={colors.borderLight}
-              strokeWidth="1.2"
-              fill="none"
-              opacity="0.1"
-            />
-          </Svg>
-        </View>
+              {/* Concentric abstract rings */}
+              <SvgCircle
+                cx="320"
+                cy="480"
+                r="130"
+                stroke={colors.borderLight}
+                strokeWidth="1"
+                fill="none"
+                opacity="0.2"
+              />
+              <SvgCircle
+                cx="320"
+                cy="480"
+                r="90"
+                stroke={colors.borderLight}
+                strokeWidth="1.2"
+                fill="none"
+                opacity="0.1"
+              />
+            </Svg>
+          </View>
 
-        {/* ── HEADER ── */}
-        <View style={styles.header}>
-          <View style={styles.mainHeaderRow}>
-            <View style={{ flex: 1, paddingRight: 16 }}>
-              <Text style={styles.greetingName}>{adaptiveGreeting}</Text>
-              <Text style={styles.headerSubtext}>{headerSubtitle}</Text>
-            </View>
-            <View style={styles.headerActions}>
-              <Pressable
-                style={styles.headerIconBtn}
-                onPress={() => navigation.navigate("Notifications")}
-              >
-                <Bell size={20} color="#475569" strokeWidth={2.5} />
-                {(unreadCount > 0 || hasContextualAlerts) && (
-                  <View style={styles.bellDot} />
-                )}
-              </Pressable>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.avatarBtn}
-                onPress={() => navigation.navigate("Profile")}
-              >
-                <Text style={styles.avatarText}>
-                  {displayName?.charAt(0) || "U"}
-                </Text>
-              </TouchableOpacity>
+          {/* ── HEADER ── */}
+          <View style={styles.header}>
+            <View style={styles.mainHeaderRow}>
+              <View style={{ flex: 1, paddingRight: 16 }}>
+                <Text style={styles.greetingName}>{adaptiveGreeting}</Text>
+                <Text style={styles.headerSubtext}>{headerSubtitle}</Text>
+              </View>
+              <View style={styles.headerActions}>
+                <Pressable
+                  style={styles.headerIconBtn}
+                  onPress={() => navigation.navigate("Notifications")}
+                >
+                  <Bell size={20} color="#475569" strokeWidth={2.5} />
+                  {(unreadCount > 0 || hasContextualAlerts) && (
+                    <View style={styles.bellDot} />
+                  )}
+                </Pressable>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.avatarBtn}
+                  onPress={() => navigation.navigate("Profile")}
+                >
+                  <Text style={styles.avatarText}>
+                    {displayName?.charAt(0) || "U"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* ── SCROLLABLE CONTAINER ── */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#7C3AED"
-            />
-          }
-        >
-          {/* Pills Row */}
-          <Animated.View
-            style={[
-              entranceStyle(0),
-              {
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: 20,
-              },
-            ]}
-          >
-            <View style={styles.datePill}>
-              <CalendarDays size={12} color="#94A3B8" />
-              <Text style={styles.dateText}>{dateStr}</Text>
-            </View>
-            <Pressable
-              onPress={() => navigation.navigate("LocationSearch")}
-              style={[styles.locationPill, { flex: 1 }]}
-            >
-              <View style={styles.locationDot}>
-                <MapPin size={10} color="#FFF" fill="#FFF" />
-              </View>
-              <Text style={styles.locationText} numberOfLines={1}>
-                {patient?.city ||
-                  profile?.city ||
-                  t("home.detecting", { defaultValue: "Detecting..." })}
-              </Text>
-              <ChevronRight
-                size={12}
-                color="#94A3B8"
-                style={{ marginLeft: "auto" }}
+          {/* ── SCROLLABLE CONTAINER ── */}
+          <ScrollView
+            ref={scrollViewRef}
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#7C3AED"
               />
-            </Pressable>
-          </Animated.View>
-
-          {daysPremiumRemaining <= 0 && (
-            <Pressable
-              style={styles.premiumBanner}
-              onPress={() => openPremium()}
-            >
-              <View style={styles.premiumBannerLeft}>
-                <View style={styles.premiumBannerIcon}>
-                  <Sparkles size={18} color="#A855F7" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.premiumBannerTitle}>Premium Expired</Text>
-                  <Text style={styles.premiumBannerSub}>
-                    Your AI health insights are paused until renewal.
-                  </Text>
-                </View>
-              </View>
-              <ChevronRight size={20} color="#CBD5E1" />
-            </Pressable>
-          )}
-
-          {/* Offline Banner */}
-          {isCached && (
-            <View style={styles.offlineBanner}>
-              <WifiOff size={13} color="#92400E" />
-              <Text style={styles.offlineBannerText}>
-                {t("home.offline_banner", {
-                  defaultValue: "Showing cached data · Pull to refresh",
-                })}
-              </Text>
-            </View>
-          )}
-
-          {/* Sleep Inactivity/Native Detection Prompt Banner */}
-          {estimatedSleep && (
-            <Animated.View style={[entranceStyle(1), { marginBottom: 20 }]}>
-              {estimatedSleep.needsPermission ? (
-                <View style={styles.sleepCtaCard}>
-                  <View style={styles.sleepPromptHeader}>
-                    <View style={styles.sleepCtaIconBox}>
-                      <Watch size={18} color="#D97706" />
-                    </View>
-                    <Text style={styles.sleepCtaTitle}>
-                      {t("home.sleep_tracking_title", { defaultValue: "🌙 Sleep Tracking" })}
-                    </Text>
-                  </View>
-                  <Text style={styles.sleepCtaText}>
-                    {t("home.sleep_tracking_cta_desc", {
-                      defaultValue: "Connect Health Connect or enable device activity access for better sleep estimation."
-                    })}
-                  </Text>
-                  
-                  <View style={[styles.sleepPromptActions, { marginBottom: 14 }]}>
-                    {estimatedSleep.needsPermission === 'usage_stats' ? (
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.sleepCtaBtnYes,
-                          { flex: 1, height: 40 },
-                          pressed && { opacity: 0.8 },
-                        ]}
-                        onPress={handleEnableDeviceActivity}
-                      >
-                        <Text style={styles.sleepCtaBtnYesText}>
-                          {t("home.enable_device_activity", { defaultValue: "Enable Device Activity" })}
-                        </Text>
-                      </Pressable>
-                    ) : (
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.sleepCtaBtnYes,
-                          { flex: 1, height: 40 },
-                          pressed && { opacity: 0.8 },
-                        ]}
-                        onPress={() => navigation.navigate("HealthConnectSetup")}
-                      >
-                        <Text style={styles.sleepCtaBtnYesText}>
-                          {t("home.connect_health_connect", { defaultValue: "Connect Health" })}
-                        </Text>
-                      </Pressable>
-                    )}
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.sleepCtaBtnNo,
-                        { height: 40 },
-                        pressed && { opacity: 0.8 },
-                      ]}
-                      onPress={handleDismissSleep}
-                    >
-                      <Text style={styles.sleepCtaBtnNoText}>
-                        {t("home.dismiss", { defaultValue: "Not Now" })}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  <Text
-                    style={[
-                      styles.sleepCtaText,
-                      { fontSize: 11, marginBottom: 8, opacity: 0.8 },
-                    ]}
-                  >
-                    Or log custom duration:
-                  </Text>
-
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
-                  >
-                    {[5, 6, 7, 8, 9, 10].map((h) => (
-                      <Pressable
-                        key={h}
-                        style={({ pressed }) => [
-                          styles.sleepCtaHourBtn,
-                          pressed && { opacity: 0.7 },
-                          sleepLogging && { opacity: 0.4 },
-                        ]}
-                        onPress={() => logCustomSleep(h)}
-                        disabled={sleepLogging}
-                      >
-                        <Text style={styles.sleepCtaHourBtnText}>{h}h</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </View>
-              ) : (
-                <View style={styles.sleepPromptCard}>
-                  <View style={styles.sleepPromptHeader}>
-                    <View style={styles.sleepIconBox}>
-                      <Watch size={18} color="#7C3AED" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                        <Text style={styles.sleepPromptTitle}>
-                          {estimatedSleep.displayTitle}
-                        </Text>
-                        <View
-                          style={{
-                            backgroundColor:
-                              estimatedSleep.confidenceLabel === "verified" ? "#FAF5FF" : "#FFF9E6",
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            borderRadius: 12,
-                            borderWidth: 1,
-                            borderColor:
-                              estimatedSleep.confidenceLabel === "verified" ? "#E9D5FF" : "#FDE68A",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 10,
-                              fontWeight: "700",
-                              color:
-                                estimatedSleep.confidenceLabel === "verified" ? "#7C3AED" : "#D97706",
-                              textTransform: "capitalize",
-                            }}
-                          >
-                            {estimatedSleep.confidenceLabel}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={{ fontSize: 11, color: "#7C3AED", marginTop: 2, fontWeight: "600" }}>
-                        {estimatedSleep.displaySubtitle}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.sleepPromptText}>
-                    {estimatedSleep.source === "native_health" ? (
-                      <>
-                        Your watch or phone logged{" "}
-                        <Text style={{ fontWeight: "800", color: "#1E1B4B" }}>
-                          {estimatedSleep.hours} hours
-                        </Text>{" "}
-                        of sleep last night ({estimatedSleep.startTime} to{" "}
-                        {estimatedSleep.endTime}).
-                      </>
-                    ) : (
-                      <>
-                        Your phone was quiet for{" "}
-                        <Text style={{ fontWeight: "800", color: "#1E1B4B" }}>
-                          {estimatedSleep.hours} hours
-                        </Text>{" "}
-                        last night ({estimatedSleep.startTime} to{" "}
-                        {estimatedSleep.endTime}).
-                      </>
-                    )}
-                    {"\n\n"}Is this correct?
-                  </Text>
-
-                  <View style={[styles.sleepPromptActions, { marginBottom: 14 }]}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.sleepPromptBtnYes,
-                        { flex: 1, height: 40 },
-                        pressed && { opacity: 0.8 },
-                        sleepLogging && { opacity: 0.5 },
-                      ]}
-                      onPress={handleConfirmSleep}
-                      disabled={sleepLogging}
-                    >
-                      <Text style={styles.sleepPromptBtnYesText}>
-                        {sleepLogging ? "Logging..." : `Yes, log ${estimatedSleep.hours}h`}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.sleepPromptBtnNo,
-                        { height: 40 },
-                        pressed && { opacity: 0.8 },
-                      ]}
-                      onPress={handleDismissSleep}
-                    >
-                      <Text style={styles.sleepPromptBtnNoText}>Dismiss</Text>
-                    </Pressable>
-                  </View>
-
-                  <Text
-                    style={[
-                      styles.sleepPromptText,
-                      { fontSize: 11, marginBottom: 8, opacity: 0.8 },
-                    ]}
-                  >
-                    Or log custom duration:
-                  </Text>
-
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
-                  >
-                    {[5, 6, 7, 8, 9, 10].map((h) => (
-                      <Pressable
-                        key={h}
-                        style={({ pressed }) => [
-                          styles.sleepHourBtn,
-                          pressed && { opacity: 0.7 },
-                          sleepLogging && { opacity: 0.4 },
-                        ]}
-                        onPress={() => logCustomSleep(h)}
-                        disabled={sleepLogging}
-                      >
-                        <Text style={styles.sleepHourBtnText}>{h}h</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-            </Animated.View>
-          )}
-
-          {/* Morning Health Brief Banner */}
-          <Animated.View style={[entranceStyle(1)]}>
-            <Pressable
-              style={styles.morningBriefBanner}
-              onPress={() => navigation.navigate("HealthCopilot")}
-            >
-              <LinearGradient
-                colors={["#FAF5FF", "#F3E8FF"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.morningBriefGradient}
-              >
-                <View style={styles.morningBriefIconContainer}>
-                  <Sparkles size={16} color="#7C3AED" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.morningBriefTitle}>
-                    ✨ Morning Health Brief
-                  </Text>
-                  <Text style={styles.morningBriefSub}>
-                    Your daily care focus & weekly targets are ready. Tap to
-                    view.
-                  </Text>
-                </View>
-                <ChevronRight size={18} color="#7C3AED" />
-              </LinearGradient>
-            </Pressable>
-          </Animated.View>
-
-          {/* ── 1. GLASS HEALTH ORB (Brand Focus, 60% Width) ── */}
-          <Animated.View style={[entranceStyle(1), styles.orbContainer]}>
+            }
+          >
+            {/* Pills Row */}
             <Animated.View
               style={[
-                styles.orbWrapper,
-                { transform: [{ scale: orbScaleAnim }] },
+                entranceStyle(0),
+                {
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                  marginBottom: 20,
+                },
               ]}
             >
-              <Svg
-                width={210}
-                height={210}
-                viewBox="0 0 200 200"
-                style={styles.orbSvg}
+              <View style={styles.datePill}>
+                <CalendarDays size={12} color="#94A3B8" />
+                <Text style={styles.dateText}>{dateStr}</Text>
+              </View>
+              <Pressable
+                onPress={() => navigation.navigate("LocationSearch")}
+                style={[styles.locationPill, { flex: 1 }]}
               >
-                <Defs>
-                  <SvgLinearGradient
-                    id="orbGlowGrad"
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="100%"
-                  >
-                    <Stop offset="0%" stopColor="#A78BFA" stopOpacity={0.15} />
-                    <Stop
-                      offset="100%"
-                      stopColor="#7C3AED"
-                      stopOpacity={0.03}
-                    />
-                  </SvgLinearGradient>
-                  <SvgLinearGradient
-                    id="progressRingGrad"
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="0%"
-                  >
-                    <Stop offset="0%" stopColor="#A78BFA" />
-                    <Stop offset="50%" stopColor="#8B5CF6" />
-                    <Stop offset="100%" stopColor="#7C3AED" />
-                  </SvgLinearGradient>
-                </Defs>
-                <SvgCircle cx="100" cy="100" r="86" fill="url(#orbGlowGrad)" />
-                <SvgCircle
-                  cx="100"
-                  cy="100"
-                  r="90"
-                  stroke="#F1F5F9"
-                  strokeWidth="6"
-                  fill="transparent"
+                <View style={styles.locationDot}>
+                  <MapPin size={10} color="#FFF" fill="#FFF" />
+                </View>
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {patient?.city ||
+                    profile?.city ||
+                    t("home.detecting", { defaultValue: "Detecting..." })}
+                </Text>
+                <ChevronRight
+                  size={12}
+                  color="#94A3B8"
+                  style={{ marginLeft: "auto" }}
                 />
-                <AnimatedCircle
-                  cx="100"
-                  cy="100"
-                  r="90"
-                  stroke="url(#progressRingGrad)"
-                  strokeWidth="6"
-                  fill="transparent"
-                  strokeDasharray="565.48"
-                  strokeDashoffset={ringProgressAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [565.48, 0],
-                  })}
-                  strokeLinecap="round"
-                  transform="rotate(-90 100 100)"
-                />
-              </Svg>
+              </Pressable>
+            </Animated.View>
 
-              {/* Active Glow Pulse Overlay */}
+            {daysPremiumRemaining <= 0 && (
+              <Pressable
+                style={styles.premiumBanner}
+                onPress={() => openPremium()}
+              >
+                <View style={styles.premiumBannerLeft}>
+                  <View style={styles.premiumBannerIcon}>
+                    <Sparkles size={18} color="#A855F7" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.premiumBannerTitle}>
+                      Premium Expired
+                    </Text>
+                    <Text style={styles.premiumBannerSub}>
+                      Your AI health insights are paused until renewal.
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color="#CBD5E1" />
+              </Pressable>
+            )}
+
+            {/* Offline Banner */}
+            {isCached && (
+              <View style={styles.offlineBanner}>
+                <WifiOff size={13} color="#92400E" />
+                <Text style={styles.offlineBannerText}>
+                  {t("home.offline_banner", {
+                    defaultValue: "Showing cached data · Pull to refresh",
+                  })}
+                </Text>
+              </View>
+            )}
+
+            {/* Sleep Inactivity/Native Detection Prompt Banner */}
+            {estimatedSleep && (
+              <Animated.View style={[entranceStyle(1), { marginBottom: 20 }]}>
+                {estimatedSleep.needsPermission ? (
+                  <View style={styles.sleepCtaCard}>
+                    <View style={styles.sleepPromptHeader}>
+                      <View style={styles.sleepCtaIconBox}>
+                        <Watch size={18} color="#D97706" />
+                      </View>
+                      <Text style={styles.sleepCtaTitle}>
+                        {t("home.sleep_tracking_title", {
+                          defaultValue: "🌙 Sleep Tracking",
+                        })}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.sleepCtaText}>
+                      {estimatedSleep.needsPermission === "manual"
+                        ? "No sleep records detected. Log your hours manually to stay consistent!"
+                        : t("home.sleep_tracking_cta_desc", {
+                            defaultValue:
+                              "Connect Health Connect or enable device activity access for better sleep estimation.",
+                          })}
+                    </Text>
+
+                    <View
+                      style={[styles.sleepPromptActions, { marginBottom: 14 }]}
+                    >
+                      {estimatedSleep.needsPermission === "manual" ? (
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.sleepCtaBtnNo,
+                            { flex: 1, height: 40 },
+                            pressed && { opacity: 0.8 },
+                          ]}
+                          onPress={handleDismissSleep}
+                        >
+                          <Text style={styles.sleepCtaBtnNoText}>Dismiss</Text>
+                        </Pressable>
+                      ) : (
+                        <>
+                          {estimatedSleep.needsPermission === "usage_stats" ? (
+                            <Pressable
+                              style={({ pressed }) => [
+                                styles.sleepCtaBtnYes,
+                                { flex: 1, height: 40 },
+                                pressed && { opacity: 0.8 },
+                              ]}
+                              onPress={handleEnableDeviceActivity}
+                            >
+                              <Text style={styles.sleepCtaBtnYesText}>
+                                {t("home.enable_device_activity", {
+                                  defaultValue: "Enable Device Activity",
+                                })}
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Pressable
+                              style={({ pressed }) => [
+                                styles.sleepCtaBtnYes,
+                                { flex: 1, height: 40 },
+                                pressed && { opacity: 0.8 },
+                              ]}
+                              onPress={() =>
+                                navigation.navigate("HealthConnectSetup")
+                              }
+                            >
+                              <Text style={styles.sleepCtaBtnYesText}>
+                                {t("home.connect_health_connect", {
+                                  defaultValue: "Connect Health",
+                                })}
+                              </Text>
+                            </Pressable>
+                          )}
+                          <Pressable
+                            style={({ pressed }) => [
+                              styles.sleepCtaBtnNo,
+                              { height: 40 },
+                              pressed && { opacity: 0.8 },
+                            ]}
+                            onPress={handleDismissSleep}
+                          >
+                            <Text style={styles.sleepCtaBtnNoText}>
+                              {t("home.dismiss", { defaultValue: "Not Now" })}
+                            </Text>
+                          </Pressable>
+                        </>
+                      )}
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.sleepCtaText,
+                        { fontSize: 11, marginBottom: 8, opacity: 0.8 },
+                      ]}
+                    >
+                      Or log custom duration:
+                    </Text>
+
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                    >
+                      {[5, 6, 7, 8, 9, 10].map((h) => (
+                        <Pressable
+                          key={h}
+                          style={({ pressed }) => [
+                            styles.sleepCtaHourBtn,
+                            pressed && { opacity: 0.7 },
+                            sleepLogging && { opacity: 0.4 },
+                          ]}
+                          onPress={() => logCustomSleep(h)}
+                          disabled={sleepLogging}
+                        >
+                          <Text style={styles.sleepCtaHourBtnText}>{h}h</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                ) : (
+                  <View style={styles.sleepPromptCard}>
+                    <View style={styles.sleepPromptHeader}>
+                      <View style={styles.sleepIconBox}>
+                        <Watch size={18} color="#7C3AED" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <Text style={styles.sleepPromptTitle}>
+                            {estimatedSleep.displayTitle}
+                          </Text>
+                          <View
+                            style={{
+                              backgroundColor:
+                                estimatedSleep.confidenceLabel === "verified"
+                                  ? "#FAF5FF"
+                                  : "#FFF9E6",
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              borderRadius: 12,
+                              borderWidth: 1,
+                              borderColor:
+                                estimatedSleep.confidenceLabel === "verified"
+                                  ? "#E9D5FF"
+                                  : "#FDE68A",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: "700",
+                                color:
+                                  estimatedSleep.confidenceLabel === "verified"
+                                    ? "#7C3AED"
+                                    : "#D97706",
+                                textTransform: "capitalize",
+                              }}
+                            >
+                              {estimatedSleep.confidenceLabel}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#7C3AED",
+                            marginTop: 2,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {estimatedSleep.displaySubtitle}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.sleepPromptText}>
+                      {estimatedSleep.source === "native_health" ? (
+                        <>
+                          Your watch or phone logged{" "}
+                          <Text style={{ fontWeight: "800", color: "#1E1B4B" }}>
+                            {estimatedSleep.hours} hours
+                          </Text>{" "}
+                          of sleep last night ({estimatedSleep.startTime} to{" "}
+                          {estimatedSleep.endTime}).
+                        </>
+                      ) : (
+                        <>
+                          Your phone was quiet for{" "}
+                          <Text style={{ fontWeight: "800", color: "#1E1B4B" }}>
+                            {estimatedSleep.hours} hours
+                          </Text>{" "}
+                          last night ({estimatedSleep.startTime} to{" "}
+                          {estimatedSleep.endTime}).
+                        </>
+                      )}
+                      {"\n\n"}Is this correct?
+                    </Text>
+
+                    <View
+                      style={[styles.sleepPromptActions, { marginBottom: 14 }]}
+                    >
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.sleepPromptBtnYes,
+                          { flex: 1, height: 40 },
+                          pressed && { opacity: 0.8 },
+                          sleepLogging && { opacity: 0.5 },
+                        ]}
+                        onPress={handleConfirmSleep}
+                        disabled={sleepLogging}
+                      >
+                        <Text style={styles.sleepPromptBtnYesText}>
+                          {sleepLogging
+                            ? "Logging..."
+                            : `Yes, log ${estimatedSleep.hours}h`}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.sleepPromptBtnNo,
+                          { height: 40 },
+                          pressed && { opacity: 0.8 },
+                        ]}
+                        onPress={handleDismissSleep}
+                      >
+                        <Text style={styles.sleepPromptBtnNoText}>Dismiss</Text>
+                      </Pressable>
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.sleepPromptText,
+                        { fontSize: 11, marginBottom: 8, opacity: 0.8 },
+                      ]}
+                    >
+                      Or log custom duration:
+                    </Text>
+
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                    >
+                      {[5, 6, 7, 8, 9, 10].map((h) => (
+                        <Pressable
+                          key={h}
+                          style={({ pressed }) => [
+                            styles.sleepHourBtn,
+                            pressed && { opacity: 0.7 },
+                            sleepLogging && { opacity: 0.4 },
+                          ]}
+                          onPress={() => logCustomSleep(h)}
+                          disabled={sleepLogging}
+                        >
+                          <Text style={styles.sleepHourBtnText}>{h}h</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </Animated.View>
+            )}
+
+            {/* Morning Health Brief Banner */}
+            <Animated.View style={[entranceStyle(1)]}>
+              <Pressable
+                style={styles.morningBriefBanner}
+                onPress={() => navigation.navigate("HealthCopilot")}
+              >
+                <LinearGradient
+                  colors={["#FAF5FF", "#F3E8FF"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.morningBriefGradient}
+                >
+                  <View style={styles.morningBriefIconContainer}>
+                    <Sparkles size={16} color="#7C3AED" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.morningBriefTitle}>
+                      ✨ Morning Health Brief
+                    </Text>
+                    <Text style={styles.morningBriefSub}>
+                      Your daily care focus & weekly targets are ready. Tap to
+                      view.
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color="#7C3AED" />
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+
+            {/* ── 1. GLASS HEALTH ORB (Brand Focus, 60% Width) ── */}
+            <Animated.View style={[entranceStyle(1), styles.orbContainer]}>
               <Animated.View
                 style={[
-                  StyleSheet.absoluteFill,
-                  { opacity: glowOpacityAnim, pointerEvents: "none" },
+                  styles.orbWrapper,
+                  { transform: [{ scale: orbScaleAnim }] },
                 ]}
               >
                 <Svg
@@ -2298,7 +2295,7 @@ export default function PatientHomeScreen({ navigation }) {
                 >
                   <Defs>
                     <SvgLinearGradient
-                      id="activeGlowGrad"
+                      id="orbGlowGrad"
                       x1="0%"
                       y1="0%"
                       x2="100%"
@@ -2306,843 +2303,942 @@ export default function PatientHomeScreen({ navigation }) {
                     >
                       <Stop
                         offset="0%"
-                        stopColor={healthColor}
-                        stopOpacity={0.45}
+                        stopColor="#A78BFA"
+                        stopOpacity={0.15}
                       />
                       <Stop
                         offset="100%"
-                        stopColor={healthColor}
-                        stopOpacity={0.05}
+                        stopColor="#7C3AED"
+                        stopOpacity={0.03}
                       />
+                    </SvgLinearGradient>
+                    <SvgLinearGradient
+                      id="progressRingGrad"
+                      x1="0%"
+                      y1="0%"
+                      x2="100%"
+                      y2="0%"
+                    >
+                      <Stop offset="0%" stopColor="#A78BFA" />
+                      <Stop offset="50%" stopColor="#8B5CF6" />
+                      <Stop offset="100%" stopColor="#7C3AED" />
                     </SvgLinearGradient>
                   </Defs>
                   <SvgCircle
                     cx="100"
                     cy="100"
-                    r="95"
-                    fill="url(#activeGlowGrad)"
+                    r="86"
+                    fill="url(#orbGlowGrad)"
+                  />
+                  <SvgCircle
+                    cx="100"
+                    cy="100"
+                    r="90"
+                    stroke="#F1F5F9"
+                    strokeWidth="6"
+                    fill="transparent"
+                  />
+                  <AnimatedCircle
+                    cx="100"
+                    cy="100"
+                    r="90"
+                    stroke="url(#progressRingGrad)"
+                    strokeWidth="6"
+                    fill="transparent"
+                    strokeDasharray="565.48"
+                    strokeDashoffset={ringProgressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [565.48, 0],
+                    })}
+                    strokeLinecap="round"
+                    transform="rotate(-90 100 100)"
                   />
                 </Svg>
-              </Animated.View>
 
-              <View style={styles.glassOrb}>
-                <Text style={styles.orbScoreText}>{animatedScore}</Text>
-                <Text style={[styles.orbLabelText, { color: healthColor }]}>
-                  {healthLabel.toUpperCase()}
-                </Text>
-
+                {/* Active Glow Pulse Overlay */}
                 <Animated.View
                   style={[
-                    styles.orbGradeBadge,
-                    {
-                      opacity: badgeOpacityAnim,
-                      backgroundColor: healthColor + "10",
-                      borderColor: healthColor + "30",
-                      transform: [
-                        {
-                          scale: badgeOpacityAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.8, 1],
-                          }),
-                        },
-                      ],
-                    },
+                    StyleSheet.absoluteFill,
+                    { opacity: glowOpacityAnim, pointerEvents: "none" },
                   ]}
                 >
-                  <Text style={[styles.orbGradeText, { color: healthColor }]}>
-                    {healthGrade}
-                  </Text>
+                  <Svg
+                    width={210}
+                    height={210}
+                    viewBox="0 0 200 200"
+                    style={styles.orbSvg}
+                  >
+                    <Defs>
+                      <SvgLinearGradient
+                        id="activeGlowGrad"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="100%"
+                      >
+                        <Stop
+                          offset="0%"
+                          stopColor={healthColor}
+                          stopOpacity={0.45}
+                        />
+                        <Stop
+                          offset="100%"
+                          stopColor={healthColor}
+                          stopOpacity={0.05}
+                        />
+                      </SvgLinearGradient>
+                    </Defs>
+                    <SvgCircle
+                      cx="100"
+                      cy="100"
+                      r="95"
+                      fill="url(#activeGlowGrad)"
+                    />
+                  </Svg>
                 </Animated.View>
+
+                <View style={styles.glassOrb}>
+                  <Text style={styles.orbScoreText}>{animatedScore}</Text>
+                  <Text style={[styles.orbLabelText, { color: healthColor }]}>
+                    {healthLabel.toUpperCase()}
+                  </Text>
+
+                  <Animated.View
+                    style={[
+                      styles.orbGradeBadge,
+                      {
+                        opacity: badgeOpacityAnim,
+                        backgroundColor: healthColor + "10",
+                        borderColor: healthColor + "30",
+                        transform: [
+                          {
+                            scale: badgeOpacityAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.8, 1],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.orbGradeText, { color: healthColor }]}>
+                      {healthGrade}
+                    </Text>
+                  </Animated.View>
+                </View>
+              </Animated.View>
+
+              <Text style={styles.orbNextDose}>
+                {nextDose
+                  ? `${t("home.next_dose", { slot: nextDose.slot, defaultValue: `Next Dose: ${nextDose.slot}` })}${nextDose.time ? ` (${nextDose.time})` : ""}`
+                  : t("home.all_done_today", {
+                      defaultValue: "All medications completed! 🎉",
+                    })}
+              </Text>
+            </Animated.View>
+
+            {/* ── 2. DAILY CHECK-IN (Directly under the Orb) ── */}
+            <Animated.View style={[entranceStyle(2), styles.section]}>
+              <View style={styles.checkinCard}>
+                {!moodLogged ? (
+                  <Animated.View style={{ opacity: moodFadeAnim }}>
+                    <Text style={styles.checkinTitle}>
+                      {t("home.how_are_feeling", {
+                        defaultValue: "How are you feeling today?",
+                      })}
+                    </Text>
+                    <View style={styles.moodEmojiRow}>
+                      <Pressable
+                        style={styles.moodEmojiPill}
+                        onPress={() => saveDailyMood("sad")}
+                      >
+                        <LottieView
+                          source={require("../../assets/lottie/sad.json")}
+                          autoPlay
+                          loop
+                          style={styles.moodLottie}
+                        />
+                        <Text style={styles.moodLabel}>Low</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.moodEmojiPill}
+                        onPress={() => saveDailyMood("okay")}
+                      >
+                        <LottieView
+                          source={require("../../assets/lottie/okay.json")}
+                          autoPlay
+                          loop
+                          style={styles.moodLottie}
+                        />
+                        <Text style={styles.moodLabel}>Okay</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.moodEmojiPill}
+                        onPress={() => saveDailyMood("good")}
+                      >
+                        <LottieView
+                          source={require("../../assets/lottie/good.json")}
+                          autoPlay
+                          loop
+                          style={styles.moodLottie}
+                        />
+                        <Text style={styles.moodLabel}>Good</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.moodEmojiPill}
+                        onPress={() => saveDailyMood("great")}
+                      >
+                        <LottieView
+                          source={require("../../assets/lottie/great.json")}
+                          autoPlay
+                          loop
+                          style={styles.moodLottie}
+                        />
+                        <Text style={styles.moodLabel}>Great</Text>
+                      </Pressable>
+                    </View>
+                  </Animated.View>
+                ) : (
+                  <Animated.View
+                    style={{ opacity: thanksFadeAnim, width: "100%" }}
+                  >
+                    <View style={styles.checkinCompleteView}>
+                      <Sparkles
+                        size={16}
+                        color="#8B5CF6"
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={styles.checkinCompleteText}>
+                        ✨ Thanks for checking in. Today's insight has been
+                        updated.
+                      </Text>
+                      <Text style={styles.selectedMoodBadge}>
+                        {selectedMood === "sad"
+                          ? "😞 Low"
+                          : selectedMood === "okay"
+                            ? "😐 Okay"
+                            : selectedMood === "good"
+                              ? "🙂 Good"
+                              : "😄 Great"}
+                      </Text>
+                    </View>
+                  </Animated.View>
+                )}
               </View>
             </Animated.View>
 
-            <Text style={styles.orbNextDose}>
-              {nextDose
-                ? `${t("home.next_dose", { slot: nextDose.slot, defaultValue: `Next Dose: ${nextDose.slot}` })}${nextDose.time ? ` (${nextDose.time})` : ""}`
-                : t("home.all_done_today", {
-                    defaultValue: "All medications completed! 🎉",
-                  })}
-            </Text>
-          </Animated.View>
+            {/* Removed Health Pulse - combined with Vitals below */}
 
-          {/* ── 2. DAILY CHECK-IN (Directly under the Orb) ── */}
-          <Animated.View style={[entranceStyle(2), styles.section]}>
-            <View style={styles.checkinCard}>
-              {!moodLogged ? (
-                <Animated.View style={{ opacity: moodFadeAnim }}>
-                  <Text style={styles.checkinTitle}>
-                    {t("home.how_are_feeling", {
-                      defaultValue: "How are you feeling today?",
-                    })}
-                  </Text>
-                  <View style={styles.moodEmojiRow}>
-                    <Pressable
-                      style={styles.moodEmojiPill}
-                      onPress={() => saveDailyMood("sad")}
+            {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance sliding carousel) ── */}
+            <Animated.View style={[entranceStyle(4), styles.section]}>
+              <View style={styles.insightCard}>
+                <View style={styles.insightHeaderRow}>
+                  <View style={styles.insightHeaderLeft}>
+                    <View style={styles.insightIconBox}>
+                      <Sparkles size={16} color="#A855F7" />
+                    </View>
+                    <Text
+                      style={[styles.insightTitle, { flex: 1 }]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
                     >
-                      <LottieView
-                        source={require("../../assets/lottie/sad.json")}
-                        autoPlay
-                        loop
-                        style={styles.moodLottie}
-                      />
-                      <Text style={styles.moodLabel}>Low</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.moodEmojiPill}
-                      onPress={() => saveDailyMood("okay")}
-                    >
-                      <LottieView
-                        source={require("../../assets/lottie/okay.json")}
-                        autoPlay
-                        loop
-                        style={styles.moodLottie}
-                      />
-                      <Text style={styles.moodLabel}>Okay</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.moodEmojiPill}
-                      onPress={() => saveDailyMood("good")}
-                    >
-                      <LottieView
-                        source={require("../../assets/lottie/good.json")}
-                        autoPlay
-                        loop
-                        style={styles.moodLottie}
-                      />
-                      <Text style={styles.moodLabel}>Good</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.moodEmojiPill}
-                      onPress={() => saveDailyMood("great")}
-                    >
-                      <LottieView
-                        source={require("../../assets/lottie/great.json")}
-                        autoPlay
-                        loop
-                        style={styles.moodLottie}
-                      />
-                      <Text style={styles.moodLabel}>Great</Text>
-                    </Pressable>
-                  </View>
-                </Animated.View>
-              ) : (
-                <Animated.View
-                  style={{ opacity: thanksFadeAnim, width: "100%" }}
-                >
-                  <View style={styles.checkinCompleteView}>
-                    <Sparkles
-                      size={16}
-                      color="#8B5CF6"
-                      style={{ marginRight: 8 }}
-                    />
-                    <Text style={styles.checkinCompleteText}>
-                      ✨ Thanks for checking in. Today's insight has been
-                      updated.
-                    </Text>
-                    <Text style={styles.selectedMoodBadge}>
-                      {selectedMood === "sad"
-                        ? "😞 Low"
-                        : selectedMood === "okay"
-                          ? "😐 Okay"
-                          : selectedMood === "good"
-                            ? "🙂 Good"
-                            : "😄 Great"}
+                      {slideInsights[activeInsightIndex]?.title ||
+                        t("common.todays_insight", {
+                          defaultValue: "Today's Insight",
+                        })}
                     </Text>
                   </View>
-                </Animated.View>
-              )}
-            </View>
-          </Animated.View>
-
-          {/* Removed Health Pulse - combined with Vitals below */}
-
-          {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance sliding carousel) ── */}
-          <Animated.View style={[entranceStyle(4), styles.section]}>
-            <View style={styles.insightCard}>
-              <View style={styles.insightHeaderRow}>
-                <View style={styles.insightHeaderLeft}>
-                  <View style={styles.insightIconBox}>
-                    <Sparkles size={16} color="#A855F7" />
+                  <View style={styles.insightBadge}>
+                    <View style={styles.insightBadgeDot} />
+                    <Text style={styles.insightBadgeText}>
+                      {t("home.live_coach", { defaultValue: "LIVE COACH" })}
+                    </Text>
                   </View>
-                  <Text
-                    style={[styles.insightTitle, { flex: 1 }]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {slideInsights[activeInsightIndex]?.title ||
-                      t("common.todays_insight", {
-                        defaultValue: "Today's Insight",
-                      })}
-                  </Text>
                 </View>
-                <View style={styles.insightBadge}>
-                  <View style={styles.insightBadgeDot} />
-                  <Text style={styles.insightBadgeText}>
-                    {t("home.live_coach", { defaultValue: "LIVE COACH" })}
-                  </Text>
+
+                <ScrollView
+                  ref={insightScrollViewRef}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(e) => {
+                    const contentOffset = e.nativeEvent.contentOffset.x;
+                    const index = Math.round(contentOffset / slideWidth);
+                    if (
+                      index !== activeInsightIndex &&
+                      index >= 0 &&
+                      index < slideInsights.length
+                    ) {
+                      setActiveInsightIndex(index);
+                    }
+                  }}
+                  scrollEventThrottle={16}
+                  style={{ width: slideWidth }}
+                  contentContainerStyle={{ alignItems: "center" }}
+                >
+                  {slideInsights.map((slide) => {
+                    const SlideIcon = slide.icon;
+                    return (
+                      <View
+                        key={slide.id}
+                        style={{
+                          width: slideWidth,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                          <Text style={styles.insightDescText}>
+                            {slide.desc}
+                          </Text>
+                        </View>
+                        <View style={styles.insightIllustration}>
+                          <SlideIcon
+                            size={26}
+                            color={slide.iconColor}
+                            strokeWidth={2}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+
+                <View style={styles.insightDotsRow}>
+                  {slideInsights.map((_, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => {
+                        insightScrollViewRef.current?.scrollTo({
+                          x: index * slideWidth,
+                          animated: true,
+                        });
+                        setActiveInsightIndex(index);
+                      }}
+                      style={[
+                        styles.insightDot,
+                        activeInsightIndex === index && styles.insightDotActive,
+                      ]}
+                    />
+                  ))}
                 </View>
               </View>
+            </Animated.View>
 
-              <ScrollView
-                ref={insightScrollViewRef}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onScroll={(e) => {
-                  const contentOffset = e.nativeEvent.contentOffset.x;
-                  const index = Math.round(contentOffset / slideWidth);
-                  if (
-                    index !== activeInsightIndex &&
-                    index >= 0 &&
-                    index < slideInsights.length
-                  ) {
-                    setActiveInsightIndex(index);
-                  }
-                }}
-                scrollEventThrottle={16}
-                style={{ width: slideWidth }}
-                contentContainerStyle={{ alignItems: "center" }}
-              >
-                {slideInsights.map((slide) => {
-                  const SlideIcon = slide.icon;
-                  return (
-                    <View
-                      key={slide.id}
-                      style={{
-                        width: slideWidth,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
+            {/* ── 6. MEDICATIONS ── */}
+            <Animated.View style={[entranceStyle(6), styles.section]}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>
+                  {t("home.todays_plan", { defaultValue: "TODAY'S PLAN" })}
+                </Text>
+                <Pressable
+                  style={styles.viewAllBtn}
+                  onPress={() => navigation.navigate("Medications")}
+                >
+                  <Text style={styles.viewAllText}>
+                    {t("home.view_details", { defaultValue: "View Details" })}
+                  </Text>
+                  <ChevronRight size={13} color="#8B5CF6" />
+                </Pressable>
+              </View>
+
+              {totalMeds > 0 ? (
+                <Animated.View
+                  style={{ transform: [{ scale: medsCardScaleAnim }] }}
+                >
+                  <Pressable
+                    style={styles.medSummaryCard}
+                    onPress={() => setMedsExpanded(!medsExpanded)}
+                  >
+                    <LinearGradient
+                      colors={
+                        adherencePct === 100
+                          ? ["#22C55E", "#16A34A"]
+                          : adherencePct >= 50
+                            ? ["#8B5CF6", "#7C3AED"]
+                            : ["#EF4444", "#DC2626"]
+                      }
+                      style={styles.medSummaryGradient}
                     >
-                      <View style={{ flex: 1, paddingRight: 10 }}>
-                        <Text style={styles.insightDescText}>{slide.desc}</Text>
+                      <View style={styles.medSummaryMainRow}>
+                        <View style={{ flex: 1 }}>
+                          {adherencePct === 100 ? (
+                            <Text style={styles.medSummaryStatusTitle}>
+                              🏆 Perfect Day!
+                            </Text>
+                          ) : (
+                            <Text style={styles.medSummaryStatusTitle}>
+                              🟢 On Track
+                            </Text>
+                          )}
+                          <Text style={styles.medSummaryDetails}>
+                            {takenCount} of {totalMeds} medications taken
+                          </Text>
+                        </View>
+                        <View style={styles.medSummaryPercentage}>
+                          <Text style={styles.medPercentageText}>
+                            {adherencePct}%
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.insightIllustration}>
-                        <SlideIcon
-                          size={26}
-                          color={slide.iconColor}
-                          strokeWidth={2}
+
+                      {/* Progress Bar */}
+                      <View style={styles.medProgressBarBg}>
+                        <View
+                          style={[
+                            styles.medProgressBarFill,
+                            { width: `${adherencePct}%` },
+                          ]}
                         />
                       </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
 
-              <View style={styles.insightDotsRow}>
-                {slideInsights.map((_, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => {
-                      insightScrollViewRef.current?.scrollTo({
-                        x: index * slideWidth,
-                        animated: true,
-                      });
-                      setActiveInsightIndex(index);
-                    }}
-                    style={[
-                      styles.insightDot,
-                      activeInsightIndex === index && styles.insightDotActive,
-                    ]}
+                      <View style={styles.medSummaryFooterRow}>
+                        <Text style={styles.medSummaryFooterText}>
+                          {medsExpanded
+                            ? t("home.hide", { defaultValue: "Hide items" })
+                            : t("home.view_details", {
+                                defaultValue: "Tap to view schedule",
+                              })}
+                        </Text>
+                        <ChevronDown
+                          size={14}
+                          color="#FFF"
+                          style={{
+                            transform: [
+                              { rotate: medsExpanded ? "180deg" : "0deg" },
+                            ],
+                          }}
+                        />
+                      </View>
+                    </LinearGradient>
+                  </Pressable>
+                </Animated.View>
+              ) : (
+                <View style={styles.emptyCard}>
+                  <View style={styles.emptyIconBox}>
+                    <Pill size={28} color="#CBD5E1" strokeWidth={1.5} />
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    {t("common.no_medications_added", {
+                      defaultValue: "No medications added",
+                    })}
+                  </Text>
+                  <Text style={styles.emptySub}>
+                    {t("common.meds_empty_desc", {
+                      defaultValue:
+                        "Your medications will appear here once you add your first one. We'll help you stay on track.",
+                    })}
+                  </Text>
+                </View>
+              )}
+
+              {medsExpanded &&
+                meds.map((med) => (
+                  <MedicationCard
+                    key={med.id}
+                    med={med}
+                    onPress={() => navigation.navigate("Medications")}
                   />
                 ))}
-              </View>
-            </View>
-          </Animated.View>
+            </Animated.View>
 
-          {/* ── 6. MEDICATIONS ── */}
-          <Animated.View style={[entranceStyle(6), styles.section]}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>
-                {t("home.todays_plan", { defaultValue: "TODAY'S PLAN" })}
-              </Text>
-              <Pressable
-                style={styles.viewAllBtn}
-                onPress={() => navigation.navigate("Medications")}
-              >
-                <Text style={styles.viewAllText}>
-                  {t("home.view_details", { defaultValue: "View Details" })}
-                </Text>
-                <ChevronRight size={13} color="#8B5CF6" />
-              </Pressable>
-            </View>
-
-            {totalMeds > 0 ? (
-              <Animated.View
-                style={{ transform: [{ scale: medsCardScaleAnim }] }}
-              >
-                <Pressable
-                  style={styles.medSummaryCard}
-                  onPress={() => setMedsExpanded(!medsExpanded)}
-                >
-                  <LinearGradient
-                    colors={
-                      adherencePct === 100
-                        ? ["#22C55E", "#16A34A"]
-                        : adherencePct >= 50
-                          ? ["#8B5CF6", "#7C3AED"]
-                          : ["#EF4444", "#DC2626"]
-                    }
-                    style={styles.medSummaryGradient}
+            {/* ── 7. VITALS (Apple Health Style) ── */}
+            <Animated.View
+              style={[entranceStyle(7), styles.section]}
+              onLayout={(e) => {
+                vitalsSectionY.current = e.nativeEvent.layout.y;
+              }}
+            >
+              <View ref={vitalsCardRef} collapsable={false}>
+                <View style={styles.sectionTitleRow}>
+                  <Text style={styles.sectionTitle}>
+                    {t("home.vitals", { defaultValue: "VITALS" })}
+                  </Text>
+                  <Pressable
+                    style={styles.viewAllBtn}
+                    onPress={() => navigation.navigate("VitalsHistory")}
                   >
-                    <View style={styles.medSummaryMainRow}>
-                      <View style={{ flex: 1 }}>
-                        {adherencePct === 100 ? (
-                          <Text style={styles.medSummaryStatusTitle}>
-                            🏆 Perfect Day!
-                          </Text>
-                        ) : (
-                          <Text style={styles.medSummaryStatusTitle}>
-                            🟢 On Track
-                          </Text>
-                        )}
-                        <Text style={styles.medSummaryDetails}>
-                          {takenCount} of {totalMeds} medications taken
-                        </Text>
-                      </View>
-                      <View style={styles.medSummaryPercentage}>
-                        <Text style={styles.medPercentageText}>
-                          {adherencePct}%
-                        </Text>
-                      </View>
-                    </View>
+                    <Text style={styles.viewAllText}>
+                      {t("home.history", { defaultValue: "History" })}
+                    </Text>
+                    <ChevronRight size={13} color="#8B5CF6" />
+                  </Pressable>
+                </View>
 
-                    {/* Progress Bar */}
-                    <View style={styles.medProgressBarBg}>
-                      <View
-                        style={[
-                          styles.medProgressBarFill,
-                          { width: `${adherencePct}%` },
-                        ]}
+                {/* Wearable sync card */}
+                <Pressable
+                  style={[
+                    styles.syncCard,
+                    syncStatus.connected && styles.syncCardConnected,
+                  ]}
+                  onPress={() => navigation.navigate("HealthConnectSetup")}
+                >
+                  {syncStatus.connected && (
+                    <LinearGradient
+                      colors={["#ECFDF5", "#F0FDF4"]}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  )}
+                  <View style={styles.syncCardLeft}>
+                    <View
+                      style={[
+                        styles.syncIconBox,
+                        {
+                          backgroundColor: syncStatus.connected
+                            ? "#DCFCE7"
+                            : "#FAF5FF",
+                        },
+                      ]}
+                    >
+                      <Watch
+                        size={20}
+                        color={
+                          syncStatus.connected ? colors.success : "#8B5CF6"
+                        }
+                        strokeWidth={2.5}
                       />
                     </View>
-
-                    <View style={styles.medSummaryFooterRow}>
-                      <Text style={styles.medSummaryFooterText}>
-                        {medsExpanded
-                          ? t("home.hide", { defaultValue: "Hide items" })
-                          : t("home.view_details", {
-                              defaultValue: "Tap to view schedule",
+                    <View style={{ flex: 1 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                          marginBottom: 2,
+                        }}
+                      >
+                        <Text style={styles.syncTitle}>
+                          {syncStatus.connected
+                            ? t("home.wearable_connected", {
+                                defaultValue: "Wearable Connected",
+                              })
+                            : t("home.connect_wearable", {
+                                defaultValue: "Connect Wearable",
+                              })}
+                        </Text>
+                        {syncStatus.syncing && (
+                          <View style={styles.syncingBadge}>
+                            <Zap size={9} color="#D97706" />
+                            <Text style={styles.syncingText}>
+                              {t("home.syncing", { defaultValue: "Syncing" })}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.syncSub}>
+                        {syncStatus.connected
+                          ? `${syncStatus.readingsToday} ${t("home.readings_today", { defaultValue: "readings today" })}${syncStatus.lastSync ? ` · ${t("home.last", { defaultValue: "Last" })}: ` + new Date(syncStatus.lastSync).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`
+                          : t("home.auto_track", {
+                              defaultValue:
+                                "Auto-track vitals from your smartwatch",
                             })}
                       </Text>
-                      <ChevronDown
-                        size={14}
-                        color="#FFF"
-                        style={{
-                          transform: [
-                            { rotate: medsExpanded ? "180deg" : "0deg" },
-                          ],
-                        }}
-                      />
                     </View>
-                  </LinearGradient>
+                  </View>
+
+                  {syncStatus.connected ? (
+                    <Svg
+                      width={50}
+                      height={20}
+                      viewBox="0 0 50 20"
+                      style={{ marginRight: 8 }}
+                    >
+                      <Path
+                        d="M 0 10 L 15 10 L 18 2 L 22 18 L 25 10 L 50 10"
+                        fill="none"
+                        stroke="#10B981"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  ) : (
+                    <ChevronRight size={18} color="#CBD5E1" />
+                  )}
                 </Pressable>
-              </Animated.View>
-            ) : (
-              <View style={styles.emptyCard}>
-                <View style={styles.emptyIconBox}>
-                  <Pill size={28} color="#CBD5E1" strokeWidth={1.5} />
-                </View>
-                <Text style={styles.emptyTitle}>
-                  {t("common.no_medications_added", {
-                    defaultValue: "No medications added",
-                  })}
-                </Text>
-                <Text style={styles.emptySub}>
-                  {t("common.meds_empty_desc", {
-                    defaultValue:
-                      "Your medications will appear here once you add your first one. We'll help you stay on track.",
-                  })}
-                </Text>
+
+                {/* Vitals Grid Row */}
+                {hasVitalsToday ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.vitalsScrollContainer}
+                  >
+                    <VitalsCard
+                      label={t("home.heart_rate", {
+                        defaultValue: "Heart Rate",
+                      })}
+                      value={vitals?.heart_rate || "—"}
+                      unit="bpm"
+                      icon={Heart}
+                      color="#EF4444"
+                      status={vitals?.heart_rate ? "Recorded" : "Not Logged"}
+                      historyValues={hrHistory}
+                    />
+                    <VitalsCard
+                      label={t("home.blood_pressure", {
+                        defaultValue: "Blood Pressure",
+                      })}
+                      value={
+                        vitals?.blood_pressure?.systolic
+                          ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}`
+                          : "—"
+                      }
+                      unit="mmHg"
+                      icon={Activity}
+                      color="#8B5CF6"
+                      status={
+                        vitals?.blood_pressure?.systolic
+                          ? "Recorded"
+                          : "Not Logged"
+                      }
+                      historyValues={bpHistory}
+                    />
+                    <VitalsCard
+                      label={t("home.oxygen_saturation", {
+                        defaultValue: "Oxygen Saturation",
+                      })}
+                      value={
+                        vitals?.oxygen_saturation != null
+                          ? `${vitals.oxygen_saturation}`
+                          : "—"
+                      }
+                      unit="%"
+                      icon={Wind}
+                      color="#10B981"
+                      status={
+                        vitals?.oxygen_saturation != null
+                          ? "Recorded"
+                          : "Not Logged"
+                      }
+                      historyValues={spo2History}
+                    />
+                    <VitalsCard
+                      label={t("home.hydration", { defaultValue: "Hydration" })}
+                      value={
+                        vitals?.hydration != null ? `${vitals.hydration}` : "—"
+                      }
+                      unit="%"
+                      icon={Droplets}
+                      color="#0EA5E9"
+                      status={
+                        vitals?.hydration != null ? "Recorded" : "Not Logged"
+                      }
+                      historyValues={hydHistory}
+                    />
+                  </ScrollView>
+                ) : (
+                  <View style={styles.card}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text style={styles.cardTitle}>
+                        {t("common.today_s_check_in", {
+                          defaultValue: "Today's Check-In",
+                        })}
+                      </Text>
+                    </View>
+                    {renderVitalsForm(true)}
+                  </View>
+                )}
+
+                {/* Collapsible log vitals row */}
+                {hasVitalsToday && (
+                  <View style={[styles.card, { marginTop: 14 }]}>
+                    <Pressable
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                      onPress={() => {
+                        setIsLogging(!isLogging);
+                        setFormError(null);
+                      }}
+                    >
+                      <Text style={styles.cardTitle}>
+                        {t("common.log_today_s_vitals", {
+                          defaultValue: "Log Today's Vitals",
+                        })}
+                      </Text>
+                      <View
+                        style={[
+                          styles.toggleBadge,
+                          isLogging && styles.toggleBadgeCancel,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.toggleBadgeText,
+                            isLogging && { color: "#EF4444" },
+                          ]}
+                        >
+                          {isLogging
+                            ? t("common.cancel", { defaultValue: "Cancel" })
+                            : t("home.add_entry", {
+                                defaultValue: "+ Add Entry",
+                              })}
+                        </Text>
+                      </View>
+                    </Pressable>
+                    {isLogging && renderVitalsForm(false)}
+                  </View>
+                )}
               </View>
-            )}
+            </Animated.View>
 
-            {medsExpanded &&
-              meds.map((med) => (
-                <MedicationCard
-                  key={med.id}
-                  med={med}
-                  onPress={() => navigation.navigate("Medications")}
-                />
-              ))}
-          </Animated.View>
-
-          {/* ── 7. VITALS (Apple Health Style) ── */}
-          <Animated.View
-            style={[entranceStyle(7), styles.section]}
-            onLayout={(e) => {
-              vitalsSectionY.current = e.nativeEvent.layout.y;
-            }}
-          >
-            <View ref={vitalsCardRef} collapsable={false}>
-              <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>
-                {t("home.vitals", { defaultValue: "VITALS" })}
-              </Text>
+            {/* ── 8. HEALTH JOURNEY & NEXT GOAL ── */}
+            <Animated.View style={[entranceStyle(8), styles.section]}>
               <Pressable
-                style={styles.viewAllBtn}
-                onPress={() => navigation.navigate("VitalsHistory")}
+                onPress={() => navigation.navigate("AdherenceDetails")}
+                style={styles.journeyCard}
               >
-                <Text style={styles.viewAllText}>
-                  {t("home.history", { defaultValue: "History" })}
-                </Text>
-                <ChevronRight size={13} color="#8B5CF6" />
-              </Pressable>
-            </View>
-
-            {/* Wearable sync card */}
-            <Pressable
-              style={[
-                styles.syncCard,
-                syncStatus.connected && styles.syncCardConnected,
-              ]}
-              onPress={() => navigation.navigate("HealthConnectSetup")}
-            >
-              {syncStatus.connected && (
-                <LinearGradient
-                  colors={["#ECFDF5", "#F0FDF4"]}
-                  style={StyleSheet.absoluteFill}
-                />
-              )}
-              <View style={styles.syncCardLeft}>
-                <View
-                  style={[
-                    styles.syncIconBox,
-                    {
-                      backgroundColor: syncStatus.connected
-                        ? "#DCFCE7"
-                        : "#FAF5FF",
-                    },
-                  ]}
-                >
-                  <Watch
-                    size={20}
-                    color={syncStatus.connected ? colors.success : "#8B5CF6"}
-                    strokeWidth={2.5}
-                  />
+                <View style={styles.journeyHeader}>
+                  <Text style={styles.journeyTitle}>HEALTH JOURNEY</Text>
+                  {hasHistory ? (
+                    scoreDiff > 0 ? (
+                      <View style={styles.journeyImprovementBadge}>
+                        <TrendingUp size={12} color="#10B981" />
+                        <Text style={styles.journeyImprovementText}>
+                          +{scoreDiff} This Month
+                        </Text>
+                      </View>
+                    ) : scoreDiff < 0 ? (
+                      <View
+                        style={[
+                          styles.journeyImprovementBadge,
+                          { backgroundColor: "#FEF2F2" },
+                        ]}
+                      >
+                        <TrendingDown size={12} color="#EF4444" />
+                        <Text
+                          style={[
+                            styles.journeyImprovementText,
+                            { color: "#EF4444" },
+                          ]}
+                        >
+                          {scoreDiff} This Month
+                        </Text>
+                      </View>
+                    ) : (
+                      <View
+                        style={[
+                          styles.journeyImprovementBadge,
+                          { backgroundColor: "#F1F5F9" },
+                        ]}
+                      >
+                        <TrendingUp size={12} color="#64748B" opacity={0.6} />
+                        <Text
+                          style={[
+                            styles.journeyImprovementText,
+                            { color: "#64748B" },
+                          ]}
+                        >
+                          Stable This Month
+                        </Text>
+                      </View>
+                    )
+                  ) : null}
                 </View>
-                <View style={{ flex: 1 }}>
+
+                <View style={styles.journeyProgressRow}>
+                  <Text style={styles.journeyProgressText}>
+                    {hasHistory ? (
+                      <>
+                        Last Month: {prevScore}{" "}
+                        <Text style={{ color: "#94A3B8" }}>→</Text> Current:{" "}
+                        {healthScore}
+                      </>
+                    ) : (
+                      <>Current Score: {healthScore}</>
+                    )}
+                  </Text>
+                  <View style={styles.journeyConsistencyBadge}>
+                    <Text style={styles.journeyConsistencyBadgeText}>
+                      {hasHistory
+                        ? "Best Consistency Yet"
+                        : "Establishing Baseline"}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.journeyDesc}>
+                  {hasHistory
+                    ? "Better medication adherence and stable vital trends recorded this week."
+                    : "Welcome to CareMyMed! Please log your medications and vitals to begin tracking your health journey trends."}
+                </Text>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    marginTop: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: "#F1F5F9",
+                    paddingTop: 10,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: "#8B5CF6",
+                      fontWeight: "700",
+                    }}
+                  >
+                    View Adherence Details
+                  </Text>
+                  <ChevronRight size={12} color="#8B5CF6" />
+                </View>
+              </Pressable>
+
+              {isLowConfidence && (
+                <View style={styles.lowConfidenceCard}>
                   <View
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 6,
-                      marginBottom: 2,
+                      gap: 8,
                     }}
                   >
-                    <Text style={styles.syncTitle}>
-                      {syncStatus.connected
-                        ? t("home.wearable_connected", {
-                            defaultValue: "Wearable Connected",
-                          })
-                        : t("home.connect_wearable", {
-                            defaultValue: "Connect Wearable",
-                          })}
+                    <AlertTriangle size={15} color="#B45309" />
+                    <Text style={styles.lowConfidenceTitle}>
+                      Low Confidence Score
                     </Text>
-                    {syncStatus.syncing && (
-                      <View style={styles.syncingBadge}>
-                        <Zap size={9} color="#D97706" />
-                        <Text style={styles.syncingText}>
-                          {t("home.syncing", { defaultValue: "Syncing" })}
-                        </Text>
-                      </View>
-                    )}
                   </View>
-                  <Text style={styles.syncSub}>
-                    {syncStatus.connected
-                      ? `${syncStatus.readingsToday} ${t("home.readings_today", { defaultValue: "readings today" })}${syncStatus.lastSync ? ` · ${t("home.last", { defaultValue: "Last" })}: ` + new Date(syncStatus.lastSync).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`
-                      : t("home.auto_track", {
-                          defaultValue:
-                            "Auto-track vitals from your smartwatch",
-                        })}
+                  <Text style={styles.lowConfidenceDesc}>
+                    This score is estimated from limited health data. Log
+                    medications and vitals regularly for a more accurate
+                    assessment.
                   </Text>
                 </View>
-              </View>
-
-              {syncStatus.connected ? (
-                <Svg
-                  width={50}
-                  height={20}
-                  viewBox="0 0 50 20"
-                  style={{ marginRight: 8 }}
-                >
-                  <Path
-                    d="M 0 10 L 15 10 L 18 2 L 22 18 L 25 10 L 50 10"
-                    fill="none"
-                    stroke="#10B981"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </Svg>
-              ) : (
-                <ChevronRight size={18} color="#CBD5E1" />
               )}
-            </Pressable>
 
-            {/* Vitals Grid Row */}
-            {hasVitalsToday ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.vitalsScrollContainer}
-              >
-                <VitalsCard
-                  label={t("home.heart_rate", { defaultValue: "Heart Rate" })}
-                  value={vitals?.heart_rate || "—"}
-                  unit="bpm"
-                  icon={Heart}
-                  color="#EF4444"
-                  status={vitals?.heart_rate ? "Recorded" : "Not Logged"}
-                  historyValues={hrHistory}
-                />
-                <VitalsCard
-                  label={t("home.blood_pressure", {
-                    defaultValue: "Blood Pressure",
-                  })}
-                  value={
-                    vitals?.blood_pressure?.systolic
-                      ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}`
-                      : "—"
-                  }
-                  unit="mmHg"
-                  icon={Activity}
-                  color="#8B5CF6"
-                  status={
-                    vitals?.blood_pressure?.systolic ? "Recorded" : "Not Logged"
-                  }
-                  historyValues={bpHistory}
-                />
-                <VitalsCard
-                  label={t("home.oxygen_saturation", {
-                    defaultValue: "Oxygen Saturation",
-                  })}
-                  value={
-                    vitals?.oxygen_saturation != null
-                      ? `${vitals.oxygen_saturation}`
-                      : "—"
-                  }
-                  unit="%"
-                  icon={Wind}
-                  color="#10B981"
-                  status={
-                    vitals?.oxygen_saturation != null
-                      ? "Recorded"
-                      : "Not Logged"
-                  }
-                  historyValues={spo2History}
-                />
-                <VitalsCard
-                  label={t("home.hydration", { defaultValue: "Hydration" })}
-                  value={
-                    vitals?.hydration != null ? `${vitals.hydration}` : "—"
-                  }
-                  unit="%"
-                  icon={Droplets}
-                  color="#0EA5E9"
-                  status={vitals?.hydration != null ? "Recorded" : "Not Logged"}
-                  historyValues={hydHistory}
-                />
-              </ScrollView>
-            ) : (
-              <View style={styles.card}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text style={styles.cardTitle}>
-                    {t("common.today_s_check_in", {
-                      defaultValue: "Today's Check-In",
-                    })}
-                  </Text>
-                </View>
-                {renderVitalsForm(true)}
-              </View>
-            )}
-
-            {/* Collapsible log vitals row */}
-            {hasVitalsToday && (
-              <View style={[styles.card, { marginTop: 14 }]}>
-                <Pressable
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                  onPress={() => {
-                    setIsLogging(!isLogging);
-                    setFormError(null);
-                  }}
-                >
-                  <Text style={styles.cardTitle}>
-                    {t("common.log_today_s_vitals", {
-                      defaultValue: "Log Today's Vitals",
-                    })}
-                  </Text>
+              {/* Relocated Next Goal Card */}
+              <View style={[styles.goalCard, { marginTop: 12 }]}>
+                <View style={styles.goalCardHeader}>
                   <View
-                    style={[
-                      styles.toggleBadge,
-                      isLogging && styles.toggleBadgeCancel,
-                    ]}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
                   >
-                    <Text
-                      style={[
-                        styles.toggleBadgeText,
-                        isLogging && { color: "#EF4444" },
-                      ]}
-                    >
-                      {isLogging
-                        ? t("common.cancel", { defaultValue: "Cancel" })
-                        : t("home.add_entry", { defaultValue: "+ Add Entry" })}
+                    <View style={styles.goalIconBox}>
+                      <Trophy size={15} color="#F59E0B" />
+                    </View>
+                    <Text style={styles.goalTitle}>
+                      {t("home.next_goal", { defaultValue: "NEXT GOAL" })}
                     </Text>
                   </View>
-                </Pressable>
-                {isLogging && renderVitalsForm(false)}
-              </View>
-            )}
-            </View>
-          </Animated.View>
-
-          {/* ── 8. HEALTH JOURNEY & NEXT GOAL ── */}
-          <Animated.View style={[entranceStyle(8), styles.section]}>
-            <Pressable
-              onPress={() => navigation.navigate("AdherenceDetails")}
-              style={styles.journeyCard}
-            >
-              <View style={styles.journeyHeader}>
-                <Text style={styles.journeyTitle}>HEALTH JOURNEY</Text>
-                {hasHistory ? (
-                  scoreDiff > 0 ? (
-                    <View style={styles.journeyImprovementBadge}>
-                      <TrendingUp size={12} color="#10B981" />
-                      <Text style={styles.journeyImprovementText}>
-                        +{scoreDiff} This Month
-                      </Text>
-                    </View>
-                  ) : scoreDiff < 0 ? (
-                    <View
-                      style={[
-                        styles.journeyImprovementBadge,
-                        { backgroundColor: "#FEF2F2" },
-                      ]}
-                    >
-                      <TrendingDown size={12} color="#EF4444" />
-                      <Text
-                        style={[
-                          styles.journeyImprovementText,
-                          { color: "#EF4444" },
-                        ]}
-                      >
-                        {scoreDiff} This Month
-                      </Text>
-                    </View>
-                  ) : (
-                    <View
-                      style={[
-                        styles.journeyImprovementBadge,
-                        { backgroundColor: "#F1F5F9" },
-                      ]}
-                    >
-                      <TrendingUp size={12} color="#64748B" opacity={0.6} />
-                      <Text
-                        style={[
-                          styles.journeyImprovementText,
-                          { color: "#64748B" },
-                        ]}
-                      >
-                        Stable This Month
-                      </Text>
-                    </View>
-                  )
-                ) : null}
-              </View>
-
-              <View style={styles.journeyProgressRow}>
-                <Text style={styles.journeyProgressText}>
-                  {hasHistory ? (
-                    <>
-                      Last Month: {prevScore}{" "}
-                      <Text style={{ color: "#94A3B8" }}>→</Text> Current:{" "}
-                      {healthScore}
-                    </>
-                  ) : (
-                    <>Current Score: {healthScore}</>
-                  )}
-                </Text>
-                <View style={styles.journeyConsistencyBadge}>
-                  <Text style={styles.journeyConsistencyBadgeText}>
-                    {hasHistory
-                      ? "Best Consistency Yet"
-                      : "Establishing Baseline"}
+                  <Text style={styles.goalProgressValue}>
+                    {healthScore} / {targetMilestone}
                   </Text>
                 </View>
-              </View>
 
-              <Text style={styles.journeyDesc}>
-                {hasHistory
-                  ? "Better medication adherence and stable vital trends recorded this week."
-                  : "Welcome to CareMyMed! Please log your medications and vitals to begin tracking your health journey trends."}
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  marginTop: 12,
-                  borderTopWidth: 1,
-                  borderTopColor: "#F1F5F9",
-                  paddingTop: 10,
-                }}
-              >
-                <Text
-                  style={{ fontSize: 12, color: "#8B5CF6", fontWeight: "700" }}
-                >
-                  View Adherence Details
+                <Text style={styles.goalDesc}>
+                  Reach Health Score {targetMilestone}
                 </Text>
-                <ChevronRight size={12} color="#8B5CF6" />
-              </View>
-            </Pressable>
 
-            {isLowConfidence && (
-              <View style={styles.lowConfidenceCard}>
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-                >
-                  <AlertTriangle size={15} color="#B45309" />
-                  <Text style={styles.lowConfidenceTitle}>
-                    Low Confidence Score
-                  </Text>
-                </View>
-                <Text style={styles.lowConfidenceDesc}>
-                  This score is estimated from limited health data. Log
-                  medications and vitals regularly for a more accurate
-                  assessment.
-                </Text>
-              </View>
-            )}
-
-            {/* Relocated Next Goal Card */}
-            <View style={[styles.goalCard, { marginTop: 12 }]}>
-              <View style={styles.goalCardHeader}>
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-                >
-                  <View style={styles.goalIconBox}>
-                    <Trophy size={15} color="#F59E0B" />
-                  </View>
-                  <Text style={styles.goalTitle}>
-                    {t("home.next_goal", { defaultValue: "NEXT GOAL" })}
-                  </Text>
-                </View>
-                <Text style={styles.goalProgressValue}>
-                  {healthScore} / {targetMilestone}
-                </Text>
-              </View>
-
-              <Text style={styles.goalDesc}>
-                Reach Health Score {targetMilestone}
-              </Text>
-
-              <View style={styles.progressBg}>
-                <LinearGradient
-                  colors={["#FCD34D", "#F59E0B"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[
-                    styles.progressFill,
-                    { width: `${milestoneProgress * 100}%` },
-                  ]}
-                />
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* ── 9. QUICK ACTIONS (Visually De-emphasized Utility Chips) ── */}
-          <Animated.View style={[entranceStyle(9), styles.section]}>
-            <Text style={styles.sectionTitle}>
-              {t("common.quick_actions", { defaultValue: "QUICK ACTIONS" })}
-            </Text>
-            <View style={styles.deemphasizedActionsRow}>
-              <Pressable
-                style={styles.actionChip}
-                onPress={() => navigation.navigate("AdherenceDetails")}
-              >
-                <TrendingUp size={13} color="#475569" />
-                <Text style={styles.actionChipText}>Adherence</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.actionChip}
-                onPress={() => navigation.navigate("Notifications")}
-              >
-                <Bell size={13} color="#475569" />
-                <Text style={styles.actionChipText}>Reminders</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.actionChip}
-                onPress={() => navigation.navigate("Chatbot")}
-              >
-                <Sparkles size={13} color="#475569" />
-                <Text style={styles.actionChipText}>Coach</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.actionChip}
-                onPress={() => navigation.navigate("Profile")}
-              >
-                <Shield size={13} color="#475569" />
-                <Text style={styles.actionChipText}>Profile</Text>
-              </Pressable>
-            </View>
-          </Animated.View>
-
-          {/* ── 10. DAILY HEALTH TIP ── */}
-          <Animated.View style={entranceStyle(9)}>
-            <View>
-              <LinearGradient
-                colors={["#FAF5FF", "#F3E8FF"]}
-                style={styles.tipCard}
-              >
-                <View style={styles.tipHeader}>
+                <View style={styles.progressBg}>
                   <LinearGradient
-                    colors={["#A78BFA", "#8B5CF6"]}
-                    style={styles.tipIconBox}
-                  >
-                    <Sparkles size={14} color="#FFF" />
-                  </LinearGradient>
-                  <Text style={styles.tipLabel}>
-                    {t("home.daily_health_tip", {
-                      defaultValue: "DAILY HEALTH TIP",
+                    colors={["#FCD34D", "#F59E0B"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                      styles.progressFill,
+                      { width: `${milestoneProgress * 100}%` },
+                    ]}
+                  />
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* ── 9. QUICK ACTIONS (Visually De-emphasized Utility Chips) ── */}
+            <Animated.View style={[entranceStyle(9), styles.section]}>
+              <Text style={styles.sectionTitle}>
+                {t("common.quick_actions", { defaultValue: "QUICK ACTIONS" })}
+              </Text>
+              <View style={styles.deemphasizedActionsRow}>
+                <Pressable
+                  style={styles.actionChip}
+                  onPress={() => navigation.navigate("AdherenceDetails")}
+                >
+                  <TrendingUp size={13} color="#475569" />
+                  <Text style={styles.actionChipText}>Adherence</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.actionChip}
+                  onPress={() => navigation.navigate("Notifications")}
+                >
+                  <Bell size={13} color="#475569" />
+                  <Text style={styles.actionChipText}>Reminders</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.actionChip}
+                  onPress={() => navigation.navigate("Chatbot")}
+                >
+                  <Sparkles size={13} color="#475569" />
+                  <Text style={styles.actionChipText}>Coach</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.actionChip}
+                  onPress={() => navigation.navigate("Profile")}
+                >
+                  <Shield size={13} color="#475569" />
+                  <Text style={styles.actionChipText}>Profile</Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+
+            {/* ── 10. DAILY HEALTH TIP ── */}
+            <Animated.View style={entranceStyle(9)}>
+              <View>
+                <LinearGradient
+                  colors={["#FAF5FF", "#F3E8FF"]}
+                  style={styles.tipCard}
+                >
+                  <View style={styles.tipHeader}>
+                    <LinearGradient
+                      colors={["#A78BFA", "#8B5CF6"]}
+                      style={styles.tipIconBox}
+                    >
+                      <Sparkles size={14} color="#FFF" />
+                    </LinearGradient>
+                    <Text style={styles.tipLabel}>
+                      {t("home.daily_health_tip", {
+                        defaultValue: "DAILY HEALTH TIP",
+                      })}
+                    </Text>
+                  </View>
+                  <Text style={styles.tipText}>
+                    {t("tips.tip_" + getDailyTipIndex(), {
+                      defaultValue: HEALTH_TIPS[getDailyTipIndex()],
                     })}
                   </Text>
-                </View>
-                <Text style={styles.tipText}>
-                  {t("tips.tip_" + getDailyTipIndex(), {
-                    defaultValue: HEALTH_TIPS[getDailyTipIndex()],
-                  })}
-                </Text>
-              </LinearGradient>
-            </View>
-          </Animated.View>
-        </ScrollView>
+                </LinearGradient>
+              </View>
+            </Animated.View>
+          </ScrollView>
 
-        <GuidedTour
-          visible={showVitalsTour}
-          steps={getVitalsTourSteps()}
-          scrollRef={scrollViewRef}
-          tourKey="vitals_log"
-          onClose={() => setShowVitalsTour(false)}
-        />
-      </View>
-    </KeyboardAvoidingView>
+          <GuidedTour
+            visible={showVitalsTour}
+            steps={getVitalsTourSteps()}
+            scrollRef={scrollViewRef}
+            tourKey="vitals_log"
+            onClose={() => setShowVitalsTour(false)}
+          />
+        </View>
+      </KeyboardAvoidingView>
     </TabScreenTransition>
   );
 }
