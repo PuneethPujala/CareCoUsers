@@ -1547,7 +1547,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: spacing.screen,
         paddingTop: 8,
-        paddingBottom: layout.TAB_BAR_CLEARANCE,
+        paddingBottom: 40,
     },
 
     // ── Sync Orb Hero ──────────────────────────────
