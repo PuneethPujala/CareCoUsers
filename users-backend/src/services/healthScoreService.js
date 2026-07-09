@@ -205,31 +205,40 @@ function scoreVitals(latestVitals, lifestyle, bracket, patient) {
 
   // Heart rate (3 pts) — age-adjusted normal range
   const hr = latestVitals.heart_rate;
-  if (hr) {
+  if (hr !== undefined && hr !== null) {
     const hrOk =
       bracket === 'elderly' ? hr >= 50 && hr <= 100 : hr >= 55 && hr <= 95;
     if (hrOk) pts += 3;
     else if (hr > 40 && hr < 130) pts += 1; // in range but not ideal
+  } else {
+    // Missing: neutral/no penalty
+    pts += 3;
   }
 
   // Blood pressure (4 pts)
   const sys = latestVitals.blood_pressure?.systolic ?? latestVitals.systolic;
   const dia = latestVitals.blood_pressure?.diastolic ?? latestVitals.diastolic;
-  if (sys && dia) {
+  if (sys !== undefined && sys !== null && dia !== undefined && dia !== null) {
     const bpNormal =
       bracket === 'elderly'
         ? sys >= 110 && sys <= 150 && dia >= 60 && dia <= 90 // wider range for elderly
         : sys >= 90 && sys <= 130 && dia >= 60 && dia <= 85;
     if (bpNormal) pts += 4;
     else if (sys < 180 && dia < 110) pts += 1;
+  } else {
+    // Missing: neutral/no penalty
+    pts += 4;
   }
 
   // SpO2 (4 pts)
   const spo2 = latestVitals.oxygen_saturation;
-  if (spo2) {
+  if (spo2 !== undefined && spo2 !== null) {
     if (spo2 >= 95) pts += 4;
     else if (spo2 >= 90) pts += 2;
     else if (spo2 >= 85) pts += 1;
+  } else {
+    // Missing: neutral/no penalty
+    pts += 4;
   }
 
   // BMI (4 pts — weight reduced for elderly since malnutrition risk > obesity)
@@ -245,6 +254,9 @@ function scoreVitals(latestVitals, lifestyle, bracket, patient) {
     })();
     // Elderly: BMI score halved — being slightly overweight may be protective
     pts += bracket === 'elderly' ? Math.ceil(bmiPts / 2) : bmiPts;
+  } else {
+    // Missing: neutral/no penalty
+    pts += 4;
   }
 
   return { pts: Math.min(15, pts), note: `hr=${hr ?? '?'} sys=${sys ?? '?'}` };
