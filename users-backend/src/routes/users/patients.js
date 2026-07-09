@@ -2873,18 +2873,27 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
 
     let provider = null;
     if (syncState) {
-      if (syncState.health_provider === 'healthkit' || syncState.platform === 'ios') {
+      if (
+        syncState.health_provider === 'healthkit' ||
+        syncState.platform === 'ios'
+      ) {
         provider = 'Apple HealthKit';
-      } else if (syncState.health_provider === 'health_connect' || syncState.platform === 'android') {
+      } else if (
+        syncState.health_provider === 'health_connect' ||
+        syncState.platform === 'android'
+      ) {
         provider = 'Health Connect';
       } else {
-        provider = syncState.health_provider || (syncState.platform === 'ios' ? 'Apple HealthKit' : 'Health Connect');
+        provider =
+          syncState.health_provider ||
+          (syncState.platform === 'ios' ? 'Apple HealthKit' : 'Health Connect');
       }
     } else if (hasActiveVitals) {
       const firstVital = todayVitals[0];
       if (firstVital && firstVital.source) {
         if (firstVital.source === 'health_connect') provider = 'Health Connect';
-        else if (firstVital.source === 'healthkit') provider = 'Apple HealthKit';
+        else if (firstVital.source === 'healthkit')
+          provider = 'Apple HealthKit';
         else provider = firstVital.source;
       }
     }
@@ -2901,7 +2910,8 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
       activity: activityLog || null,
       healthStatus: {
         connected: isConnected,
-        lastSync: syncState?.last_sync || syncState?.last_successful_sync || null,
+        lastSync:
+          syncState?.last_sync || syncState?.last_successful_sync || null,
         provider: provider,
         syncCountToday: syncState?.sync_count_today || 0,
       },
