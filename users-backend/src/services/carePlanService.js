@@ -113,7 +113,7 @@ async function getOrGenerateCarePlan(patientId) {
     const sleepTarget = await computeSleepTarget(patientId, timezone);
 
     // Target health score (current score + 5, capped at 100)
-    const currentScore = patient.health_score ?? 80;
+    const currentScore = patient.healthScoreCache ?? 80;
     const targetScore = Math.min(100, currentScore + 5);
 
     const vitalsTarget = 'BP check every 2 days';

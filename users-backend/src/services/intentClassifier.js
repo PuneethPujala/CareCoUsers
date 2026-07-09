@@ -96,7 +96,7 @@ async function resolveDeterministicIntent(patientId, intent) {
     ]);
 
     const weeklyAdherence = patient.adherence_rate ?? 100;
-    const currentScore = patient.health_score ?? 80;
+    const currentScore = patient.healthScoreCache ?? 80;
 
     if (intent === 'score_drop') {
       let scoreChange = 0;

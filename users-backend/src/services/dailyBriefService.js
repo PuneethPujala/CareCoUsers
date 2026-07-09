@@ -33,7 +33,7 @@ async function generateMorningBrief(patientId) {
       scoreDelta = (history[0].score ?? 80) - (history[1].score ?? 80);
     }
 
-    const currentScore = patient.health_score ?? 80;
+    const currentScore = patient.healthScoreCache ?? 80;
     const scoreChangeStr = scoreDelta >= 0 ? `+${scoreDelta}` : `${scoreDelta}`;
 
     const trajectory =
