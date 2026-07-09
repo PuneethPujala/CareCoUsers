@@ -462,6 +462,9 @@ export default function HealthProfileScreen({ navigation }) {
   const { t } = useTranslation();
   const reduceMotion = useReduceMotion();
   const storePatient = usePatientStore((s) => s.patient);
+  const medicationSchedule = usePatientStore((s) => s.medicationSchedule);
+  const vitalsHistory = usePatientStore((s) => s.vitalsHistory);
+  const healthStatus = usePatientStore((s) => s.healthStatus);
   const [profile, setProfile] = useState(() => storePatient || null);
   const [loading, setLoading] = useState(() => !storePatient);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -5337,253 +5340,428 @@ export default function HealthProfileScreen({ navigation }) {
                           OPPORTUNITIES
                         </Text>
 
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={{ gap: 12, paddingRight: 24 }}
-                        >
-                          {activeMeds.length > 0 && (
-                            <Pressable
-                              onPress={() => {
-                                setShowScoreInfo(false);
-                                navigation.navigate("Medications");
-                              }}
-                              style={{
-                                width: 150,
-                                backgroundColor: "#FFFFFF",
-                                borderRadius: radius.lg,
+                        {(() => {
+                          const morningMeds = medicationSchedule?.morning || [];
+                          const allMorningMedsTaken = morningMeds.length > 0 && morningMeds.every(m => m.taken);
+                          const showMorningMedsOpp = activeMeds.length > 0 && morningMeds.length > 0 && !allMorningMedsTaken;
+
+                          const afternoonMeds = medicationSchedule?.afternoon || [];
+                          const allAfternoonMedsTaken = afternoonMeds.length > 0 && afternoonMeds.every(m => m.taken);
+                          const showAfternoonMedsOpp = activeMeds.length > 0 && afternoonMeds.length > 0 && !allAfternoonMedsTaken;
+
+                          const nightMeds = medicationSchedule?.night || [];
+                          const allNightMedsTaken = nightMeds.length > 0 && nightMeds.every(m => m.taken);
+                          const showNightMedsOpp = activeMeds.length > 0 && nightMeds.length > 0 && !allNightMedsTaken;
+
+                          const todayStr = new Date().toISOString().slice(0, 10);
+                          const hasLoggedBP = (vitalsHistory || []).some(
+                            v => v.date && v.date.slice(0, 10) === todayStr && (v.blood_pressure?.systolic != null || v.systolic != null)
+                          );
+                          const showBPOpp = !hasLoggedBP;
+
+                          const showSyncOpp = healthSdkReady && healthStatus?.connected && (healthStatus?.syncCountToday || 0) === 0;
+                          const showProfileOpp = completionPct < 100;
+
+                          const hasAnyOpp = showMorningMedsOpp || showAfternoonMedsOpp || showNightMedsOpp || showBPOpp || showSyncOpp || showProfileOpp;
+
+                          if (!hasAnyOpp) {
+                            return (
+                              <View style={{ 
+                                flexDirection: 'row', 
+                                alignItems: 'center', 
+                                backgroundColor: '#ECFDF5', 
+                                borderColor: '#A7F3D0', 
+                                borderWidth: 1, 
+                                borderRadius: radius.lg, 
                                 padding: 16,
-                                borderWidth: 1,
-                                borderColor: "#E2E8F0",
-                                justifyContent: "space-between",
-                                minHeight: 120,
-                                ...shadows.card,
-                              }}
+                                gap: 12,
+                                marginRight: 24,
+                              }}>
+                                <CheckCircle2 size={22} color="#10B981" />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 13, ...FONT.bold, color: '#065F46' }}>All Caught Up!</Text>
+                                  <Text style={{ fontSize: 11, ...FONT.medium, color: '#047857', marginTop: 2 }}>
+                                    You've completed all score boosting opportunities for today.
+                                  </Text>
+                                </View>
+                              </View>
+                            );
+                          }
+
+                          return (
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              contentContainerStyle={{ gap: 12, paddingRight: 24 }}
                             >
-                              <View
-                                style={{
-                                  backgroundColor: "#ECFDF5",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  borderRadius: radius.sm,
-                                  alignSelf: "flex-start",
-                                }}
-                              >
-                                <Text
+                              {showMorningMedsOpp && (
+                                <Pressable
+                                  onPress={() => {
+                                    setShowScoreInfo(false);
+                                    navigation.navigate("Medications");
+                                  }}
                                   style={{
-                                    fontSize: 10,
-                                    ...FONT.heavy,
-                                    color: "#10B981",
+                                    width: 150,
+                                    backgroundColor: "#FFFFFF",
+                                    borderRadius: radius.lg,
+                                    padding: 16,
+                                    borderWidth: 1,
+                                    borderColor: "#E2E8F0",
+                                    justifyContent: "space-between",
+                                    minHeight: 120,
+                                    ...shadows.card,
                                   }}
                                 >
-                                  +5 Score
-                                </Text>
-                              </View>
-                              <Text
-                                style={{
-                                  fontSize: 13,
-                                  ...FONT.bold,
-                                  color: "#0F172A",
-                                  marginTop: 8,
-                                }}
-                                numberOfLines={2}
-                              >
-                                Take morning meds
-                              </Text>
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  justifyContent: "flex-end",
-                                  marginTop: 4,
-                                }}
-                              >
-                                <ChevronRight size={14} color="#8B5CF6" />
-                              </View>
-                            </Pressable>
-                          )}
+                                  <View
+                                    style={{
+                                      backgroundColor: "#ECFDF5",
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 3,
+                                      borderRadius: radius.sm,
+                                      alignSelf: "flex-start",
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        ...FONT.heavy,
+                                        color: "#10B981",
+                                      }}
+                                    >
+                                      +5 Score
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      ...FONT.bold,
+                                      color: "#0F172A",
+                                      marginTop: 8,
+                                    }}
+                                    numberOfLines={2}
+                                  >
+                                    Take morning meds
+                                  </Text>
+                                  <View
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      justifyContent: "flex-end",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    <ChevronRight size={14} color="#8B5CF6" />
+                                  </View>
+                                </Pressable>
+                              )}
 
-                          <Pressable
-                            onPress={() => {
-                              setShowScoreInfo(false);
-                              navigation.navigate("VitalsHistory");
-                            }}
-                            style={{
-                              width: 150,
-                              backgroundColor: "#FFFFFF",
-                              borderRadius: radius.lg,
-                              padding: 16,
-                              borderWidth: 1,
-                              borderColor: "#E2E8F0",
-                              justifyContent: "space-between",
-                              minHeight: 120,
-                              ...shadows.card,
-                            }}
-                          >
-                            <View
-                              style={{
-                                backgroundColor: "#ECFDF5",
-                                paddingHorizontal: 8,
-                                paddingVertical: 3,
-                                borderRadius: radius.sm,
-                                alignSelf: "flex-start",
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 10,
-                                  ...FONT.heavy,
-                                  color: "#10B981",
-                                }}
-                              >
-                                +4 Score
-                              </Text>
-                            </View>
-                            <Text
-                              style={{
-                                fontSize: 13,
-                                ...FONT.bold,
-                                color: "#0F172A",
-                                marginTop: 8,
-                              }}
-                              numberOfLines={2}
-                            >
-                              Log BP Reading
-                            </Text>
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                justifyContent: "flex-end",
-                                marginTop: 4,
-                              }}
-                            >
-                              <ChevronRight size={14} color="#8B5CF6" />
-                            </View>
-                          </Pressable>
-
-                          {healthSdkReady && (
-                            <Pressable
-                              onPress={() => {
-                                setShowScoreInfo(false);
-                                handleWearableSync();
-                              }}
-                              style={{
-                                width: 150,
-                                backgroundColor: "#FFFFFF",
-                                borderRadius: radius.lg,
-                                padding: 16,
-                                borderWidth: 1,
-                                borderColor: "#E2E8F0",
-                                justifyContent: "space-between",
-                                minHeight: 120,
-                                ...shadows.card,
-                              }}
-                            >
-                              <View
-                                style={{
-                                  backgroundColor: "#ECFDF5",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  borderRadius: radius.sm,
-                                  alignSelf: "flex-start",
-                                }}
-                              >
-                                <Text
+                              {showAfternoonMedsOpp && (
+                                <Pressable
+                                  onPress={() => {
+                                    setShowScoreInfo(false);
+                                    navigation.navigate("Medications");
+                                  }}
                                   style={{
-                                    fontSize: 10,
-                                    ...FONT.heavy,
-                                    color: "#10B981",
+                                    width: 150,
+                                    backgroundColor: "#FFFFFF",
+                                    borderRadius: radius.lg,
+                                    padding: 16,
+                                    borderWidth: 1,
+                                    borderColor: "#E2E8F0",
+                                    justifyContent: "space-between",
+                                    minHeight: 120,
+                                    ...shadows.card,
                                   }}
                                 >
-                                  +3 Score
-                                </Text>
-                              </View>
-                              <Text
-                                style={{
-                                  fontSize: 13,
-                                  ...FONT.bold,
-                                  color: "#0F172A",
-                                  marginTop: 8,
-                                }}
-                                numberOfLines={2}
-                              >
-                                Sync Wearable
-                              </Text>
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  justifyContent: "flex-end",
-                                  marginTop: 4,
-                                }}
-                              >
-                                <ChevronRight size={14} color="#8B5CF6" />
-                              </View>
-                            </Pressable>
-                          )}
+                                  <View
+                                    style={{
+                                      backgroundColor: "#ECFDF5",
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 3,
+                                      borderRadius: radius.sm,
+                                      alignSelf: "flex-start",
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        ...FONT.heavy,
+                                        color: "#10B981",
+                                      }}
+                                    >
+                                      +5 Score
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      ...FONT.bold,
+                                      color: "#0F172A",
+                                      marginTop: 8,
+                                    }}
+                                    numberOfLines={2}
+                                  >
+                                    Take afternoon meds
+                                  </Text>
+                                  <View
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      justifyContent: "flex-end",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    <ChevronRight size={14} color="#8B5CF6" />
+                                  </View>
+                                </Pressable>
+                              )}
 
-                          {completionPct < 100 && (
-                            <Pressable
-                              onPress={() => {
-                                setShowScoreInfo(false);
-                                handleCompletionClick();
-                              }}
-                              style={{
-                                width: 150,
-                                backgroundColor: "#FFFFFF",
-                                borderRadius: radius.lg,
-                                padding: 16,
-                                borderWidth: 1,
-                                borderColor: "#E2E8F0",
-                                justifyContent: "space-between",
-                                minHeight: 120,
-                                ...shadows.card,
-                              }}
-                            >
-                              <View
-                                style={{
-                                  backgroundColor: "#ECFDF5",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  borderRadius: radius.sm,
-                                  alignSelf: "flex-start",
-                                }}
-                              >
-                                <Text
+                              {showNightMedsOpp && (
+                                <Pressable
+                                  onPress={() => {
+                                    setShowScoreInfo(false);
+                                    navigation.navigate("Medications");
+                                  }}
                                   style={{
-                                    fontSize: 10,
-                                    ...FONT.heavy,
-                                    color: "#10B981",
+                                    width: 150,
+                                    backgroundColor: "#FFFFFF",
+                                    borderRadius: radius.lg,
+                                    padding: 16,
+                                    borderWidth: 1,
+                                    borderColor: "#E2E8F0",
+                                    justifyContent: "space-between",
+                                    minHeight: 120,
+                                    ...shadows.card,
                                   }}
                                 >
-                                  +2 Score
-                                </Text>
-                              </View>
-                              <Text
-                                style={{
-                                  fontSize: 13,
-                                  ...FONT.bold,
-                                  color: "#0F172A",
-                                  marginTop: 8,
-                                }}
-                                numberOfLines={2}
-                              >
-                                Complete Profile
-                              </Text>
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  justifyContent: "flex-end",
-                                  marginTop: 4,
-                                }}
-                              >
-                                <ChevronRight size={14} color="#8B5CF6" />
-                              </View>
-                            </Pressable>
-                          )}
-                        </ScrollView>
+                                  <View
+                                    style={{
+                                      backgroundColor: "#ECFDF5",
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 3,
+                                      borderRadius: radius.sm,
+                                      alignSelf: "flex-start",
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        ...FONT.heavy,
+                                        color: "#10B981",
+                                      }}
+                                    >
+                                      +5 Score
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      ...FONT.bold,
+                                      color: "#0F172A",
+                                      marginTop: 8,
+                                    }}
+                                    numberOfLines={2}
+                                  >
+                                    Take night meds
+                                  </Text>
+                                  <View
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      justifyContent: "flex-end",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    <ChevronRight size={14} color="#8B5CF6" />
+                                  </View>
+                                </Pressable>
+                              )}
+
+                              {showBPOpp && (
+                                <Pressable
+                                  onPress={() => {
+                                    setShowScoreInfo(false);
+                                    navigation.navigate("VitalsHistory");
+                                  }}
+                                  style={{
+                                    width: 150,
+                                    backgroundColor: "#FFFFFF",
+                                    borderRadius: radius.lg,
+                                    padding: 16,
+                                    borderWidth: 1,
+                                    borderColor: "#E2E8F0",
+                                    justifyContent: "space-between",
+                                    minHeight: 120,
+                                    ...shadows.card,
+                                  }}
+                                >
+                                  <View
+                                    style={{
+                                      backgroundColor: "#ECFDF5",
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 3,
+                                      borderRadius: radius.sm,
+                                      alignSelf: "flex-start",
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        ...FONT.heavy,
+                                        color: "#10B981",
+                                      }}
+                                    >
+                                      +4 Score
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      ...FONT.bold,
+                                      color: "#0F172A",
+                                      marginTop: 8,
+                                    }}
+                                    numberOfLines={2}
+                                  >
+                                    Log BP Reading
+                                  </Text>
+                                  <View
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      justifyContent: "flex-end",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    <ChevronRight size={14} color="#8B5CF6" />
+                                  </View>
+                                </Pressable>
+                              )}
+
+                              {showSyncOpp && (
+                                <Pressable
+                                  onPress={() => {
+                                    setShowScoreInfo(false);
+                                    handleWearableSync();
+                                  }}
+                                  style={{
+                                    width: 150,
+                                    backgroundColor: "#FFFFFF",
+                                    borderRadius: radius.lg,
+                                    padding: 16,
+                                    borderWidth: 1,
+                                    borderColor: "#E2E8F0",
+                                    justifyContent: "space-between",
+                                    minHeight: 120,
+                                    ...shadows.card,
+                                  }}
+                                >
+                                  <View
+                                    style={{
+                                      backgroundColor: "#ECFDF5",
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 3,
+                                      borderRadius: radius.sm,
+                                      alignSelf: "flex-start",
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        ...FONT.heavy,
+                                        color: "#10B981",
+                                      }}
+                                    >
+                                      +3 Score
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      ...FONT.bold,
+                                      color: "#0F172A",
+                                      marginTop: 8,
+                                    }}
+                                    numberOfLines={2}
+                                  >
+                                    Sync Wearable
+                                  </Text>
+                                  <View
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      justifyContent: "flex-end",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    <ChevronRight size={14} color="#8B5CF6" />
+                                  </View>
+                                </Pressable>
+                              )}
+
+                              {showProfileOpp && (
+                                <Pressable
+                                  onPress={() => {
+                                    setShowScoreInfo(false);
+                                    handleCompletionClick();
+                                  }}
+                                  style={{
+                                    width: 150,
+                                    backgroundColor: "#FFFFFF",
+                                    borderRadius: radius.lg,
+                                    padding: 16,
+                                    borderWidth: 1,
+                                    borderColor: "#E2E8F0",
+                                    justifyContent: "space-between",
+                                    minHeight: 120,
+                                    ...shadows.card,
+                                  }}
+                                >
+                                  <View
+                                    style={{
+                                      backgroundColor: "#ECFDF5",
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 3,
+                                      borderRadius: radius.sm,
+                                      alignSelf: "flex-start",
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        ...FONT.heavy,
+                                        color: "#10B981",
+                                      }}
+                                    >
+                                      +2 Score
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      ...FONT.bold,
+                                      color: "#0F172A",
+                                      marginTop: 8,
+                                    }}
+                                    numberOfLines={2}
+                                  >
+                                    Complete Profile
+                                  </Text>
+                                  <View
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      justifyContent: "flex-end",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    <ChevronRight size={14} color="#8B5CF6" />
+                                  </View>
+                                </Pressable>
+                              )}
+                            </ScrollView>
+                          );
+                        })()}
                       </View>
 
                       {/* ── SECTION 5: HEALTH DRIVERS ── */}

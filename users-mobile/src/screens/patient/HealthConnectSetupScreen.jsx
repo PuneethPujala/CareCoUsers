@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, Platform, Pressable, Animated, ActivityIndicator,
-    ScrollView, Linking, Image, Dimensions, Modal, Vibration
+    ScrollView, Linking, Image, Dimensions, Modal, Vibration, AppState
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Watch, Heart, Wind, Moon, ShieldCheck, ChevronLeft,
+    Watch, Heart, Wind, Moon, ShieldCheck, ChevronLeft, ChevronDown,
     CheckCircle2, XCircle, Smartphone, ArrowRight, Activity, Sliders,
     HelpCircle, Lock, RefreshCw, MoreHorizontal, AlertTriangle, LogOut,
     Flame, Scale, Droplet, Settings, ArrowUp, ArrowDown, Eye, EyeOff, MapPin
@@ -15,6 +15,8 @@ import {
     requestHealthPermissions,
     checkPermissionStatus,
     isHealthSupported,
+    openHealthSettings,
+    getDetailedPermissionStatus,
 } from '../../lib/healthIntegration';
 import HealthSyncService from '../../services/HealthSyncService';
 import HealthRepository from '../../lib/HealthRepository';
@@ -90,10 +92,23 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const [syncQuality, setSyncQuality] = useState(96);
     const [syncingNow, setSyncingNow] = useState(false);
     const [syncingBento, setSyncingBento] = useState(false);
-    const [sleepStr, setSleepStr] = useState('7h 45m');
+    const [sleepStr, setSleepStr] = useState(null);
     const [menuVisible, setMenuVisible] = useState(false);
     const [timelineEvents, setTimelineEvents] = useState([]);
-    
+    const [loadingSkeleton, setLoadingSkeleton] = useState(false);
+    const [permissionsMap, setPermissionsMap] = useState({
+        heartRate: false,
+        bloodPressure: false,
+        sleep: false,
+        oxygen: false,
+        hydration: false,
+        temperature: false,
+        steps: false,
+        exercise: false,
+        weight: false,
+        glucose: false,
+    });
+    const [permissionsChecklistVisible, setPermissionsChecklistVisible] = useState(false);
     // Bento card configuration and customize states
     const [bentoCards, setBentoCards] = useState([
         { id: 'hr', label: 'Heart Rate', visible: true },
@@ -117,8 +132,27 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const [onboardingStep, setOnboardingStep] = useState('explain'); // 'explain' | 'confirm'
     const [firstSyncData, setFirstSyncData] = useState(null);
 
+    const trackSetupEvent = async (event, metadata = {}) => {
+        try {
+            await apiService.patients.flagIssue({
+                type: 'wearable_setup_telemetry',
+                description: `Setup Telemetry: ${event}`,
+                metadata: {
+                    event,
+                    timestamp: new Date().toISOString(),
+                    ...metadata
+                }
+            });
+        } catch (err) {
+            console.warn('Failed to track telemetry setup event:', err);
+        }
+    };
+
     // Store variables for real-time vitals
     const vitals = usePatientStore((s) => s.vitals);
+    const activity = usePatientStore((s) => s.activity);
+    const healthStatus = usePatientStore((s) => s.healthStatus);
+    const fetchDashboard = usePatientStore((s) => s.fetchDashboard);
 
     const reduceMotion = useReduceMotion();
     const staggerAnims = useRef([...Array(5)].map(() => new Animated.Value(0))).current;
@@ -199,6 +233,10 @@ export default function HealthConnectSetupScreen({ navigation }) {
             if (category === 'glucose') setSyncGlucoseEnabled(true);
             if (category === 'extvitals') setSyncExtVitalsEnabled(true);
 
+            // Refresh the detailed permissions map
+            const updated = await getDetailedPermissionStatus();
+            setPermissionsMap(updated);
+
             if (Platform.OS === 'ios') {
                 const state = {
                     activity: category === 'activity' ? true : syncActivityEnabled,
@@ -211,7 +249,14 @@ export default function HealthConnectSetupScreen({ navigation }) {
 
             AlertManager.alert('Permission Granted', `CareMyMed will now sync ${category} metrics.`);
         } else {
-            AlertManager.alert('Permission Denied', 'Please enable permissions in system health settings.');
+            AlertManager.alert(
+                'Permission Required',
+                'This category needs permission from your device\'s Health settings. Would you like to open settings now?',
+                [
+                    { text: 'Not Now', style: 'cancel' },
+                    { text: 'Open Settings', onPress: () => openHealthSettings() },
+                ]
+            );
         }
     };
 
@@ -234,11 +279,30 @@ export default function HealthConnectSetupScreen({ navigation }) {
     };
 
     useEffect(() => {
-        checkCurrentStatus();
-        loadSleepData();
-        loadCardLayout();
-        checkOptionalPerms();
-        setTimelineEvents(generateDynamicTimeline(new Date()));
+        let active = true;
+        
+        const init = async () => {
+            setLoadingSkeleton(true);
+            const startTime = Date.now();
+            
+            await trackSetupEvent('setup_opened');
+            await checkCurrentStatus();
+            await loadSleepData();
+            await loadCardLayout();
+            await checkOptionalPerms();
+            
+            if (active) {
+                setTimelineEvents(generateDynamicTimeline(new Date()));
+                
+                const elapsed = Date.now() - startTime;
+                if (elapsed < 500) {
+                    await new Promise(r => setTimeout(r, 500 - elapsed));
+                }
+                setLoadingSkeleton(false);
+            }
+        };
+        
+        init();
         
         // Start layout stagger animations
         staggerAnims.forEach(a => a.setValue(0));
@@ -262,6 +326,34 @@ export default function HealthConnectSetupScreen({ navigation }) {
             orbPulseAnim.setValue(1);
             orbRotateAnim.setValue(0);
         }
+
+        const handleAppStateChange = async (nextAppState) => {
+            if (nextAppState === 'active') {
+                setLoadingSkeleton(true);
+                const startTimeAppState = Date.now();
+                
+                await checkCurrentStatus();
+                try {
+                    await HealthSyncService.syncNow();
+                    await usePatientStore.getState().fetchDashboard(true);
+                } catch (e) {
+                    console.warn('Auto-sync on app active failed:', e);
+                }
+                
+                const elapsed = Date.now() - startTimeAppState;
+                if (elapsed < 500) {
+                    await new Promise(r => setTimeout(r, 500 - elapsed));
+                }
+                setLoadingSkeleton(false);
+            }
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+            active = false;
+            subscription.remove();
+        };
     }, [reduceMotion]);
 
     const loadSleepData = async () => {
@@ -302,6 +394,9 @@ export default function HealthConnectSetupScreen({ navigation }) {
             const perm = await checkPermissionStatus();
             setStatus(perm);
             
+            const detailed = await getDetailedPermissionStatus();
+            setPermissionsMap(detailed);
+
             // Fetch sync stats
             const syncStatus = await HealthSyncService.getStatus();
             if (syncStatus.lastSync) {
@@ -322,7 +417,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
             } else {
                 setLastCheckedStr(perm === 'granted' ? 'just now' : 'never');
             }
-        } catch {
+        } catch (e) {
+            console.warn('checkCurrentStatus error:', e);
             setStatus('unavailable');
         }
     };
@@ -347,8 +443,15 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 return;
             }
 
+            await trackSetupEvent('connect_clicked');
             const granted = await requestHealthPermissions();
             if (granted) {
+                const detailed = await getDetailedPermissionStatus();
+                setPermissionsMap(detailed);
+                
+                const allowedCount = Object.keys(detailed).filter(k => detailed[k]).length;
+                await trackSetupEvent('permissions_granted', { allowedCount });
+
                 // Attempt first data read to show real results on confirmation screen
                 try {
                     const data = await HealthRepository.fetchAll();
@@ -360,6 +463,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 setOnboardingStep('confirm');
             } else {
                 setStatus('denied');
+                await trackSetupEvent('permissions_denied');
                 AlertManager.alert('Permissions Denied', 'Permissions are required to sync watch data.');
             }
         } catch (err) {
@@ -387,6 +491,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                     text: 'Disconnect',
                     style: 'destructive',
                     onPress: async () => {
+                        await trackSetupEvent('disconnect_clicked');
                         await HealthSyncService.setSyncEnabled(false);
                         setStatus('denied');
                     },
@@ -411,6 +516,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
         }
 
         try {
+            await trackSetupEvent('manual_sync_clicked');
             await HealthSyncService.syncNow();
             
             const formatTime = (d) => {
@@ -453,8 +559,10 @@ export default function HealthConnectSetupScreen({ navigation }) {
             ]);
 
             Vibration.vibrate([0, 80, 50, 80]);
+            await trackSetupEvent('manual_sync_completed');
             AlertManager.alert('Sync Completed', 'All recent vital measurements have been imported.');
         } catch (e) {
+            await trackSetupEvent('manual_sync_failed', { error: e.message });
             AlertManager.alert('Sync Failed', 'Could not fetch device logs. Try again later.');
         } finally {
             setSyncingNow(false);
@@ -485,58 +593,85 @@ export default function HealthConnectSetupScreen({ navigation }) {
         let val = '—';
         let badge = 'LIVE';
 
-        const isSynced = isConnected;
+        let hasPerm = false;
+        switch (card.id) {
+            case 'hr': hasPerm = permissionsMap.heartRate; break;
+            case 'sleep': hasPerm = permissionsMap.sleep; break;
+            case 'bp': hasPerm = permissionsMap.bloodPressure; break;
+            case 'spo2': hasPerm = permissionsMap.oxygen; break;
+            case 'steps': hasPerm = permissionsMap.steps; break;
+            case 'exercise': hasPerm = permissionsMap.exercise; break;
+            case 'weight': hasPerm = permissionsMap.weight; break;
+            case 'glucose': hasPerm = permissionsMap.glucose; break;
+        }
 
         switch (card.id) {
             case 'hr':
                 icon = <Heart size={16} color="#EF4444" strokeWidth={2.5} />;
                 bg = '#FEE2E2';
-                val = isSynced && vitals?.heart_rate ? `${vitals.heart_rate} bpm` : '72 bpm';
+                val = hasPerm 
+                    ? (vitals?.heart_rate ? `${vitals.heart_rate} bpm` : 'Waiting for first sync...') 
+                    : 'Permission Required';
                 badge = 'LIVE';
                 break;
             case 'sleep':
                 icon = <Moon size={16} color="#8B5CF6" strokeWidth={2.5} />;
                 bg = '#F5F3FF';
-                val = isSynced ? sleepStr : '7h 45m';
+                val = hasPerm 
+                    ? (sleepStr ? sleepStr : 'No activity today') 
+                    : 'Permission Required';
                 badge = 'DAILY';
                 break;
             case 'bp':
                 icon = <Activity size={16} color="#3B82F6" strokeWidth={2.5} />;
                 bg = '#EFF6FF';
-                val = isSynced && vitals?.blood_pressure?.systolic 
-                    ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` 
-                    : '120/80';
+                val = hasPerm 
+                    ? (vitals?.blood_pressure?.systolic 
+                        ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` 
+                        : 'Waiting for first sync...') 
+                    : 'Permission Required';
                 badge = 'LIVE';
                 break;
             case 'spo2':
                 icon = <Wind size={16} color="#06B6D4" strokeWidth={2.5} />;
                 bg = '#ECFEFF';
-                val = isSynced && vitals?.oxygen_saturation ? `${vitals.oxygen_saturation}%` : '98%';
+                val = hasPerm 
+                    ? (vitals?.oxygen_saturation ? `${vitals.oxygen_saturation}%` : 'Waiting for first sync...') 
+                    : 'Permission Required';
                 badge = 'LIVE';
                 break;
             case 'steps':
                 icon = <Activity size={16} color="#10B981" strokeWidth={2.5} />;
                 bg = '#D1FAE5';
-                val = isSynced ? '6,842 steps' : '—';
+                val = hasPerm 
+                    ? (activity?.steps != null ? `${activity.steps.toLocaleString()} steps` : '0 steps') 
+                    : 'Permission Required';
                 badge = 'DAILY';
                 break;
             case 'exercise':
                 icon = <Flame size={16} color="#F59E0B" strokeWidth={2.5} />;
                 bg = '#FEF3C7';
-                val = isSynced ? '35 mins' : '—';
+                const exerciseMins = activity?.exercises?.reduce((sum, e) => sum + (e.duration_minutes || 0), 0) || 0;
+                val = hasPerm 
+                    ? (exerciseMins > 0 ? `${exerciseMins} mins` : 'No exercise today') 
+                    : 'Permission Required';
                 badge = 'DAILY';
                 break;
             case 'weight':
                 icon = <Scale size={16} color="#6366F1" strokeWidth={2.5} />;
                 bg = '#E0E7FF';
                 const profile = usePatientStore.getState().patient || {};
-                val = profile.weight_kg ? `${profile.weight_kg} kg` : (isSynced ? '72 kg' : '—');
+                val = hasPerm 
+                    ? (profile.weight_kg ? `${profile.weight_kg} kg` : (activity?.weight ? `${activity.weight} kg` : 'Waiting for first sync...')) 
+                    : 'Permission Required';
                 badge = 'LATEST';
                 break;
             case 'glucose':
                 icon = <Droplet size={16} color="#EC4899" strokeWidth={2.5} />;
                 bg = '#FCE7F3';
-                val = isSynced && vitals?.blood_glucose ? `${vitals.blood_glucose} mg/dL` : (isSynced ? '95 mg/dL' : '—');
+                val = hasPerm 
+                    ? (vitals?.blood_glucose ? `${vitals.blood_glucose} mg/dL` : 'Waiting for first sync...') 
+                    : 'Permission Required';
                 badge = 'LIVE';
                 break;
         }
@@ -549,6 +684,11 @@ export default function HealthConnectSetupScreen({ navigation }) {
                     pressed && { opacity: 0.7 },
                     syncingBento && styles.bentoCardSyncing
                 ]}
+                onPress={() => {
+                    if (!hasPerm) {
+                        openHealthSettings();
+                    }
+                }}
             >
                 <View style={styles.bentoHeader}>
                     <View style={[styles.bentoIconBox, { backgroundColor: bg }]}>
@@ -559,7 +699,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 {syncingBento ? (
                     <ActivityIndicator size="small" color="#8B5CF6" style={{ alignSelf: 'flex-start', marginVertical: 4, height: 24 }} />
                 ) : (
-                    <Text style={styles.bentoVal}>{val}</Text>
+                    <Text style={[styles.bentoVal, !hasPerm && { fontSize: 13, color: colors.textMuted }]}>{val}</Text>
                 )}
                 <Text style={styles.bentoLabel}>{card.label}</Text>
             </Pressable>
@@ -569,6 +709,14 @@ export default function HealthConnectSetupScreen({ navigation }) {
     return (
         <TabScreenTransition>
         <View style={styles.container}>
+            {loadingSkeleton && (
+                <View style={styles.skeletonContainer}>
+                    <ActivityIndicator size="large" color="#8B5CF6" />
+                    <Text style={{ marginTop: 12, ...FONT.medium, color: colors.textSecondary }}>
+                        Refreshing Connection Health...
+                    </Text>
+                </View>
+            )}
             {/* ── Header ──────────────────────────────────────── */}
             <View style={styles.header}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.headerBtn}>
@@ -818,6 +966,144 @@ export default function HealthConnectSetupScreen({ navigation }) {
             ) : (
                 /* ── Existing Connected Dashboard ────────────────── */
                 <>
+                {/* ── Connection Health Diagnostics Card ────────── */}
+                <View style={styles.diagnosticsCard}>
+                    <LinearGradient
+                        colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.03)']}
+                        style={styles.diagnosticsGradient}
+                    >
+                        <View style={styles.diagnosticsHeader}>
+                            <ShieldCheck size={20} color={colors.success} />
+                            <Text style={styles.diagnosticsTitle}>Connection Diagnostics</Text>
+                            <View style={styles.diagnosticsStatusBadge}>
+                                <Text style={styles.diagnosticsStatusText}>Active</Text>
+                            </View>
+                        </View>
+                        
+                        <View style={styles.diagnosticsGrid}>
+                            <View style={styles.diagnosticsCol}>
+                                <Text style={styles.diagnosticsLabel}>Provider</Text>
+                                <Text style={styles.diagnosticsValue}>{healthStatus?.provider || platformName}</Text>
+                            </View>
+                            <View style={styles.diagnosticsCol}>
+                                <Text style={styles.diagnosticsLabel}>Last Synced</Text>
+                                <Text style={styles.diagnosticsValue}>{lastSyncStr}</Text>
+                            </View>
+                        </View>
+                        
+                        <View style={styles.diagnosticsGrid}>
+                            <View style={styles.diagnosticsCol}>
+                                <Text style={styles.diagnosticsLabel}>Syncs Today</Text>
+                                <Text style={styles.diagnosticsValue}>{healthStatus?.syncCountToday || 0} times</Text>
+                            </View>
+                            <View style={styles.diagnosticsCol}>
+                                <Text style={styles.diagnosticsLabel}>Permissions</Text>
+                                <Text style={styles.diagnosticsValue}>
+                                    {Object.keys(permissionsMap).filter(k => permissionsMap[k]).length} / {Object.keys(permissionsMap).length} Granted
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Manage Permissions toggle */}
+                        <Pressable 
+                            style={({ pressed }) => [styles.permToggleBtn, pressed && { opacity: 0.7 }]}
+                            onPress={() => setPermissionsChecklistVisible(v => !v)}
+                        >
+                            <Sliders size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                            <Text style={styles.permToggleTxt}>
+                                {permissionsChecklistVisible ? 'Hide Permissions' : 'Manage Permissions'}
+                            </Text>
+                            <ChevronDown 
+                                size={14} 
+                                color={colors.primary} 
+                                style={{ marginLeft: 'auto', transform: [{ rotate: permissionsChecklistVisible ? '180deg' : '0deg' }] }} 
+                            />
+                        </Pressable>
+
+                        {permissionsChecklistVisible && (
+                            <View style={styles.permChecklist}>
+                                {[
+                                    { key: 'heartRate', label: 'Heart Rate', icon: <Heart size={14} color="#EF4444" /> },
+                                    { key: 'bloodPressure', label: 'Blood Pressure', icon: <Activity size={14} color="#3B82F6" /> },
+                                    { key: 'sleep', label: 'Sleep', icon: <Moon size={14} color="#8B5CF6" /> },
+                                    { key: 'oxygen', label: 'Oxygen Level', icon: <Wind size={14} color="#06B6D4" /> },
+                                    { key: 'steps', label: 'Steps', icon: <Activity size={14} color="#10B981" /> },
+                                    { key: 'exercise', label: 'Exercise', icon: <Flame size={14} color="#F59E0B" /> },
+                                    { key: 'weight', label: 'Weight', icon: <Scale size={14} color="#6366F1" /> },
+                                    { key: 'glucose', label: 'Blood Glucose', icon: <Droplet size={14} color="#EC4899" /> },
+                                    { key: 'hydration', label: 'Hydration', icon: <Droplet size={14} color="#06B6D4" /> },
+                                    { key: 'temperature', label: 'Body Temperature', icon: <Activity size={14} color="#F97316" /> },
+                                ].map(item => (
+                                    <View key={item.key} style={styles.permRow}>
+                                        {item.icon}
+                                        <Text style={styles.permRowLabel}>{item.label}</Text>
+                                        {permissionsMap[item.key] ? (
+                                            <View style={styles.permBadgeGranted}>
+                                                <CheckCircle2 size={12} color="#059669" />
+                                                <Text style={styles.permBadgeGrantedTxt}>Enabled</Text>
+                                            </View>
+                                        ) : (
+                                            <View style={styles.permBadgeDenied}>
+                                                <XCircle size={12} color="#DC2626" />
+                                                <Text style={styles.permBadgeDeniedTxt}>Not Allowed</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                ))}
+                                
+                                {Object.values(permissionsMap).some(v => !v) && (
+                                    <Pressable 
+                                        style={({ pressed }) => [styles.permSettingsBtn, pressed && { opacity: 0.8 }]}
+                                        onPress={openHealthSettings}
+                                    >
+                                        <Settings size={14} color="#FFF" style={{ marginRight: 6 }} />
+                                        <Text style={styles.permSettingsBtnTxt}>Open Health Settings</Text>
+                                    </Pressable>
+                                )}
+                            </View>
+                        )}
+                    </LinearGradient>
+                </View>
+
+                {/* ── Warning Banner for Partial Permissions ────── */}
+                {(() => {
+                    const coreKeys = ['heartRate', 'bloodPressure', 'sleep', 'oxygen', 'hydration', 'temperature'];
+                    const grantedCoreCount = coreKeys.filter(k => permissionsMap[k]).length;
+                    const missingCoreKeys = coreKeys.filter(k => !permissionsMap[k]);
+                    const hasPartialPermissions = isConnected && grantedCoreCount > 0 && grantedCoreCount < coreKeys.length;
+                    
+                    if (!hasPartialPermissions) return null;
+
+                    const categoryLabelMap = {
+                        heartRate: 'Heart Rate',
+                        bloodPressure: 'Blood Pressure',
+                        sleep: 'Sleep Quality',
+                        oxygen: 'Oxygen Level',
+                        hydration: 'Hydration',
+                        temperature: 'Body Temperature',
+                    };
+                    const missingLabels = missingCoreKeys.map(k => categoryLabelMap[k] || k);
+
+                    return (
+                        <View style={styles.warningBanner}>
+                            <AlertTriangle size={20} color="#F59E0B" style={styles.warningIcon} />
+                            <View style={styles.warningContent}>
+                                <Text style={styles.warningTitle}>Partial Permissions</Text>
+                                <Text style={styles.warningDesc}>
+                                    CareMyMed is missing access to: {missingLabels.join(', ')}.
+                                </Text>
+                                <Pressable 
+                                    style={({ pressed }) => [styles.warningCta, pressed && { opacity: 0.8 }]}
+                                    onPress={openHealthSettings}
+                                >
+                                    <Sliders size={14} color="#FFF" style={{ marginRight: 6 }} />
+                                    <Text style={styles.warningCtaTxt}>Review Permissions</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    );
+                })()}
+
                 {/* ── Health Sync Orb Hero ────────────────────────── */}
                 <Animated.View style={[styles.heroSection, entranceStyle(0)]}>
                     <Animated.View style={[styles.orbWrapper, { transform: [{ scale: orbPulseAnim }] }]}>
@@ -1138,7 +1424,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 onRequestClose={() => setCustomizeVisible(false)}
             >
                 <Pressable style={styles.modalOverlay} onPress={() => setCustomizeVisible(false)}>
-                    <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+                    <Pressable style={[styles.modalContent, { maxHeight: '80%' }]} onPress={(e) => e.stopPropagation()}>
                         <View style={styles.modalHandle} />
                         <Text style={styles.modalTitle}>Customize Bento Grid</Text>
                         <Text style={styles.modalSub}>Reorder or toggle visibility of bento cards</Text>
@@ -1182,7 +1468,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                         <Pressable style={styles.modalCancelBtn} onPress={() => setCustomizeVisible(false)}>
                             <Text style={styles.modalCancelText}>Done</Text>
                         </Pressable>
-                    </View>
+                    </Pressable>
                 </Pressable>
             </Modal>
         </View>
@@ -1939,5 +2225,187 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.textMuted,
         lineHeight: 18,
+    },
+    diagnosticsCard: {
+        borderRadius: radius.xl || 16,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        marginBottom: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+        ...shadows.sm,
+    },
+    diagnosticsGradient: {
+        padding: 16,
+    },
+    diagnosticsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    diagnosticsTitle: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: colors.textPrimary,
+        marginLeft: 8,
+        flex: 1,
+    },
+    diagnosticsStatusBadge: {
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: radius.full || 12,
+    },
+    diagnosticsStatusText: {
+        fontSize: 12,
+        ...FONT.bold,
+        color: colors.success,
+    },
+    diagnosticsGrid: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    diagnosticsCol: {
+        flex: 1,
+    },
+    diagnosticsLabel: {
+        fontSize: 11,
+        ...FONT.semibold,
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 2,
+    },
+    diagnosticsValue: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: colors.textPrimary,
+    },
+    warningBanner: {
+        flexDirection: 'row',
+        backgroundColor: '#FFFBEB',
+        borderColor: '#FEF3C7',
+        borderWidth: 1,
+        borderRadius: radius.lg || 12,
+        padding: 16,
+        marginBottom: 20,
+    },
+    warningIcon: {
+        marginRight: 12,
+        marginTop: 2,
+    },
+    warningContent: {
+        flex: 1,
+    },
+    warningTitle: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: '#B45309',
+        marginBottom: 4,
+    },
+    warningDesc: {
+        fontSize: 13,
+        ...FONT.regular,
+        color: '#D97706',
+        lineHeight: 18,
+        marginBottom: 12,
+    },
+    warningCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        backgroundColor: '#D97706',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: radius.md || 8,
+    },
+    warningCtaTxt: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: '#FFFFFF',
+    },
+    skeletonContainer: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        zIndex: 9999,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    permToggleBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: radius.md || 8,
+        backgroundColor: 'rgba(99, 102, 241, 0.06)',
+        marginTop: 4,
+    },
+    permToggleTxt: {
+        fontSize: 13,
+        ...FONT.semibold,
+        color: colors.primary,
+    },
+    permChecklist: {
+        marginTop: 12,
+        gap: 8,
+    },
+    permRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        borderRadius: radius.md || 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    },
+    permRowLabel: {
+        flex: 1,
+        fontSize: 13,
+        ...FONT.medium,
+        color: colors.textPrimary,
+        marginLeft: 10,
+    },
+    permBadgeGranted: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: radius.full || 12,
+        gap: 4,
+    },
+    permBadgeGrantedTxt: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: '#059669',
+    },
+    permBadgeDenied: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(220, 38, 38, 0.08)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: radius.full || 12,
+        gap: 4,
+    },
+    permBadgeDeniedTxt: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: '#DC2626',
+    },
+    permSettingsBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'center',
+        backgroundColor: colors.primary,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: radius.md || 8,
+        marginTop: 8,
+    },
+    permSettingsBtnTxt: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: '#FFFFFF',
     },
 });

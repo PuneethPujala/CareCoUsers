@@ -9,6 +9,8 @@ const Caller = require('../../models/Caller');
 const Notification = require('../../models/Notification');
 const AIVitalPrediction = require('../../models/AIVitalPrediction');
 const CompanionAccess = require('../../models/CompanionAccess');
+const ActivityLog = require('../../models/ActivityLog');
+const HealthSyncState = require('../../models/HealthSyncState');
 const logger = require('../../utils/logger');
 const {
   getOrCreatePatient,
@@ -2668,6 +2670,8 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
       todayMedLog,
       aiPrediction,
       adherenceLogs,
+      activityLog,
+      syncState,
     ] = await Promise.all([
       // 1. Today's vitals
       VitalLog.find({
@@ -2786,6 +2790,17 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
       })
         .sort({ date: 1 })
         .lean(),
+
+      // 6. Today's ActivityLog
+      ActivityLog.findOne({
+        patient_id: patient._id,
+        date: todayUtc,
+      }).lean(),
+
+      // 7. User's HealthSyncState
+      HealthSyncState.findOne({
+        patient_id: patient._id,
+      }).lean(),
     ]);
 
     // ── Compute adherence summary ───────────────────────────────────────
@@ -2853,6 +2868,27 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
       })
     );
 
+    const hasActiveVitals = todayVitals && todayVitals.length > 0;
+    const isConnected = !!syncState || hasActiveVitals;
+
+    let provider = null;
+    if (syncState) {
+      if (syncState.health_provider === 'healthkit' || syncState.platform === 'ios') {
+        provider = 'Apple HealthKit';
+      } else if (syncState.health_provider === 'health_connect' || syncState.platform === 'android') {
+        provider = 'Health Connect';
+      } else {
+        provider = syncState.health_provider || (syncState.platform === 'ios' ? 'Apple HealthKit' : 'Health Connect');
+      }
+    } else if (hasActiveVitals) {
+      const firstVital = todayVitals[0];
+      if (firstVital && firstVital.source) {
+        if (firstVital.source === 'health_connect') provider = 'Health Connect';
+        else if (firstVital.source === 'healthkit') provider = 'Apple HealthKit';
+        else provider = firstVital.source;
+      }
+    }
+
     res.json({
       patient: { ...patientObj, patient_health_state: healthState },
       vitals,
@@ -2862,6 +2898,13 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
       adherence,
       patient_health_state: healthState,
       healthHistory,
+      activity: activityLog || null,
+      healthStatus: {
+        connected: isConnected,
+        lastSync: syncState?.last_sync || syncState?.last_successful_sync || null,
+        provider: provider,
+        syncCountToday: syncState?.sync_count_today || 0,
+      },
     });
   } catch (error) {
     logger.error('Dashboard aggregate error', {

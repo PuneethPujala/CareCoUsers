@@ -133,6 +133,8 @@ const usePatientStore = create((set, get) => ({
     vitalsHistory: [],
     aiPrediction: null,
     dashboardMeds: [],
+    activity: null,
+    healthStatus: null,
     medicationSchedule: { morning: [], afternoon: [], night: [] },
     weeklyAdherence: [],
     adherenceDetails: null,
@@ -169,6 +171,8 @@ const usePatientStore = create((set, get) => ({
         vitalsHistory: [],
         aiPrediction: null,
         dashboardMeds: [],
+        activity: null,
+        healthStatus: null,
         medicationSchedule: { morning: [], afternoon: [], night: [] },
         weeklyAdherence: [],
         adherenceDetails: null,
@@ -259,6 +263,8 @@ const usePatientStore = create((set, get) => ({
                         patient: cached.data.patient,
                         vitals: cached.data.vitals,
                         dashboardMeds: cached.data.meds,
+                        activity: cached.data.activity || null,
+                        healthStatus: cached.data.healthStatus || null,
                         isCached: true,
                         loading: false,
                     });
@@ -339,6 +345,8 @@ const usePatientStore = create((set, get) => ({
                         ? { ...s.adherenceDetails, ...freshAdherenceDetails }
                         : freshAdherenceDetails,
                     healthHistory: dashData.healthHistory || null,
+                    activity: dashData.activity || null,
+                    healthStatus: dashData.healthStatus || null,
                     isCached: false,
                     loading: false,
                     lastFetchTs: Date.now(),
@@ -349,6 +357,8 @@ const usePatientStore = create((set, get) => ({
                     patient: freshPatient,
                     vitals: freshVitals,
                     meds: freshMeds,
+                    activity: dashData.activity || null,
+                    healthStatus: dashData.healthStatus || null,
                 }, 60);
 
                 WidgetBridge.updateAllWidgets({
@@ -449,6 +459,8 @@ const usePatientStore = create((set, get) => ({
                     ? { ...s.adherenceDetails, ...freshAdherenceDetails }
                     : freshAdherenceDetails,
                 healthHistory: histRes?.data || null,
+                activity: null,
+                healthStatus: null,
                 isCached: false,
                 loading: false,
                 lastFetchTs: Date.now(),
@@ -459,6 +471,8 @@ const usePatientStore = create((set, get) => ({
                 patient: freshPatient,
                 vitals: freshVitals,
                 meds: freshMeds,
+                activity: null,
+                healthStatus: null,
             }, 60);
 
             WidgetBridge.updateAllWidgets({

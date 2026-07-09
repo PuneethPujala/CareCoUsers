@@ -1,4 +1,4 @@
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
@@ -799,4 +799,98 @@ export const fetchSleepSessions = async (sinceTimestamp) => {
     }
 
     return sessions;
+};
+
+export const openHealthSettings = async () => {
+    if (Platform.OS === 'android') {
+        try {
+            if (!HealthConnect) {
+                HealthConnect = require('react-native-health-connect');
+            }
+            if (typeof HealthConnect.openHealthConnectSettings === 'function') {
+                await HealthConnect.openHealthConnectSettings();
+                return true;
+            }
+            await Linking.openURL('androidx.health.ACTION_HEALTH_CONNECT_SETTINGS');
+            return true;
+        } catch (err) {
+            console.warn('Failed to open Health Connect settings:', err);
+            try {
+                await Linking.openSettings();
+                return true;
+            } catch (settingsErr) {
+                console.warn('Failed to open App Settings:', settingsErr);
+            }
+        }
+    } else if (Platform.OS === 'ios') {
+        try {
+            await Linking.openURL('x-apple-health://');
+            return true;
+        } catch (err) {
+            console.warn('Failed to open Apple Health settings:', err);
+            try {
+                await Linking.openSettings();
+                return true;
+            } catch (settingsErr) {}
+        }
+    }
+    return false;
+};
+
+export const getDetailedPermissionStatus = async () => {
+    const statusMap = {
+        heartRate: false,
+        bloodPressure: false,
+        sleep: false,
+        oxygen: false,
+        hydration: false,
+        temperature: false,
+        steps: false,
+        exercise: false,
+        weight: false,
+        glucose: false,
+    };
+
+    if (Platform.OS === 'android') {
+        try {
+            if (!HealthConnect) {
+                HealthConnect = require('react-native-health-connect');
+            }
+            const isInitialized = await HealthConnect.initialize();
+            if (!isInitialized) return statusMap;
+
+            const granted = await HealthConnect.getGrantedPermissions();
+            if (Array.isArray(granted)) {
+                granted.forEach(p => {
+                    const recType = (p.recordType || '').toLowerCase();
+                    if (recType === 'heartrate') statusMap.heartRate = true;
+                    else if (recType === 'bloodpressure') statusMap.bloodPressure = true;
+                    else if (SLEEP_ALIASES.includes(recType)) statusMap.sleep = true;
+                    else if (recType === 'oxygensaturation') statusMap.oxygen = true;
+                    else if (recType === 'hydration') statusMap.hydration = true;
+                    else if (recType === 'bodytemperature') statusMap.temperature = true;
+                    else if (recType === 'steps') statusMap.steps = true;
+                    else if (recType === 'exercisesession') statusMap.exercise = true;
+                    else if (recType === 'weight') statusMap.weight = true;
+                    else if (recType === 'bloodglucose') statusMap.glucose = true;
+                });
+            }
+        } catch (e) {
+            console.warn('getDetailedPermissionStatus error on Android:', e);
+        }
+    } else if (Platform.OS === 'ios') {
+        if (AppleHealthKit) {
+            statusMap.heartRate = true;
+            statusMap.bloodPressure = true;
+            statusMap.sleep = true;
+            statusMap.oxygen = true;
+            statusMap.hydration = true;
+            statusMap.temperature = true;
+            statusMap.steps = true;
+            statusMap.exercise = true;
+            statusMap.weight = true;
+            statusMap.glucose = true;
+        }
+    }
+    return statusMap;
 };

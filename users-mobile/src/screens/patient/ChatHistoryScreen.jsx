@@ -4,10 +4,10 @@ import {
     Vibration, StatusBar, Animated
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { ArrowLeft, MessageSquare, Plus, ChevronRight, Bot, Sparkles, Pill, Activity, TrendingUp } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, MessageSquare, Plus, ChevronRight, Bot, Sparkles, Pill, Activity, TrendingUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, layout, motion, useReduceMotion, shadows } from '../../theme';
+import { colors, layout, motion, useReduceMotion, shadows, typography } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import usePatientStore from '../../store/usePatientStore';
 import { apiService, handleApiError } from '../../lib/api';
@@ -268,6 +268,11 @@ export default function ChatHistoryScreen() {
 
     const renderSessionItem = ({ item, index }) => {
         const isRecent = index === 0;
+        const cached = globalChatCache[item._id];
+        const lastMessageText = cached?.messages?.length > 0
+            ? cached.messages[cached.messages.length - 1].text
+            : (item.last_message || `${item.message_count || 1} message${item.message_count !== 1 ? 's' : ''}`);
+
         return (
             <Pressable
                 onPress={() => handleSessionPress(item)}
@@ -287,9 +292,7 @@ export default function ChatHistoryScreen() {
                                 {item.title}
                             </Text>
                             {isRecent && (
-                                <View style={styles.recentBadge}>
-                                    <Text style={styles.recentBadgeText}>Active</Text>
-                                </View>
+                                <View style={styles.activeDot} />
                             )}
                         </View>
                         <Text style={styles.sessionTime}>
@@ -297,12 +300,12 @@ export default function ChatHistoryScreen() {
                         </Text>
                     </View>
                     
-                    <Text style={styles.sessionSub}>
-                        {item.message_count || 1} message{item.message_count !== 1 ? 's' : ''}
+                    <Text style={styles.sessionSub} numberOfLines={1}>
+                        {lastMessageText}
                     </Text>
                 </View>
                 
-                <ChevronRight size={18} color={colors.textMuted} />
+                <ChevronRight size={16} color={colors.textMuted} strokeWidth={2.5} />
             </Pressable>
         );
     };
@@ -388,16 +391,20 @@ export default function ChatHistoryScreen() {
                     ListHeaderComponent={
                         <Pressable onPress={handleCreateSession} disabled={isCreating}>
                             <Animated.View style={{ opacity: heroAnim, transform: reduceMotion ? [] : [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
-                            <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.heroCard}>
+                            <LinearGradient colors={colors.gradientPrimary || ['#6D28D9', '#7C3AED']} style={styles.heroCard}>
                                 <View style={styles.heroHeader}>
                                     <View style={styles.heroIconBox}>
-                                        <Sparkles size={20} color={colors.primary} strokeWidth={2.5} />
+                                        <Sparkles size={18} color={colors.primary} strokeWidth={2.5} />
                                     </View>
                                     <Text style={styles.heroTitle}>Start a New Chat</Text>
                                 </View>
                                 <Text style={styles.heroDesc}>
                                     Ask the Care Assistant about {isCompanion ? "the patient's" : "your"} medications, vitals history, or adherence trends.
                                 </Text>
+                                <View style={styles.heroCta}>
+                                    <Text style={styles.heroCtaTxt}>Start Chatting</Text>
+                                    <ArrowRight size={14} color="#FFF" style={{ marginLeft: 6 }} />
+                                </View>
                             </LinearGradient>
                             </Animated.View>
                         </Pressable>
@@ -447,22 +454,30 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
-    title: { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
+    title: { 
+        fontSize: 26, 
+        ...typography.heading, 
+        color: colors.textPrimary 
+    },
     newChatBtn: {
         width: 44, height: 44, borderRadius: 22,
         backgroundColor: colors.primary,
         alignItems: 'center', justifyContent: 'center',
-        shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4
+        shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4
     },
     
-    listContent: { padding: 20, gap: 16 },
+    listContent: { padding: 20, gap: 12 },
 
     heroCard: {
-        padding: 20,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#C7D2FE',
-        marginBottom: 8,
+        padding: 22,
+        borderRadius: 24,
+        overflow: 'hidden',
+        marginBottom: 16,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        elevation: 4,
     },
     heroHeader: {
         flexDirection: 'row',
@@ -477,14 +492,30 @@ const styles = StyleSheet.create({
         shadowColor: '#6366F1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2
     },
     heroTitle: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: '700',
-        color: '#312E81',
+        color: '#FFFFFF',
     },
     heroDesc: {
         fontSize: 13,
-        color: '#4338CA',
-        lineHeight: 18,
+        color: 'rgba(255, 255, 255, 0.85)',
+        lineHeight: 19,
+        marginTop: 4,
+    },
+    heroCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginTop: 16,
+    },
+    heroCtaTxt: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#FFFFFF',
     },
 
     loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
@@ -495,47 +526,40 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: colors.surface,
         padding: 16,
-        borderRadius: 18,
+        borderRadius: 20,
         borderWidth: 1,
-        borderColor: colors.borderLight,
-        gap: 12,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.02, shadowRadius: 4, elevation: 1
+        borderColor: 'rgba(226, 232, 240, 0.5)',
+        gap: 14,
+        shadowColor: '#0A2463', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 1
     },
     sessionRowPressed: {
         backgroundColor: '#F8FAFC',
         transform: [{ scale: 0.99 }]
     },
     avatarGradient: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 46,
+        height: 46,
+        borderRadius: 23,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1.5,
+        borderWidth: 1,
         borderColor: '#FFFFFF',
         ...shadows.sm,
     },
     sessionRowRecent: {
-        borderColor: colors.primarySoft,
+        borderColor: 'rgba(124, 58, 237, 0.12)',
         backgroundColor: '#FCFDFF',
-        borderWidth: 1.5,
+        borderWidth: 1.2,
         shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.04, shadowRadius: 12, elevation: 2
     },
-    recentBadge: {
-        backgroundColor: colors.primarySoft,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 6,
-    },
-    recentBadgeText: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: colors.primary,
-        textTransform: 'uppercase',
+    activeDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#10B981', // emerald green indicator
+        marginLeft: 2,
     },
     sessionDetails: {
         flex: 1,
@@ -555,13 +579,14 @@ const styles = StyleSheet.create({
     },
     sessionTime: {
         fontSize: 11,
-        fontWeight: '500',
+        fontWeight: '600',
         color: colors.textMuted,
     },
     sessionSub: {
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '500',
-        color: colors.textMuted,
+        color: colors.textSecondary,
+        lineHeight: 18,
     },
 
     emptyContainer: {
