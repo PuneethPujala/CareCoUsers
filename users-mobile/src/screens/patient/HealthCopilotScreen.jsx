@@ -51,8 +51,10 @@ export default function HealthCopilotScreen({ navigation, route }) {
   const { displayName } = useAuth();
   const [copilotContext, setCopilotContext] = useState(null);
   const [loadingContext, setLoadingContext] = useState(true);
+  // Connect to Zustand patient store
+  const { dashboardMeds, optimisticToggleMed } = usePatientStore();
 
-  // Checked states for Morning Brief and Care Plan items (stored locally)
+  // Checked states for Morning Brief and Care Plan items (stored locally as fallback)
   const [checkedBriefItems, setCheckedBriefItems] = useState({});
   const [checkedMedsTasks, setCheckedMedsTasks] = useState({});
 
@@ -82,13 +84,25 @@ export default function HealthCopilotScreen({ navigation, route }) {
     }));
   };
 
-  const toggleMedsTask = (idx) => {
-    setCheckedMedsTasks((prev) => ({
-      ...prev,
-      [idx]: !prev[idx],
-    }));
-  };
+  const toggleMedsTask = async (task, idx) => {
+    const matchingMed = dashboardMeds?.find(
+      (m) =>
+        m.name.toLowerCase() === task.name.toLowerCase() &&
+        m.type.toLowerCase() === task.time_slot.toLowerCase(),
+    );
 
+    if (matchingMed) {
+      const targetState = !matchingMed.taken;
+      await optimisticToggleMed(matchingMed, targetState);
+      // Re-fetch copilot context to get updated score immediately
+      fetchContext();
+    } else {
+      setCheckedMedsTasks((prev) => ({
+        ...prev,
+        [idx]: !prev[idx],
+      }));
+    }
+  };
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.headerRow}>
@@ -335,7 +349,15 @@ export default function HealthCopilotScreen({ navigation, route }) {
           ) : (
             <View style={styles.medTaskList}>
               {carePlan.medication_tasks.map((task, idx) => {
-                const isChecked = !!checkedMedsTasks[idx];
+                const matchingMed = dashboardMeds?.find(
+                  (m) =>
+                    m.name.toLowerCase() === task.name.toLowerCase() &&
+                    m.type.toLowerCase() === task.time_slot.toLowerCase(),
+                );
+                const isChecked = matchingMed
+                  ? matchingMed.taken
+                  : !!checkedMedsTasks[idx];
+
                 return (
                   <Pressable
                     key={`med-${idx}`}
@@ -344,7 +366,7 @@ export default function HealthCopilotScreen({ navigation, route }) {
                       isChecked && styles.medTaskRowChecked,
                       pressed && { opacity: 0.8 },
                     ]}
-                    onPress={() => toggleMedsTask(idx)}
+                    onPress={() => toggleMedsTask(task, idx)}
                   >
                     {isChecked ? (
                       <View style={styles.checkedCircleWrap}>

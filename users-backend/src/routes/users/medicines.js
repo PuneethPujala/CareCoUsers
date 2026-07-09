@@ -557,15 +557,13 @@ router.put('/mark', authenticateSession, async (req, res) => {
         patientId: patient._id,
       })
     );
-
     // Trigger health state recomputation
     const {
-      enqueueHealthStateRecompute,
+      recomputeAndCacheHealthState,
     } = require('../../services/patientHealthStateService');
-    enqueueHealthStateRecompute(patient._id).catch((e) =>
+    await recomputeAndCacheHealthState(patient._id).catch((e) =>
       logger.warn('Medication trigger recompute failed', { error: e.message })
     );
-
     res.json({ log });
   } catch (error) {
     logger.error('Mark medicine error', {
