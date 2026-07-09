@@ -969,7 +969,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 {/* ── Connection Health Diagnostics Card ────────── */}
                 <View style={styles.diagnosticsCard}>
                     <LinearGradient
-                        colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.03)']}
+                        colors={['#FFFFFF', '#FFFFFF']}
                         style={styles.diagnosticsGradient}
                     >
                         <View style={styles.diagnosticsHeader}>
@@ -2232,7 +2232,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.borderLight,
         marginBottom: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+        backgroundColor: '#FFFFFF',
         ...shadows.sm,
     },
     diagnosticsGradient: {

@@ -2678,8 +2678,8 @@ export default function AdherenceScreen({ navigation }) {
                 >
                   <LinearGradient
                     colors={[
-                      "rgba(79, 70, 229, 0.88)",
-                      "rgba(99, 102, 241, 0.55)",
+                      "#4F46E5",
+                      "#6366F1",
                     ]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
