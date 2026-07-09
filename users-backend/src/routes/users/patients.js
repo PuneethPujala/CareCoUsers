@@ -79,15 +79,14 @@ router.use((req, res, next) => {
 
 /**
  * Refresh the healthScoreCache on the patient document.
- * Called fire-and-forget from any mutating endpoint so admin queries stay fresh.
- * Does NOT block the response.
+ * Runs the recompute and cache health state synchronously so the updated dashboard returns fresh data.
  */
 async function refreshHealthScoreCache(patientId, targetDate = null) {
   try {
     const {
-      enqueueHealthStateRecompute,
+      recomputeAndCacheHealthState,
     } = require('../../services/patientHealthStateService');
-    await enqueueHealthStateRecompute(patientId, { targetDate });
+    await recomputeAndCacheHealthState(patientId, targetDate);
   } catch (err) {
     logger.warn('Failed to refresh unified health state cache', {
       error: err.message,
@@ -3191,12 +3190,12 @@ router.post('/me/sleep', authenticateSession, async (req, res) => {
     );
 
     logger.info('Sleep logged', { patientId: patient._id, date: dateStr });
-    refreshHealthScoreCache(patient._id, dateStr).catch(() => {});
+    await refreshHealthScoreCache(patient._id, dateStr);
 
     // Also refresh today's cache if targetDate is a historical date
     const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
     if (dateStr !== todayStr) {
-      refreshHealthScoreCache(patient._id, todayStr).catch(() => {});
+      await refreshHealthScoreCache(patient._id, todayStr);
     }
 
     res
