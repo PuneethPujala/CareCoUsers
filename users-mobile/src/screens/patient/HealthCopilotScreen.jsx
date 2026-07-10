@@ -52,7 +52,7 @@ export default function HealthCopilotScreen({ navigation, route }) {
   const [copilotContext, setCopilotContext] = useState(null);
   const [loadingContext, setLoadingContext] = useState(true);
   // Connect to Zustand patient store
-  const { dashboardMeds, optimisticToggleMed, vitals } = usePatientStore();
+  const { dashboardMeds, optimisticToggleMed, vitals, patient, healthHistory } = usePatientStore();
 
   // Checked states for Morning Brief and Care Plan items (stored locally as fallback)
   const [checkedBriefItems, setCheckedBriefItems] = useState({});
@@ -232,9 +232,14 @@ export default function HealthCopilotScreen({ navigation, route }) {
     const brief = copilotContext?.morning_brief || {};
     const carePlan = copilotContext?.care_plan || {};
     const focusItems = brief.focus_items || [];
-    const scoreChange = brief.score_change || "+0";
+    const healthScore = patient?.patient_health_state?.score ?? patient?.health_score?.score ?? brief.health_score ?? 80;
+    const rawWeeklyChange = healthHistory?.deltas?.score_delta_7d ?? 0;
+    const scoreChange = rawWeeklyChange > 0 
+      ? `+${rawWeeklyChange}` 
+      : rawWeeklyChange < 0 
+        ? `${rawWeeklyChange}` 
+        : brief.score_change || "+0";
     const trajectory = brief.forecast || "Stable";
-    const healthScore = brief.health_score || 80;
 
     return (
       <ScrollView
