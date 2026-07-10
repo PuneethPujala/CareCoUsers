@@ -29,12 +29,6 @@ class HealthRepository {
             console.error('HealthRepository fetchAll error:', err);
         }
 
-        // Mock fallback if __DEV__ and no data is returned
-        if (__DEV__) {
-            console.log('🧪 HealthRepository: [DEV ONLY] Generating high-fidelity mock sync payload...');
-            return this.generateDevMockPayload(since, source);
-        }
-
         return { vitals: [], activity: null, body: null };
     }
 
