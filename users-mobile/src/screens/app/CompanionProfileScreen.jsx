@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import LegalModal from '../../components/ui/LegalModal';
 import CompanionHeader from '../../components/ui/CompanionHeader';
 import TabScreenTransition from '../../components/ui/TabScreenTransition';
+import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 
 
@@ -223,11 +224,46 @@ export default function CompanionProfileScreen() {
     return (
         <TabScreenTransition>
             <View style={styles.container}>
-            <CompanionHeader
-                subtitle="Account Setting"
-                title="Companion Profile"
-                onBack={() => navigation.goBack()}
-            />
+                {/* Ambient Background Decorations */}
+                <View style={StyleSheet.absoluteFill}>
+                    <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+                        <Defs>
+                            <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#EDE9FE" stopOpacity="0.75" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgGradient>
+                            <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#FAF5FF" stopOpacity="0.75" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgGradient>
+                        </Defs>
+                        
+                        {/* Top right curvy gradient backdrop */}
+                        <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                        
+                        {/* Bottom left curvy gradient backdrop */}
+                        <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+
+                        {/* Top-right overlapping wavy contours */}
+                        <Path d="M220 0 C280 80, 320 100, 400 70" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M200 0 C265 95, 310 115, 400 90" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M180 0 C250 110, 300 130, 400 110" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+
+                        {/* Stylized sweeping curve lines */}
+                        <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.4" />
+                        <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.25" />
+
+                        {/* Concentric abstract rings */}
+                        <Circle cx="320" cy="480" r="130" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.2" />
+                        <Circle cx="320" cy="480" r="90" stroke={colors.borderLight} strokeWidth="1.2" fill="none" opacity="0.1" />
+                    </Svg>
+                </View>
+                <CompanionHeader
+                    style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
+                    subtitle="Account Setting"
+                    title="Companion Profile"
+                    onBack={() => navigation.goBack()}
+                />
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 {/* 1. Profile Identity Card */}

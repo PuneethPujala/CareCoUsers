@@ -439,7 +439,7 @@ export default function CompanionAnalyticsScreen() {
                     <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
                         <Defs>
                             <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                                <Stop offset="0%" stopColor="#EDE9FE" stopOpacity="0.75" />
                                 <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
                             </SvgGradient>
                         </Defs>
@@ -552,7 +552,7 @@ export default function CompanionAnalyticsScreen() {
                 <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
                     <Defs>
                         <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                            <Stop offset="0%" stopColor="#EDE9FE" stopOpacity="0.75" />
                             <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
                         </SvgGradient>
                     </Defs>
