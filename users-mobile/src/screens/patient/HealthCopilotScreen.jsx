@@ -52,7 +52,7 @@ export default function HealthCopilotScreen({ navigation, route }) {
   const [copilotContext, setCopilotContext] = useState(null);
   const [loadingContext, setLoadingContext] = useState(true);
   // Connect to Zustand patient store
-  const { dashboardMeds, optimisticToggleMed } = usePatientStore();
+  const { dashboardMeds, optimisticToggleMed, vitals } = usePatientStore();
 
   // Checked states for Morning Brief and Care Plan items (stored locally as fallback)
   const [checkedBriefItems, setCheckedBriefItems] = useState({});
@@ -75,7 +75,102 @@ export default function HealthCopilotScreen({ navigation, route }) {
 
   useEffect(() => {
     fetchContext();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchContext();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const isFocusItemCompleted = (item, idx) => {
+    const itemLower = item.toLowerCase();
+
+    // 1. Medication check
+    if (itemLower.includes("medication") || itemLower.includes("meds")) {
+      let slot = null;
+      if (itemLower.includes("morning")) slot = "morning";
+      else if (itemLower.includes("afternoon")) slot = "afternoon";
+      else if (itemLower.includes("evening")) slot = "evening";
+      else if (itemLower.includes("night")) slot = "night";
+
+      if (slot) {
+        const slotMeds = dashboardMeds?.filter(
+          (m) => m.scheduled_time?.toLowerCase() === slot || m.type?.toLowerCase() === slot
+        );
+        if (slotMeds && slotMeds.length > 0) {
+          return slotMeds.every((m) => m.taken);
+        }
+      }
+    }
+
+    // 2. Blood Pressure / Vitals check
+    if (
+      itemLower.includes("bp") ||
+      itemLower.includes("blood pressure") ||
+      itemLower.includes("vitals")
+    ) {
+      if (vitals?.blood_pressure?.systolic != null) {
+        return true;
+      }
+    }
+
+    // 3. Streak check
+    if (itemLower.includes("streak")) {
+      if (dashboardMeds && dashboardMeds.length > 0) {
+        return dashboardMeds.every((m) => m.taken);
+      }
+    }
+
+    // Fallback to manual local checklist state
+    return !!checkedBriefItems[idx];
+  };
+
+  const handleFocusItemPress = async (item, idx) => {
+    const itemLower = item.toLowerCase();
+
+    // 1. Medication
+    if (itemLower.includes("medication") || itemLower.includes("meds")) {
+      let slot = null;
+      if (itemLower.includes("morning")) slot = "morning";
+      else if (itemLower.includes("afternoon")) slot = "afternoon";
+      else if (itemLower.includes("evening")) slot = "evening";
+      else if (itemLower.includes("night")) slot = "night";
+
+      if (slot) {
+        const slotMeds = dashboardMeds?.filter(
+          (m) => m.scheduled_time?.toLowerCase() === slot || m.type?.toLowerCase() === slot
+        );
+        if (slotMeds && slotMeds.length > 0) {
+          const targetState = !slotMeds.every((m) => m.taken);
+          for (const med of slotMeds) {
+            await optimisticToggleMed(med, targetState);
+          }
+          fetchContext();
+          return;
+        }
+      }
+      navigation.navigate("Medications");
+      return;
+    }
+
+    // 2. Blood Pressure / Vitals
+    if (
+      itemLower.includes("bp") ||
+      itemLower.includes("blood pressure") ||
+      itemLower.includes("vitals")
+    ) {
+      navigation.navigate("VitalsHistory");
+      return;
+    }
+
+    // 3. Streak
+    if (itemLower.includes("streak")) {
+      navigation.navigate("Medications");
+      return;
+    }
+
+    // Default: manual toggle
+    toggleBriefItem(idx);
+  };
 
   const toggleBriefItem = (idx) => {
     setCheckedBriefItems((prev) => ({
@@ -228,7 +323,7 @@ export default function HealthCopilotScreen({ navigation, route }) {
             ) : (
               <View style={styles.focusList}>
                 {focusItems.map((item, idx) => {
-                  const isChecked = !!checkedBriefItems[idx];
+                  const isChecked = isFocusItemCompleted(item, idx);
 
                   // Determine indicator color based on task content
                   const itemLower = item.toLowerCase();
@@ -257,7 +352,7 @@ export default function HealthCopilotScreen({ navigation, route }) {
                         isChecked && styles.focusItemRowChecked,
                         pressed && { opacity: 0.8 },
                       ]}
-                      onPress={() => toggleBriefItem(idx)}
+                      onPress={() => handleFocusItemPress(item, idx)}
                     >
                       <View style={styles.checkboxContainer}>
                         {isChecked ? (
