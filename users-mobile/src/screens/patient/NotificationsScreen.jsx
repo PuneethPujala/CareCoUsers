@@ -30,6 +30,7 @@ import { apiService } from "../../lib/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as IntentLauncher from "expo-intent-launcher";
 import TabScreenTransition from "../../components/ui/TabScreenTransition";
+import usePatientStore from "../../store/usePatientStore";
 
 // ─── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -99,6 +100,7 @@ const GROUP_ORDER = [
 
 export default function NotificationsScreen({ navigation }) {
   const reduceMotion = useReduceMotion();
+  const { patient, dashboardMeds, vitals } = usePatientStore();
   const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
@@ -151,34 +153,20 @@ export default function NotificationsScreen({ navigation }) {
   const fetchContext = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, medsRes, notifRes, callsRes] = await Promise.all([
-        apiService.patients.getMe(),
-        apiService.medicines.getToday(),
+      const [notifRes, callsRes] = await Promise.all([
         apiService.patients.getNotifications(),
         apiService.patients.getMyCalls({ limit: 10 }),
       ]);
 
-      const patient = pRes.data.patient;
-      const medicines = medsRes.data.log?.medicines || [];
+      const patientObj = patient || {};
+      const medicines = dashboardMeds || [];
+      const todayVitals = vitals || null;
       const backendNotifs = notifRes.data.notifications || [];
       const recentCalls = callsRes.data.calls || [];
 
-      // Fetch today's vitals
+      // Start of today check (local date helper)
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-
-      let todayVitals = null;
-      try {
-        const vRes = await apiService.patients.getVitals({
-          start_date: todayStart.toISOString(),
-          end_date: todayEnd.toISOString(),
-        });
-        todayVitals = vRes.data.vitals;
-      } catch (_) {
-        /* non-critical */
-      }
 
       const newNotifs = [];
       let nId = 1;
@@ -228,9 +216,7 @@ export default function NotificationsScreen({ navigation }) {
       });
 
       // ── 2. Vitals Contextual Alert ────────────────────────────────
-      const vitalsLogged = Array.isArray(todayVitals)
-        ? todayVitals.length > 0
-        : !!todayVitals?.heart_rate;
+      const vitalsLogged = !!todayVitals && (todayVitals.heart_rate != null || todayVitals.blood_pressure?.systolic != null);
 
       if (!vitalsLogged) {
         newNotifs.push({
@@ -253,7 +239,7 @@ export default function NotificationsScreen({ navigation }) {
 
       // ── 3. Medication Alerts ──────────────────────────────────────
       const currentTime = new Date();
-      const prefs = patient.medication_call_preferences || {
+      const prefs = patientObj.medication_call_preferences || {
         morning: "09:00",
         afternoon: "14:00",
         evening: "17:00",
@@ -326,7 +312,7 @@ export default function NotificationsScreen({ navigation }) {
       }
 
       // ── 5. Appointment Alert (within 7 days) ─────────────────────
-      const upcoming = (patient.appointments || []).filter(
+      const upcoming = (patientObj.appointments || []).filter(
         (a) => a.status === "upcoming",
       );
       upcoming.forEach((a) => {
@@ -353,9 +339,9 @@ export default function NotificationsScreen({ navigation }) {
       });
 
       // ── 6. Subscription Alert (within 7 days) ────────────────────
-      if (patient.subscription?.expires_at) {
+      if (patientObj.subscription?.expires_at) {
         const daysLeft = Math.ceil(
-          (new Date(patient.subscription.expires_at) - new Date()) /
+          (new Date(patientObj.subscription.expires_at) - new Date()) /
             (1000 * 60 * 60 * 24),
         );
         if (daysLeft >= 0 && daysLeft <= 7) {
@@ -385,7 +371,7 @@ export default function NotificationsScreen({ navigation }) {
       setLoading(false);
       runStagger();
     }
-  }, []);
+  }, [patient, dashboardMeds, vitals, runStagger]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
