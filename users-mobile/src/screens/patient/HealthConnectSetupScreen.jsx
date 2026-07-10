@@ -1165,7 +1165,12 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 {/* ── Connected Device Carousel ─────────────────── */}
                 <Animated.View style={[styles.carouselSection, entranceStyle(3)]}>
                     <View style={styles.carouselHeader}>
-                        <Text style={styles.sectionTitleLabel}>COMPATIBLE DEVICES</Text>
+                        <View style={{ flex: 1, paddingRight: 16 }}>
+                            <Text style={styles.sectionTitleLabel}>COMPATIBLE WEARABLES</Text>
+                            <Text style={{ fontSize: 11, ...FONT.medium, color: colors.textMuted, marginTop: 2, lineHeight: 15 }}>
+                                Sync data from your favorite wearable via {platformName}
+                            </Text>
+                        </View>
                         <Pressable onPress={() => AlertManager.alert('Supported Wearables', 'CareMyMed integrates with Apple Watch, Galaxy Watch, Fitbit, Pixel Watch, Garmin, Oura Ring, and more.')}>
                             <Text style={styles.viewAllTxt}>View all</Text>
                         </Pressable>
@@ -1174,51 +1179,31 @@ export default function HealthConnectSetupScreen({ navigation }) {
                         {/* Device 1 */}
                         <View style={styles.deviceCard}>
                             <Image source={galaxyWatchImg} style={styles.deviceImage} resizeMode="contain" />
-                            <Text style={styles.deviceName}>Galaxy Watch</Text>
-                            <View style={styles.deviceStatus}>
-                                <CheckCircle2 size={12} color={colors.textMuted} />
-                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
-                            </View>
+                            <Text style={[styles.deviceName, { marginBottom: 0 }]}>Galaxy Watch</Text>
                         </View>
 
                         {/* Device 2 */}
                         <View style={styles.deviceCard}>
                             <Image source={ouraRingImg} style={styles.deviceImage} resizeMode="contain" />
-                            <Text style={styles.deviceName}>Oura Ring</Text>
-                            <View style={styles.deviceStatus}>
-                                <CheckCircle2 size={12} color={colors.textMuted} />
-                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
-                            </View>
+                            <Text style={[styles.deviceName, { marginBottom: 0 }]}>Oura Ring</Text>
                         </View>
 
                         {/* Device 3 */}
                         <View style={styles.deviceCard}>
                             <Image source={pixelWatchImg} style={styles.deviceImage} resizeMode="contain" />
-                            <Text style={styles.deviceName}>Pixel Watch</Text>
-                            <View style={styles.deviceStatus}>
-                                <CheckCircle2 size={12} color={colors.textMuted} />
-                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
-                            </View>
+                            <Text style={[styles.deviceName, { marginBottom: 0 }]}>Pixel Watch</Text>
                         </View>
 
                         {/* Device 4 */}
                         <View style={styles.deviceCard}>
                             <Image source={fitbitImg} style={styles.deviceImage} resizeMode="contain" />
-                            <Text style={styles.deviceName}>Fitbit Sense</Text>
-                            <View style={styles.deviceStatus}>
-                                <CheckCircle2 size={12} color={colors.textMuted} />
-                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
-                            </View>
+                            <Text style={[styles.deviceName, { marginBottom: 0 }]}>Fitbit Sense</Text>
                         </View>
 
                         {/* Device 5 */}
                         <View style={styles.deviceCard}>
                             <Image source={garminImg} style={styles.deviceImage} resizeMode="contain" />
-                            <Text style={styles.deviceName}>Garmin Venu</Text>
-                            <View style={styles.deviceStatus}>
-                                <CheckCircle2 size={12} color={colors.textMuted} />
-                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
-                            </View>
+                            <Text style={[styles.deviceName, { marginBottom: 0 }]}>Garmin Venu</Text>
                         </View>
                     </ScrollView>
                 </Animated.View>
