@@ -329,9 +329,6 @@ export default function HealthConnectSetupScreen({ navigation }) {
 
         const handleAppStateChange = async (nextAppState) => {
             if (nextAppState === 'active') {
-                setLoadingSkeleton(true);
-                const startTimeAppState = Date.now();
-                
                 await checkCurrentStatus();
                 try {
                     await HealthSyncService.syncNow();
@@ -339,12 +336,6 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 } catch (e) {
                     console.warn('Auto-sync on app active failed:', e);
                 }
-                
-                const elapsed = Date.now() - startTimeAppState;
-                if (elapsed < 500) {
-                    await new Promise(r => setTimeout(r, 500 - elapsed));
-                }
-                setLoadingSkeleton(false);
             }
         };
 
@@ -560,7 +551,6 @@ export default function HealthConnectSetupScreen({ navigation }) {
 
             Vibration.vibrate([0, 80, 50, 80]);
             await trackSetupEvent('manual_sync_completed');
-            AlertManager.alert('Sync Completed', 'All recent vital measurements have been imported.');
         } catch (e) {
             await trackSetupEvent('manual_sync_failed', { error: e.message });
             AlertManager.alert('Sync Failed', 'Could not fetch device logs. Try again later.');
