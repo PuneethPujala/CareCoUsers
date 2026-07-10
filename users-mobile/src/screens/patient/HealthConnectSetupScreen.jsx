@@ -1176,8 +1176,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             <Image source={galaxyWatchImg} style={styles.deviceImage} resizeMode="contain" />
                             <Text style={styles.deviceName}>Galaxy Watch</Text>
                             <View style={styles.deviceStatus}>
-                                <CheckCircle2 size={12} color={colors.success} />
-                                <Text style={styles.deviceStatusTxt}>Active</Text>
+                                <CheckCircle2 size={12} color={colors.textMuted} />
+                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
                             </View>
                         </View>
 
@@ -1186,8 +1186,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             <Image source={ouraRingImg} style={styles.deviceImage} resizeMode="contain" />
                             <Text style={styles.deviceName}>Oura Ring</Text>
                             <View style={styles.deviceStatus}>
-                                <CheckCircle2 size={12} color={colors.success} />
-                                <Text style={styles.deviceStatusTxt}>98% Quality</Text>
+                                <CheckCircle2 size={12} color={colors.textMuted} />
+                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
                             </View>
                         </View>
 
@@ -1197,7 +1197,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             <Text style={styles.deviceName}>Pixel Watch</Text>
                             <View style={styles.deviceStatus}>
                                 <CheckCircle2 size={12} color={colors.textMuted} />
-                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Available</Text>
+                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
                             </View>
                         </View>
 
@@ -1207,7 +1207,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             <Text style={styles.deviceName}>Fitbit Sense</Text>
                             <View style={styles.deviceStatus}>
                                 <CheckCircle2 size={12} color={colors.textMuted} />
-                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Available</Text>
+                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
                             </View>
                         </View>
 
@@ -1217,7 +1217,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             <Text style={styles.deviceName}>Garmin Venu</Text>
                             <View style={styles.deviceStatus}>
                                 <CheckCircle2 size={12} color={colors.textMuted} />
-                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Available</Text>
+                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Supported</Text>
                             </View>
                         </View>
                     </ScrollView>
