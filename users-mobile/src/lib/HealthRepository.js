@@ -303,6 +303,16 @@ class AndroidHealthAdapter {
 
     static async _fetchActivity(HealthConnect, timeFilter, endTime) {
         try {
+            const startOfToday = new Date(endTime);
+            startOfToday.setHours(0, 0, 0, 0);
+            const dailyTimeFilter = {
+                timeRangeFilter: {
+                    operator: 'between',
+                    startTime: startOfToday.toISOString(),
+                    endTime: endTime.toISOString(),
+                },
+            };
+
             const safeRead = async (type) => {
                 try {
                     return await HealthConnect.readRecords(type, timeFilter);
@@ -311,12 +321,20 @@ class AndroidHealthAdapter {
                 }
             };
 
+            const safeReadDaily = async (type) => {
+                try {
+                    return await HealthConnect.readRecords(type, dailyTimeFilter);
+                } catch (e) {
+                    return null;
+                }
+            };
+
             const [steps, dist, actCal, totCal, floors, vo2, exercises] = await Promise.all([
-                safeRead('Steps'),
-                safeRead('Distance'),
-                safeRead('ActiveCaloriesBurned'),
-                safeRead('TotalCaloriesBurned'),
-                safeRead('FloorsClimbed'),
+                safeReadDaily('Steps'),
+                safeReadDaily('Distance'),
+                safeReadDaily('ActiveCaloriesBurned'),
+                safeReadDaily('TotalCaloriesBurned'),
+                safeReadDaily('FloorsClimbed'),
                 safeRead('Vo2Max'),
                 safeRead('ExerciseSession'),
             ]);
@@ -559,11 +577,19 @@ class IOSHealthAdapter {
 
     static async _fetchActivity(AppleHealthKit, options, endTime) {
         try {
-            const stepsPromise = new Promise(r => AppleHealthKit.getDailyStepCountSamples(options, (err, res) => r(err ? [] : res)));
-            const distPromise = new Promise(r => AppleHealthKit.getDistanceWalkingRunning(options, (err, res) => r(err ? [] : res)));
-            const activeEnergyPromise = new Promise(r => AppleHealthKit.getActiveEnergyBurned(options, (err, res) => r(err ? [] : res)));
-            const basalEnergyPromise = new Promise(r => AppleHealthKit.getBasalEnergyBurned(options, (err, res) => r(err ? [] : res)));
-            const flightsPromise = new Promise(r => AppleHealthKit.getFlightsClimbed(options, (err, res) => r(err ? [] : res)));
+            const startOfToday = new Date(endTime);
+            startOfToday.setHours(0, 0, 0, 0);
+            const dailyOptions = {
+                startDate: startOfToday.toISOString(),
+                endDate: endTime.toISOString(),
+                limit: 1000,
+            };
+
+            const stepsPromise = new Promise(r => AppleHealthKit.getDailyStepCountSamples(dailyOptions, (err, res) => r(err ? [] : res)));
+            const distPromise = new Promise(r => AppleHealthKit.getDistanceWalkingRunning(dailyOptions, (err, res) => r(err ? [] : res)));
+            const activeEnergyPromise = new Promise(r => AppleHealthKit.getActiveEnergyBurned(dailyOptions, (err, res) => r(err ? [] : res)));
+            const basalEnergyPromise = new Promise(r => AppleHealthKit.getBasalEnergyBurned(dailyOptions, (err, res) => r(err ? [] : res)));
+            const flightsPromise = new Promise(r => AppleHealthKit.getFlightsClimbed(dailyOptions, (err, res) => r(err ? [] : res)));
             const vo2Promise = new Promise(r => AppleHealthKit.getVo2MaxSamples(options, (err, res) => r(err ? [] : res)));
             const workoutsPromise = new Promise(r => AppleHealthKit.getSamples({ type: 'Workout', ...options }, (err, res) => r(err ? [] : res)));
 

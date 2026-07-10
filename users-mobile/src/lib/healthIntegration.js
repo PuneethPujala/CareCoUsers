@@ -90,8 +90,23 @@ export const hasPermissions = (granted, requested, mode = 'all') => {
             const recType = (p.recordType || '').toLowerCase();
             const reqType = (req.recordType || '').toLowerCase();
 
-            if (SLEEP_ALIASES.includes(reqType)) {
-                return SLEEP_ALIASES.includes(recType);
+            if (reqType.includes('sleep')) {
+                return recType.includes('sleep');
+            }
+            if (reqType.includes('exercise')) {
+                return recType.includes('exercise');
+            }
+            if (reqType.includes('pressure')) {
+                return recType.includes('pressure');
+            }
+            if (reqType.includes('oxygen')) {
+                return recType.includes('oxygen');
+            }
+            if (reqType.includes('temperature')) {
+                return recType.includes('temperature');
+            }
+            if (reqType.includes('glucose')) {
+                return recType.includes('glucose');
             }
             return recType === reqType;
         });
@@ -863,16 +878,16 @@ export const getDetailedPermissionStatus = async () => {
             if (Array.isArray(granted)) {
                 granted.forEach(p => {
                     const recType = (p.recordType || '').toLowerCase();
-                    if (recType === 'heartrate') statusMap.heartRate = true;
-                    else if (recType === 'bloodpressure') statusMap.bloodPressure = true;
-                    else if (SLEEP_ALIASES.includes(recType)) statusMap.sleep = true;
-                    else if (recType === 'oxygensaturation') statusMap.oxygen = true;
-                    else if (recType === 'hydration') statusMap.hydration = true;
-                    else if (recType === 'bodytemperature') statusMap.temperature = true;
-                    else if (recType === 'steps') statusMap.steps = true;
-                    else if (recType === 'exercisesession') statusMap.exercise = true;
-                    else if (recType === 'weight') statusMap.weight = true;
-                    else if (recType === 'bloodglucose') statusMap.glucose = true;
+                    if (recType.includes('heartrate')) statusMap.heartRate = true;
+                    else if (recType.includes('bloodpressure') || recType.includes('pressure')) statusMap.bloodPressure = true;
+                    else if (recType.includes('sleep')) statusMap.sleep = true;
+                    else if (recType.includes('oxygen')) statusMap.oxygen = true;
+                    else if (recType.includes('hydration')) statusMap.hydration = true;
+                    else if (recType.includes('temperature')) statusMap.temperature = true;
+                    else if (recType.includes('steps')) statusMap.steps = true;
+                    else if (recType.includes('exercise')) statusMap.exercise = true;
+                    else if (recType.includes('weight')) statusMap.weight = true;
+                    else if (recType.includes('glucose')) statusMap.glucose = true;
                 });
             }
         } catch (e) {
