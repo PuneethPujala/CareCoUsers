@@ -1127,20 +1127,22 @@ export default function PatientHomeScreen({ navigation }) {
       night: t("time_slots.night", { defaultValue: "Night" }),
     };
     for (const s of slots) {
-      if (hour < (slotEndHours[s] || 24)) {
-        const slotPending = pending.filter((m) => m.type === s);
-        if (slotPending.length > 0)
-          return {
-            slot: timeLabels[s] || s,
-            time: prefs[s] || "",
-            count: slotPending.length,
-          };
+      const slotPending = pending.filter((m) => m.type === s);
+      if (slotPending.length > 0) {
+        const isOverdue = hour >= (slotEndHours[s] || 24);
+        return {
+          slot: timeLabels[s] || s,
+          time: prefs[s] || "",
+          count: slotPending.length,
+          overdue: isOverdue,
+        };
       }
     }
     return {
       slot: t("home.later", { defaultValue: "Later" }),
       time: "",
       count: pending.length,
+      overdue: false,
     };
   };
   const nextDose = getNextDose();
@@ -1552,6 +1554,9 @@ export default function PatientHomeScreen({ navigation }) {
       return `Your health score is up by +${scoreDiff} this month`;
     }
     if (nextDose) {
+      if (nextDose.overdue) {
+        return `Overdue: ${nextDose.slot} medication (${nextDose.time})`;
+      }
       return `Next medication: ${nextDose.slot} (${nextDose.time})`;
     }
     if (takenCount > 0) {
@@ -2430,7 +2435,9 @@ export default function PatientHomeScreen({ navigation }) {
 
               <Text style={styles.orbNextDose}>
                 {nextDose
-                  ? `${t("home.next_dose", { slot: nextDose.slot, defaultValue: `Next Dose: ${nextDose.slot}` })}${nextDose.time ? ` (${nextDose.time})` : ""}`
+                  ? nextDose.overdue
+                    ? `Overdue: ${nextDose.slot}${nextDose.time ? ` (${nextDose.time})` : ""}`
+                    : `${t("home.next_dose", { slot: nextDose.slot, defaultValue: `Next Dose: ${nextDose.slot}` })}${nextDose.time ? ` (${nextDose.time})` : ""}`
                   : t("home.all_done_today", {
                       defaultValue: "All medications completed! 🎉",
                     })}
