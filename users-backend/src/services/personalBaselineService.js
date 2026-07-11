@@ -22,6 +22,29 @@ const STD_FLOORS = {
   adherence: 15.0,
 };
 
+// Clinically accepted "normal" ranges. Values inside these ranges will not trigger anomalies.
+const CLINICAL_NORMAL_RANGES = {
+  systolic: { min: 90, max: 130 },
+  diastolic: { min: 60, max: 85 },
+  heart_rate: { min: 60, max: 90 },
+  oxygen_saturation: { min: 95 },
+  sleep_hours: { min: 7.0, max: 9.0 },
+  mood: { ignore: (value) => value >= 3 }, // Good or Great mood
+  adherence: { min: 85 },
+};
+
+/**
+ * Determine if a health feature value is within the clinically accepted normal range.
+ */
+function isClinicallyNormal(key, value) {
+  const range = CLINICAL_NORMAL_RANGES[key];
+  if (!range) return false;
+  if (range.ignore) return range.ignore(value);
+  if (range.min !== undefined && value < range.min) return false;
+  if (range.max !== undefined && value > range.max) return false;
+  return true;
+}
+
 /**
  * Calculates Z-scores for the current day's features compared to the last 30 days.
  *
@@ -130,17 +153,8 @@ function calculatePersonalAnomaly(
     // Generate explainable insights for significant deviations
     const absZ = Math.abs(z_scores[key]);
     if (absZ >= 1.5) {
-      // Clinical Sanity Checks: skip normal/healthy values and reset their Z-scores
-      const isHealthy =
-        (key === 'mood' && currentVal >= 3) ||
-        (key === 'oxygen_saturation' && currentVal >= 95) ||
-        (key === 'heart_rate' && currentVal >= 60 && currentVal <= 90) ||
-        (key === 'systolic' && currentVal >= 90 && currentVal <= 130) ||
-        (key === 'diastolic' && currentVal >= 60 && currentVal <= 85) ||
-        (key === 'adherence' && currentVal >= 85) ||
-        (key === 'sleep_hours' && currentVal >= 7.0 && currentVal <= 9.0);
-
-      if (isHealthy) {
+      // Clinical Sanity Check: skip normal/healthy values and reset their Z-scores
+      if (isClinicallyNormal(key, currentVal)) {
         z_scores[key] = 0.0;
         continue;
       }
@@ -201,4 +215,4 @@ function calculatePersonalAnomaly(
   };
 }
 
-module.exports = { calculatePersonalAnomaly };
+module.exports = { calculatePersonalAnomaly, CLINICAL_NORMAL_RANGES, isClinicallyNormal };
