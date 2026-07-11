@@ -195,23 +195,16 @@ function calculatePersonalAnomaly(
     }
   }
 
-  // Calculate overall anomaly level
-  const maxAbsZ = Math.max(...Object.values(z_scores).map(Math.abs));
-  let anomaly_level = 'normal';
-  if (maxAbsZ >= 3.0) {
-    anomaly_level = 'extreme';
-  } else if (maxAbsZ >= 2.0) {
-    anomaly_level = 'significant';
-  } else if (maxAbsZ >= 1.5) {
-    anomaly_level = 'mild';
-  }
+  // Clinical ranges are pending geriatric medical board review.
+  // In the interim, auto-flagging and baseline alerts are disabled.
+  const anomaly_level = 'normal';
 
   return {
     z_scores,
     anomaly_level,
-    insights,
+    insights: [],
     stats,
-    max_z: maxAbsZ,
+    max_z: 0.0,
   };
 }
 

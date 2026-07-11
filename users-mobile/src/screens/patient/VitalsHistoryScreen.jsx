@@ -188,6 +188,56 @@ class ChartErrorBoundary extends React.Component {
     }
 }
 
+const getMinSpanData = (metricId, timeRange, rangeData, mainData, vitals, extractAlt) => {
+    const MIN_SPANS = {
+        heart_rate: 30,
+        blood_pressure: 40,
+        oxygen_saturation: 10,
+        hydration: 20,
+    };
+
+    const targetSpan = MIN_SPANS[metricId] || 10;
+    let dataMax = 0;
+    let dataMin = 0;
+
+    if (timeRange !== 'today' && rangeData && rangeData.length > 0) {
+        const allMaxs = rangeData.map(d => d.max || 0);
+        const allMins = rangeData.map(d => d.min || 0);
+        const allY = rangeData.map(d => d.y || 0);
+        
+        dataMax = Math.max(...allMaxs, ...allY, 0);
+        dataMin = Math.min(...allMins.filter(v => v > 0), ...allY.filter(v => v > 0), dataMax);
+        
+        const currentSpan = dataMax - dataMin;
+        if (currentSpan < targetSpan) {
+            const pad = (targetSpan - currentSpan) / 2;
+            dataMax += pad;
+            dataMin = Math.max(0, dataMin - pad);
+        }
+        return {
+            maxData: rangeData.map(() => dataMax),
+            minData: rangeData.map(() => dataMin),
+        };
+    } else {
+        const altData = extractAlt ? vitals.map(v => Number(extractAlt(v)) || 0).reverse() : [];
+        const allVals = [...(mainData || []), ...altData].filter(v => v > 0);
+        
+        dataMax = allVals.length > 0 ? Math.max(...allVals) : 0;
+        dataMin = allVals.length > 0 ? Math.min(...allVals) : 0;
+        
+        const currentSpan = dataMax - dataMin;
+        if (currentSpan < targetSpan) {
+            const pad = (targetSpan - currentSpan) / 2;
+            dataMax += pad;
+            dataMin = Math.max(0, dataMin - pad);
+        }
+        return {
+            maxData: (mainData || []).map(() => dataMax),
+            minData: (mainData || []).map(() => dataMin),
+        };
+    }
+};
+
 export default function VitalsHistoryScreen({ navigation }) {
     // ─── State & Refs ────────────────────────────────────────────
     const [vitals, setVitals] = useState([]);
@@ -716,6 +766,16 @@ export default function VitalsHistoryScreen({ navigation }) {
         
         const rangeData = timeRange !== 'today' ? getRangeData(def.id) : [];
         const hasData = mainData.some(v => v > 0) || rangeData.some(d => (d.y || 0) > 0);
+
+        const { maxData: finalMaxData, minData: finalMinData } = getMinSpanData(
+            def.id,
+            timeRange,
+            rangeData,
+            mainData,
+            vitals,
+            def.extractAlt
+        );
+
         const chartConfig = {
             ...makeChartConfig(def.accent),
             fillShadowGradient: def.accent, fillShadowGradientOpacity: 0.15,
@@ -767,8 +827,8 @@ export default function VitalsHistoryScreen({ navigation }) {
                                     data={{
                                         labels: rangeData.map((d, i) => i % Math.ceil(rangeData.length / 6) === 0 ? d.x : ''),
                                         datasets: [
-                                            { data: rangeData.map(d => d.max || 0), color: () => 'transparent', strokeWidth: 0, withDots: false },
-                                            { data: rangeData.map(d => d.min || 0), color: () => 'transparent', strokeWidth: 0, withDots: false },
+                                            { data: finalMaxData, color: () => 'transparent', strokeWidth: 0, withDots: false },
+                                            { data: finalMinData, color: () => 'transparent', strokeWidth: 0, withDots: false },
                                             { data: rangeData.map(d => d.y || 0), color: () => def.accent, strokeWidth: 3 },
                                         ],
                                     }}
@@ -789,6 +849,8 @@ export default function VitalsHistoryScreen({ navigation }) {
                                 data={{
                                     labels: labels.map((l, i) => i % Math.ceil(labels.length / 5) === 0 ? l : ''),
                                     datasets: [
+                                        { data: finalMaxData, color: () => 'transparent', strokeWidth: 0, withDots: false },
+                                        { data: finalMinData, color: () => 'transparent', strokeWidth: 0, withDots: false },
                                         { data: mainData, color: () => def.accent, strokeWidth: 3 },
                                         ...(def.extractAlt ? [{ data: vitals.map(v => Number(def.extractAlt(v)) || 0).reverse(), color: () => '#94A3B840', strokeWidth: 2, withDots: false }] : [])
                                     ]
@@ -847,6 +909,16 @@ export default function VitalsHistoryScreen({ navigation }) {
                 : `${d.getMonth() + 1}/${d.getDate()}`;
         }).reverse();
         const rangeData = timeRange !== 'today' ? getRangeData(def.id) : [];
+
+        const { maxData: finalMaxData, minData: finalMinData } = getMinSpanData(
+            def.id,
+            timeRange,
+            rangeData,
+            mainData,
+            vitals,
+            def.extractAlt
+        );
+
         const chartConfig = {
             ...makeChartConfig(def.accent),
             fillShadowGradient: def.accent, fillShadowGradientOpacity: 0.2,
@@ -874,15 +946,17 @@ export default function VitalsHistoryScreen({ navigation }) {
                                     labels: timeRange !== 'today'
                                         ? rangeData.map((d, i) => i % Math.ceil(rangeData.length / 12) === 0 ? d.x : '')
                                         : labels.map((l, i) => i % Math.ceil(labels.length / 10) === 0 ? l : ''),
-                                    datasets: timeRange !== 'today' ? [
-                                        { data: rangeData.map(d => d.max || 0), color: () => 'transparent', strokeWidth: 0, withDots: false },
-                                        { data: rangeData.map(d => d.min || 0), color: () => 'transparent', strokeWidth: 0, withDots: false },
-                                        { data: rangeData.map(d => d.y || 0), color: () => def.accent, strokeWidth: 4 },
-                                    ] : [
-                                        { data: mainData, color: () => def.accent, strokeWidth: 3 },
-                                        ...(def.extractAlt ? [{ data: vitals.map(v => Number(def.extractAlt(v)) || 0).reverse(), color: () => '#94A3B840', strokeWidth: 2, withDots: false }] : [])
+                                    datasets: [
+                                        { data: finalMaxData, color: () => 'transparent', strokeWidth: 0, withDots: false },
+                                        { data: finalMinData, color: () => 'transparent', strokeWidth: 0, withDots: false },
+                                        ...(timeRange !== 'today' ? [
+                                            { data: rangeData.map(d => d.y || 0), color: () => def.accent, strokeWidth: 4 }
+                                        ] : [
+                                            { data: mainData, color: () => def.accent, strokeWidth: 3 },
+                                            ...(def.extractAlt ? [{ data: vitals.map(v => Number(def.extractAlt(v)) || 0).reverse(), color: () => '#94A3B840', strokeWidth: 2, withDots: false }] : [])
+                                        ])
                                     ],
-                                    legend: timeRange !== 'today' ? ['Max', 'Min', 'Avg'] : (def.legend || []),
+                                    legend: timeRange !== 'today' ? ['Max', 'Min', 'Avg'] : (def.legend ? ['', '', ...def.legend] : []),
                                 }}
                                 width={w} height={h} chartConfig={chartConfig}
                                 bezier={timeRange !== 'today' ? rangeData.length > 1 : mainData.length > 1}
