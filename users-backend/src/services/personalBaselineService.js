@@ -215,4 +215,8 @@ function calculatePersonalAnomaly(
   };
 }
 
-module.exports = { calculatePersonalAnomaly, CLINICAL_NORMAL_RANGES, isClinicallyNormal };
+module.exports = {
+  calculatePersonalAnomaly,
+  CLINICAL_NORMAL_RANGES,
+  isClinicallyNormal,
+};
