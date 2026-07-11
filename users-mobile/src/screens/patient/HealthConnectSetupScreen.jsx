@@ -17,6 +17,7 @@ import {
     isHealthSupported,
     openHealthSettings,
     getDetailedPermissionStatus,
+    normalizeGrantedPermissions,
 } from '../../lib/healthIntegration';
 import HealthSyncService from '../../services/HealthSyncService';
 import HealthRepository from '../../lib/HealthRepository';
@@ -189,7 +190,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
             try {
                 const HealthConnect = require('react-native-health-connect');
                 const granted = await HealthConnect.getGrantedPermissions();
-                const grantedTypes = granted.map(p => p.recordType);
+                const normalized = normalizeGrantedPermissions(granted);
+                const grantedTypes = normalized.map(p => p.recordType);
                 
                 setSyncActivityEnabled(grantedTypes.includes('Steps') || grantedTypes.includes('ExerciseSession'));
                 setSyncBodyEnabled(grantedTypes.includes('Weight') || grantedTypes.includes('Height'));

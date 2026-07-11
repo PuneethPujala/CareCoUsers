@@ -6,6 +6,8 @@ import {
     isHealthSupported,
     REQUIRED_PERMISSIONS,
     OPTIONAL_PERMISSIONS,
+    normalizeGrantedPermissions,
+    fetchSleepSessions,
 } from '../lib/healthIntegration';
 import HealthRepository from '../lib/HealthRepository';
 import { apiService } from '../lib/api';
@@ -221,7 +223,8 @@ class HealthSyncService {
                 try {
                     const HealthConnect = require('react-native-health-connect');
                     const granted = await HealthConnect.getGrantedPermissions();
-                    granted.forEach(p => {
+                    const normalized = normalizeGrantedPermissions(granted);
+                    normalized.forEach(p => {
                         if (p.recordType) grantedPermissions.push(p.recordType);
                     });
                 } catch (e) {}
@@ -255,6 +258,40 @@ class HealthSyncService {
                     }
                 } catch (err) {
                     console.error('Health sync payload upload failed:', err.message);
+                }
+            }
+
+            // 5.5 Auto-sync sleep sessions from device if permission is granted
+            if (Platform.OS === 'android' || Platform.OS === 'ios') {
+                try {
+                    const isHealthInit = await initializeHealthPlatform();
+                    if (isHealthInit) {
+                        const permStatus = await checkPermissionStatus();
+                        if (permStatus === 'granted') {
+                            const sessions = await fetchSleepSessions(sinceTimestamp);
+                            if (sessions && sessions.length > 0) {
+                                for (const session of sessions) {
+                                    const start = new Date(session.startTime);
+                                    const end = new Date(session.endTime);
+                                    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                                    if (durationHours >= 3 && durationHours <= 16) {
+                                        const mm = String(end.getMonth() + 1).padStart(2, '0');
+                                        const dd = String(end.getDate()).padStart(2, '0');
+                                        const formattedDate = `${end.getFullYear()}-${mm}-${dd}`;
+                                        
+                                        await apiService.patients.logSleep({
+                                            date: formattedDate,
+                                            hours: Math.round(durationHours * 10) / 10,
+                                            quality: 'good',
+                                            source: 'wearable',
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (sleepSyncErr) {
+                    console.warn('Failed to auto-sync sleep sessions:', sleepSyncErr);
                 }
             }
 

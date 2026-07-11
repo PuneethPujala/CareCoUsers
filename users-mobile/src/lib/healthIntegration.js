@@ -73,17 +73,61 @@ export const OPTIONAL_PERMISSIONS = [
 ];
 
 /**
+ * Normalize granted permissions (which can be a list of strings or objects depending on the SDK behavior).
+ */
+export const normalizeGrantedPermissions = (granted) => {
+    if (!granted || !Array.isArray(granted)) return [];
+    return granted.map(p => {
+        if (p && typeof p === 'object' && p.recordType) {
+            return {
+                accessType: p.accessType || 'read',
+                recordType: p.recordType
+            };
+        }
+        if (typeof p === 'string') {
+            const lower = p.toLowerCase();
+            let accessType = 'read';
+            if (lower.includes('.write_')) {
+                accessType = 'write';
+            }
+            
+            let recordType = '';
+            if (lower.includes('heart_rate') || lower.includes('heartrate')) recordType = 'HeartRate';
+            else if (lower.includes('blood_pressure') || lower.includes('bloodpressure') || lower.includes('pressure')) recordType = 'BloodPressure';
+            else if (lower.includes('sleep_session') || lower.includes('sleepsession') || lower.includes('sleep')) recordType = 'SleepSession';
+            else if (lower.includes('oxygen_saturation') || lower.includes('oxygen')) recordType = 'OxygenSaturation';
+            else if (lower.includes('hydration')) recordType = 'Hydration';
+            else if (lower.includes('body_temperature') || lower.includes('temperature')) recordType = 'BodyTemperature';
+            else if (lower.includes('steps')) recordType = 'Steps';
+            else if (lower.includes('distance')) recordType = 'Distance';
+            else if (lower.includes('exercise')) recordType = 'ExerciseSession';
+            else if (lower.includes('active_calories') || lower.includes('calories')) recordType = 'ActiveCaloriesBurned';
+            else if (lower.includes('weight')) recordType = 'Weight';
+            else if (lower.includes('glucose')) recordType = 'BloodGlucose';
+            else if (lower.includes('respiratory')) recordType = 'RespiratoryRate';
+            else if (lower.includes('vo2')) recordType = 'Vo2Max';
+            
+            if (recordType) {
+                return { accessType, recordType };
+            }
+        }
+        return null;
+    }).filter(Boolean);
+};
+
+/**
  * Check if the granted permissions satisfy the requested permissions.
  * @param {Array} granted - Array of currently granted permissions
  * @param {Array} requested - Array of requested permissions
  * @param {'all'|'any'} mode - Verification mode
  */
 export const hasPermissions = (granted, requested, mode = 'all') => {
-    if (!granted || !Array.isArray(granted)) return false;
+    if (!granted) return false;
+    const normalizedGranted = normalizeGrantedPermissions(granted);
     if (!requested || !Array.isArray(requested)) return true;
 
     const checkSinglePermission = (req) => {
-        return granted.some(p => {
+        return normalizedGranted.some(p => {
             const accessTypeMatch = p.accessType === req.accessType;
             if (!accessTypeMatch) return false;
 
@@ -875,8 +919,9 @@ export const getDetailedPermissionStatus = async () => {
             if (!isInitialized) return statusMap;
 
             const granted = await HealthConnect.getGrantedPermissions();
-            if (Array.isArray(granted)) {
-                granted.forEach(p => {
+            const normalizedGranted = normalizeGrantedPermissions(granted);
+            if (Array.isArray(normalizedGranted)) {
+                normalizedGranted.forEach(p => {
                     const recType = (p.recordType || '').toLowerCase();
                     if (recType.includes('heartrate')) statusMap.heartRate = true;
                     else if (recType.includes('bloodpressure') || recType.includes('pressure')) statusMap.bloodPressure = true;
