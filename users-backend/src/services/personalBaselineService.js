@@ -11,6 +11,17 @@ const moment = require('moment-timezone');
 
 const MOOD_VALUES = { sad: 1, okay: 2, good: 3, great: 4 };
 
+// Clinical standard deviation floors to prevent division by zero or near-zero scaling of tiny variations
+const STD_FLOORS = {
+  systolic: 10.0,
+  diastolic: 5.0,
+  heart_rate: 8.0,
+  oxygen_saturation: 1.5,
+  sleep_hours: 1.0,
+  mood: 0.8,
+  adherence: 15.0,
+};
+
 /**
  * Calculates Z-scores for the current day's features compared to the last 30 days.
  *
@@ -98,7 +109,13 @@ function calculatePersonalAnomaly(
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
     const variance =
       vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
-    const std = Math.sqrt(variance);
+    let std = Math.sqrt(variance);
+
+    // Apply standard deviation floor
+    const minStd = STD_FLOORS[key] || 1.0;
+    if (std < minStd) {
+      std = minStd;
+    }
 
     stats[key] = { mean, std, count: vals.length };
 
@@ -108,19 +125,26 @@ function calculatePersonalAnomaly(
       continue;
     }
 
-    if (std === 0) {
-      // Standard deviation is 0 (all values are identical), deviation from it is either 0 or infinity.
-      // If today matches mean, Z is 0. Else if it deviates, treat it as a significant deviation if large,
-      // but to be safe and avoid division by zero, we map Z-score to 0 or a fixed value.
-      z_scores[key] =
-        currentVal === mean ? 0.0 : currentVal > mean ? 3.0 : -3.0;
-    } else {
-      z_scores[key] = parseFloat(((currentVal - mean) / std).toFixed(2));
-    }
+    z_scores[key] = parseFloat(((currentVal - mean) / std).toFixed(2));
 
     // Generate explainable insights for significant deviations
     const absZ = Math.abs(z_scores[key]);
     if (absZ >= 1.5) {
+      // Clinical Sanity Checks: skip normal/healthy values and reset their Z-scores
+      const isHealthy =
+        (key === 'mood' && currentVal >= 3) ||
+        (key === 'oxygen_saturation' && currentVal >= 95) ||
+        (key === 'heart_rate' && currentVal >= 60 && currentVal <= 90) ||
+        (key === 'systolic' && currentVal >= 90 && currentVal <= 130) ||
+        (key === 'diastolic' && currentVal >= 60 && currentVal <= 85) ||
+        (key === 'adherence' && currentVal >= 85) ||
+        (key === 'sleep_hours' && currentVal >= 7.0 && currentVal <= 9.0);
+
+      if (isHealthy) {
+        z_scores[key] = 0.0;
+        continue;
+      }
+
       const zStr = absZ.toFixed(1);
       const direction = z_scores[key] > 0 ? 'above' : 'below';
 
