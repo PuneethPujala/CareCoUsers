@@ -186,6 +186,22 @@ export default function HealthConnectSetupScreen({ navigation }) {
     };
 
     const checkOptionalPerms = async () => {
+        let isActivityUserEnabled = true;
+        let isBodyUserEnabled = true;
+        let isGlucoseUserEnabled = true;
+        let isExtVitalsUserEnabled = true;
+
+        try {
+            const disabledStr = await AsyncStorage.getItem('@CareMyMed_sync_disabled_categories');
+            if (disabledStr) {
+                const disabled = JSON.parse(disabledStr);
+                if (disabled.activity) isActivityUserEnabled = false;
+                if (disabled.body) isBodyUserEnabled = false;
+                if (disabled.glucose) isGlucoseUserEnabled = false;
+                if (disabled.extvitals) isExtVitalsUserEnabled = false;
+            }
+        } catch (e) {}
+
         if (Platform.OS === 'android') {
             try {
                 const HealthConnect = require('react-native-health-connect');
@@ -193,24 +209,65 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 const normalized = normalizeGrantedPermissions(granted);
                 const grantedTypes = normalized.map(p => p.recordType);
                 
-                setSyncActivityEnabled(grantedTypes.includes('Steps') || grantedTypes.includes('ExerciseSession'));
-                setSyncBodyEnabled(grantedTypes.includes('Weight') || grantedTypes.includes('Height'));
-                setSyncGlucoseEnabled(grantedTypes.includes('BloodGlucose'));
-                setSyncExtVitalsEnabled(grantedTypes.includes('RespiratoryRate') || grantedTypes.includes('Vo2Max'));
+                setSyncActivityEnabled(isActivityUserEnabled && (grantedTypes.includes('Steps') || grantedTypes.includes('ExerciseSession')));
+                setSyncBodyEnabled(isBodyUserEnabled && (grantedTypes.includes('Weight') || grantedTypes.includes('Height')));
+                setSyncGlucoseEnabled(isGlucoseUserEnabled && grantedTypes.includes('BloodGlucose'));
+                setSyncExtVitalsEnabled(isExtVitalsUserEnabled && (grantedTypes.includes('RespiratoryRate') || grantedTypes.includes('Vo2Max')));
             } catch (e) {}
         } else if (Platform.OS === 'ios') {
             const saved = await AsyncStorage.getItem('@CareMyMed_optional_perms_granted');
             if (saved) {
                 const parsed = JSON.parse(saved);
-                setSyncActivityEnabled(parsed.activity);
-                setSyncBodyEnabled(parsed.body);
-                setSyncGlucoseEnabled(parsed.glucose);
-                setSyncExtVitalsEnabled(parsed.extvitals);
+                setSyncActivityEnabled(isActivityUserEnabled && parsed.activity);
+                setSyncBodyEnabled(isBodyUserEnabled && parsed.body);
+                setSyncGlucoseEnabled(isGlucoseUserEnabled && parsed.glucose);
+                setSyncExtVitalsEnabled(isExtVitalsUserEnabled && parsed.extvitals);
             }
         }
     };
 
     const toggleOptionalCategory = async (category) => {
+        const categoryLabels = {
+            activity: 'Steps & Daily Activity',
+            body: 'Weight & Body Composition',
+            glucose: 'Blood Glucose',
+            extvitals: 'VO₂ Max & Respiratory Rate'
+        };
+        const label = categoryLabels[category] || category;
+
+        const isCurrentEnabled = 
+            category === 'activity' ? syncActivityEnabled :
+            category === 'body' ? syncBodyEnabled :
+            category === 'glucose' ? syncGlucoseEnabled :
+            category === 'extvitals' ? syncExtVitalsEnabled : false;
+
+        if (isCurrentEnabled) {
+            // Disabling the category in-app
+            if (category === 'activity') setSyncActivityEnabled(false);
+            if (category === 'body') setSyncBodyEnabled(false);
+            if (category === 'glucose') setSyncGlucoseEnabled(false);
+            if (category === 'extvitals') setSyncExtVitalsEnabled(false);
+
+            try {
+                const disabledStr = await AsyncStorage.getItem('@CareMyMed_sync_disabled_categories');
+                const disabled = disabledStr ? JSON.parse(disabledStr) : {};
+                disabled[category] = true;
+                await AsyncStorage.setItem('@CareMyMed_sync_disabled_categories', JSON.stringify(disabled));
+
+                if (Platform.OS === 'ios') {
+                    const saved = await AsyncStorage.getItem('@CareMyMed_optional_perms_granted');
+                    const parsed = saved ? JSON.parse(saved) : {};
+                    parsed[category] = false;
+                    await AsyncStorage.setItem('@CareMyMed_optional_perms_granted', JSON.stringify(parsed));
+                }
+            } catch (e) {
+                console.warn('Failed to save disabled category:', e);
+            }
+
+            AlertManager.alert('Sync Paused', `CareMyMed will stop syncing ${label} metrics.`);
+            return;
+        }
+
         let typesToRequest = [];
         switch (category) {
             case 'activity':
@@ -239,17 +296,26 @@ export default function HealthConnectSetupScreen({ navigation }) {
             const updated = await getDetailedPermissionStatus();
             setPermissionsMap(updated);
 
-            if (Platform.OS === 'ios') {
-                const state = {
-                    activity: category === 'activity' ? true : syncActivityEnabled,
-                    body: category === 'body' ? true : syncBodyEnabled,
-                    glucose: category === 'glucose' ? true : syncGlucoseEnabled,
-                    extvitals: category === 'extvitals' ? true : syncExtVitalsEnabled,
-                };
-                await AsyncStorage.setItem('@CareMyMed_optional_perms_granted', JSON.stringify(state));
+            try {
+                const disabledStr = await AsyncStorage.getItem('@CareMyMed_sync_disabled_categories');
+                const disabled = disabledStr ? JSON.parse(disabledStr) : {};
+                delete disabled[category];
+                await AsyncStorage.setItem('@CareMyMed_sync_disabled_categories', JSON.stringify(disabled));
+
+                if (Platform.OS === 'ios') {
+                    const state = {
+                        activity: category === 'activity' ? true : syncActivityEnabled,
+                        body: category === 'body' ? true : syncBodyEnabled,
+                        glucose: category === 'glucose' ? true : syncGlucoseEnabled,
+                        extvitals: category === 'extvitals' ? true : syncExtVitalsEnabled,
+                    };
+                    await AsyncStorage.setItem('@CareMyMed_optional_perms_granted', JSON.stringify(state));
+                }
+            } catch (e) {
+                console.warn('Failed to update storage:', e);
             }
 
-            AlertManager.alert('Permission Granted', `CareMyMed will now sync ${category} metrics.`);
+            AlertManager.alert('Permission Granted', `CareMyMed will now sync ${label} metrics.`);
         } else {
             AlertManager.alert(
                 'Permission Required',

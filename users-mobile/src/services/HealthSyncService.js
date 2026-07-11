@@ -180,6 +180,45 @@ class HealthSyncService {
             // 2. Fetch granular health records from device
             const data = await HealthRepository.fetchAll(sinceTimestamp);
 
+            // Filter out user-disabled sync categories
+            try {
+                const disabledStr = await AsyncStorage.getItem('@CareMyMed_sync_disabled_categories');
+                if (disabledStr) {
+                    const disabled = JSON.parse(disabledStr);
+                    if (disabled.activity) {
+                        data.activity = null;
+                    }
+                    if (disabled.body) {
+                        data.body = null;
+                    }
+                    if (data.vitals) {
+                        data.vitals = data.vitals.map(v => {
+                            const filtered = { ...v };
+                            if (disabled.glucose) {
+                                delete filtered.blood_glucose;
+                            }
+                            if (disabled.extvitals) {
+                                delete filtered.respiratory_rate;
+                                delete filtered.vo2_max;
+                            }
+                            return filtered;
+                        }).filter(v => {
+                            return (
+                                (v.heart_rate !== null && v.heart_rate !== undefined) ||
+                                (v.blood_pressure !== null && v.blood_pressure !== undefined) ||
+                                (v.oxygen_saturation !== null && v.oxygen_saturation !== undefined) ||
+                                (v.hydration !== null && v.hydration !== undefined) ||
+                                (v.temperature !== null && v.temperature !== undefined) ||
+                                (v.blood_glucose !== null && v.blood_glucose !== undefined) ||
+                                (v.respiratory_rate !== null && v.respiratory_rate !== undefined)
+                            );
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to filter disabled categories during sync:', e);
+            }
+
             const hasVitals = data.vitals && data.vitals.length > 0;
             const hasActivity = data.activity !== null;
             const hasBody = data.body !== null;
