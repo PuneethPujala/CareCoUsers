@@ -302,7 +302,30 @@ export default function AppNavigator({ fontsLoaded }) {
 
     useEffect(() => {
         notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-            console.log('🔔 Notification received:', notification.request.content.title);
+            const title = notification.request.content.title;
+            const type = notification.request.content.data?.type;
+            console.log(`🔔 Foreground notification received: ${title} (type: ${type})`);
+            
+            try {
+                const patientStore = usePatientStore.getState();
+                switch (type) {
+                    case 'companion_nudge':
+                    case 'medication_reminder':
+                        patientStore.fetchMedications();
+                        patientStore.fetchDashboard(true);
+                        break;
+                    case 'companion_request_bp':
+                    case 'bp_request':
+                    case 'critical_vital_alert':
+                        patientStore.fetchDashboard(true);
+                        break;
+                    default:
+                        patientStore.fetchDashboard(true);
+                        break;
+                }
+            } catch (err) {
+                console.warn('[AppNavigator] Foreground notification dispatch failed:', err.message);
+            }
         });
 
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {

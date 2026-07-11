@@ -55,6 +55,18 @@ class PushNotificationService {
 
       if (ticket?.status === 'error') {
         console.error(`❌ Push notification failed:`, ticket.message);
+        if (ticket.details?.error === 'DeviceNotRegistered' || ticket.message?.includes('DeviceNotRegistered')) {
+          try {
+            const Patient = require('../models/Patient');
+            await Patient.updateOne(
+              { expo_push_token: expoPushToken },
+              { $set: { expo_push_token: '', push_notifications_enabled: false } }
+            );
+            console.log(`🧹 Cleaned up unregistered token ${expoPushToken.substring(0, 20)}...`);
+          } catch (cleanErr) {
+            console.error('Failed to cleanup unregistered push token:', cleanErr.message);
+          }
+        }
         return {
           success: false,
           reason: ticket.message,
@@ -87,7 +99,7 @@ class PushNotificationService {
     const title = '⚠️ Critical Vital Trend Detected';
     const body = `Your predicted vitals are trending towards critical levels. Please check your health dashboard for details.`;
     const data = {
-      screen: 'VitalsScreen',
+      screen: 'VitalsHistory',
       type: 'critical_vital_alert',
       prediction_id: prediction?._id?.toString(),
     };
