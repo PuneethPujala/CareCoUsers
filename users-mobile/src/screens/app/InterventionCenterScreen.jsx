@@ -132,6 +132,33 @@ export default function InterventionCenterScreen({ navigation }) {
     const [pendingInterventions, setPendingInterventions] = useState([]);
     const [completedFeed, setCompletedFeed] = useState([]);
 
+    const [toast, setToast] = useState({ visible: false, title: '', message: '', type: 'success' });
+    const toastTimeoutRef = useRef(null);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (toastTimeoutRef.current) {
+                clearTimeout(toastTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    const showToast = (title, message, type = 'success') => {
+        if (!isMountedRef.current) return;
+        if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current);
+        }
+        setToast({ visible: true, title, message, type });
+        toastTimeoutRef.current = setTimeout(() => {
+            if (isMountedRef.current) {
+                setToast({ visible: false, title: '', message: '', type: 'success' });
+            }
+        }, 3000);
+    };
+
     const fetchData = async () => {
         if (!companionSelectedPatientId) {
             setLoading(false);
@@ -143,14 +170,20 @@ export default function InterventionCenterScreen({ navigation }) {
             const res = await apiService.companion.getInterventions(params);
             
             const activeInts = res.data.active_interventions || [];
-            setPendingInterventions(activeInts);
-            setPendingInterventionsCount(activeInts.length);
-            setCompletedFeed(res.data.completed_feed || []);
+            if (isMountedRef.current) {
+                setPendingInterventions(activeInts);
+                setPendingInterventionsCount(activeInts.length);
+                setCompletedFeed(res.data.completed_feed || []);
+            }
         } catch (err) {
             console.warn('[InterventionCenter] Failed to fetch:', err.message);
-            AlertManager.alert('Error', 'Could not load interventions.', [{ text: 'OK' }], { type: 'error' });
+            if (isMountedRef.current) {
+                showToast('Error', 'Could not load interventions.', 'error');
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
         }
     };
 
@@ -164,13 +197,17 @@ export default function InterventionCenterScreen({ navigation }) {
             const params = { patientId: companionSelectedPatientId };
             const res = await apiService.companion.getInterventions(params);
             const activeInts = res.data.active_interventions || [];
-            setPendingInterventions(activeInts);
-            setPendingInterventionsCount(activeInts.length);
-            setCompletedFeed(res.data.completed_feed || []);
+            if (isMountedRef.current) {
+                setPendingInterventions(activeInts);
+                setPendingInterventionsCount(activeInts.length);
+                setCompletedFeed(res.data.completed_feed || []);
+            }
         } catch (err) {
             console.warn('[InterventionCenter] Refresh failed:', err.message);
         } finally {
-            setRefreshing(false);
+            if (isMountedRef.current) {
+                setRefreshing(false);
+            }
         }
     };
 
@@ -188,21 +225,22 @@ export default function InterventionCenterScreen({ navigation }) {
 
         try {
             const res = await apiService.companion.completeIntervention({ interventionId });
-            if (res.data) {
-                AlertManager.alert(
+            if (res.data && isMountedRef.current) {
+                showToast(
                     'Success',
                     getSuccessMessage(type),
-                    [{ text: 'OK' }],
-                    { type: 'success' }
+                    'success'
                 );
                 handleRefresh();
             }
         } catch (err) {
             console.warn('[InterventionCenter] Failed to complete:', err.message);
             const apiErr = handleApiError(err);
-            AlertManager.alert('Error', apiErr.message, [{ text: 'OK' }], { type: 'error' });
-            // Revert state on failure
-            fetchData();
+            if (isMountedRef.current) {
+                showToast('Error', apiErr.message, 'error');
+                // Revert state on failure
+                fetchData();
+            }
         }
     };
 
@@ -471,6 +509,23 @@ export default function InterventionCenterScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
+            {toast.visible && (
+                <View style={styles.toast}>
+                    <View style={styles.toastInner}>
+                        <View style={{ marginRight: 12 }}>
+                            {toast.type === 'success' ? (
+                                <CheckCircle2 size={20} color={colors.success} />
+                            ) : (
+                                <AlertCircle size={20} color={colors.danger} />
+                            )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.toastTitle}>{toast.title}</Text>
+                            <Text style={styles.toastMessage}>{toast.message}</Text>
+                        </View>
+                    </View>
+                </View>
+            )}
             {/* Ambient Background Decorations */}
             <View style={StyleSheet.absoluteFill}>
                 <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
@@ -960,5 +1015,33 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 20,
         paddingHorizontal: 32,
+    },
+    toast: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 60 : 48,
+        left: 20,
+        right: 20,
+        zIndex: 9999,
+    },
+    toastInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        padding: 16,
+        borderRadius: radius.md,
+        ...shadows.card,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    toastTitle: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: colors.textPrimary,
+    },
+    toastMessage: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: colors.textSecondary,
+        marginTop: 2,
     },
 });

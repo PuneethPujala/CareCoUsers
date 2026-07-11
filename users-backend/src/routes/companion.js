@@ -978,12 +978,12 @@ router.post('/nudge', authenticate, async (req, res) => {
 
     // 2. Send push notification if token exists
     if (patient.expo_push_token) {
-      await PushNotificationService.sendPush(
+      PushNotificationService.sendPush(
         patient.expo_push_token,
         'Reminded by family ❤️',
         `${companionName} sent you a gentle reminder to check your medications.`,
         { screen: 'Medicines', type: 'companion_nudge' }
-      );
+      ).catch((err) => logger.error('Push failed', { error: err.message }));
     }
 
     // 3. Log event
@@ -1060,12 +1060,12 @@ router.post('/request-bp', authenticate, async (req, res) => {
 
     // 2. Send push notification if token exists
     if (patient.expo_push_token) {
-      await PushNotificationService.sendPush(
+      PushNotificationService.sendPush(
         patient.expo_push_token,
         'Blood Pressure Request 🩺',
         `${companionName} wants to know your latest Blood Pressure. Please take a reading and record it!`,
         { screen: 'HealthProfile', type: 'companion_request_bp' }
-      );
+      ).catch((err) => logger.error('Push failed', { error: err.message }));
     }
 
     // 3. Log event
@@ -1320,7 +1320,7 @@ router.post('/interventions', authenticate, async (req, res) => {
           target_screen: 'Medicines',
         });
         if (patient.expo_push_token) {
-          await PushNotificationService.sendPush(
+          PushNotificationService.sendPush(
             patient.expo_push_token,
             'Reminded by family ❤️',
             `${companionName} sent you a gentle reminder to check your medications.`,
@@ -1336,7 +1336,7 @@ router.post('/interventions', authenticate, async (req, res) => {
           target_screen: 'HealthProfile',
         });
         if (patient.expo_push_token) {
-          await PushNotificationService.sendPush(
+          PushNotificationService.sendPush(
             patient.expo_push_token,
             'Blood Pressure Request 🩺',
             `${companionName} wants to know your latest Blood Pressure. Please take a reading and record it!`,
@@ -1368,7 +1368,7 @@ router.post('/interventions', authenticate, async (req, res) => {
                 (await Patient.findOne({ supabase_uid: caller.supabase_uid }))
                   ?.expo_push_token;
               if (callerToken) {
-                await PushNotificationService.sendPush(
+                PushNotificationService.sendPush(
                   callerToken,
                   '📞 Wellness Call Completed',
                   `Companion ${companionName} completed a check-in call with patient ${patient.name}.`,
@@ -1398,7 +1398,7 @@ router.post('/interventions', authenticate, async (req, res) => {
           target_screen: 'PatientHome',
         });
         if (patient.expo_push_token) {
-          await PushNotificationService.sendPush(
+          PushNotificationService.sendPush(
             patient.expo_push_token,
             'Emergency Coordinator Contacted 🚨',
             `Your family caregiver ${companionName} has contacted your emergency escalation coordinator. Please stay calm and check in.`,
@@ -1434,7 +1434,7 @@ router.post('/interventions', authenticate, async (req, res) => {
                 (await Patient.findOne({ supabase_uid: caller.supabase_uid }))
                   ?.expo_push_token;
               if (callerToken) {
-                await PushNotificationService.sendPush(
+                PushNotificationService.sendPush(
                   callerToken,
                   '🚨 Emergency Coordinator Contacted',
                   `Companion ${companionName} contacted the emergency coordinator for patient ${patient.name}. Follow up immediately.`,
