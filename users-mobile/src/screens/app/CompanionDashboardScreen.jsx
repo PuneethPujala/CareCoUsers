@@ -7,6 +7,7 @@ import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import CompanionHeader from '../../components/ui/CompanionHeader';
 import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
@@ -85,16 +86,16 @@ export default function CompanionDashboardScreen() {
         
 
         return [
-            'summary',
+            'alerts',
             (data.refill_alerts && data.refill_alerts.length > 0) ? 'refill' : null,
-            'intervention_center',
             'briefing',
-            'intelligence_center',
-            'refresh',
-            'adherence',
+            'summary',
+            'intervention_center',
             (data.medication_schedule && data.medication_schedule.length > 0) ? 'timeline' : null,
             'vitals',
-            'alerts',
+            'intelligence_center',
+            'adherence',
+            'refresh',
         ].filter(Boolean);
     }, [data]);
 
@@ -427,50 +428,11 @@ export default function CompanionDashboardScreen() {
     return (
         <TabScreenTransition>
             <View style={styles.container}>
-            {/* Ambient Background Decorations */}
-            <View style={StyleSheet.absoluteFill}>
-                <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
-                    <Defs>
-                        <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#EDE9FE" stopOpacity="0.75" />
-                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-                        </SvgGradient>
-                        <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#FAF5FF" stopOpacity="0.75" />
-                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-                        </SvgGradient>
-                    </Defs>
-                    
-                    {/* Top right curvy gradient backdrop */}
-                    <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
-                    
-                    {/* Bottom left curvy gradient backdrop */}
-                    <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
-
-                    {/* Top-right overlapping wavy contours */}
-                    <Path d="M220 0 C280 80, 320 100, 400 70" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M200 0 C265 95, 310 115, 400 90" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M180 0 C250 110, 300 130, 400 110" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M160 0 C235 125, 290 145, 400 130" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M140 0 C220 140, 280 160, 400 150" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
-                    <Path d="M120 0 C205 155, 270 175, 400 170" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
-
-                    {/* Bottom-left overlapping wavy contours */}
-                    <Path d="M0 640 C60 670, 100 710, 160 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M0 620 C70 655, 115 700, 185 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M0 600 C80 640, 130 690, 210 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M0 580 C90 625, 145 680, 235 850" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
-                    <Path d="M0 560 C100 610, 160 670, 260 850" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
-
-                    {/* Stylized sweeping curve lines */}
-                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.4" />
-                    <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.25" />
-
-                    {/* Concentric abstract rings */}
-                    <Circle cx="320" cy="480" r="130" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.2" />
-                    <Circle cx="320" cy="480" r="90" stroke={colors.borderLight} strokeWidth="1.2" fill="none" opacity="0.1" />
-                </Svg>
-            </View>
+            {/* Clean Ambient Gradient Glow Backdrop */}
+            <LinearGradient 
+                colors={['#EEF2FF', '#F8FAFC']} 
+                style={StyleSheet.absoluteFill} 
+            />
 
             <CompanionHeader
                 style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
@@ -501,7 +463,105 @@ export default function CompanionDashboardScreen() {
                     </View>
                 )}
 
-                {/* Top Summary Card (Mockup Style) */}
+                {/* 1. Alerts Card */}
+                {visibleSections.includes('alerts') && (
+                    data.recent_alerts?.length > 0 ? (
+                        <Animated.View style={[styles.card, sectionAnimForKey('alerts')]}>
+                            <View style={styles.cardHeader}>
+                                <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
+                                    <Bell color={colors.danger} size={18} />
+                                </View>
+                                <View>
+                                    <Text style={styles.cardTitle}>Critical Alerts</Text>
+                                    <Text style={styles.cardSub}>Attention required immediately</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.alertsList}>
+                                {data.recent_alerts.map(a => (
+                                    <View key={a._id} style={styles.alertItem}>
+                                        <View style={styles.alertDot} />
+                                        <Text style={styles.alertDescription}>{a.description}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </Animated.View>
+                    ) : (
+                        <Animated.View style={[styles.noAlertsCard, sectionAnimForKey('alerts')]}>
+                            <ShieldCheck color={colors.success} size={24} />
+                            <Text style={styles.noAlertsText}>All systems normal. No active alerts.</Text>
+                        </Animated.View>
+                    )
+                )}
+
+                {/* 2. Low Pill Stock Refill Warning Banner */}
+                {visibleSections.includes('refill') && (
+                    <Animated.View style={[styles.refillBanner, sectionAnimForKey('refill')]}>
+                        <View style={styles.refillBannerHeader}>
+                            <AlertCircle color={colors.warning} size={18} />
+                            <Text style={styles.refillBannerTitle}>Low Medication Stock Alert</Text>
+                        </View>
+                        <ScrollView style={styles.refillList} nestedScrollEnabled={true}>
+                            {data.refill_alerts.map((alert) => (
+                                <View key={alert.medication_id} style={styles.refillItem}>
+                                    <Text style={styles.refillMedName}>{alert.name}</Text>
+                                    <Text style={styles.refillMedStock}>
+                                        Only <Text style={{ color: colors.danger, ...FONT.bold }}>{alert.remaining_doses}</Text> doses left!
+                                    </Text>
+                                    {alert.pharmacy_phone ? (
+                                        <Pressable 
+                                            style={styles.refillCallBtn}
+                                            onPress={() => Linking.openURL(`tel:${alert.pharmacy_phone}`)}
+                                        >
+                                            <Phone size={12} color={colors.primary} />
+                                            <Text style={styles.refillCallText}>Order</Text>
+                                        </Pressable>
+                                    ) : null}
+                                </View>
+                            ))}
+                        </ScrollView>
+                    </Animated.View>
+                )}
+
+                {/* 3. AI Companion Briefing (Mascot Overlapping Speech Bubble) */}
+                {visibleSections.includes('briefing') && (
+                     <Animated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
+                         <Image 
+                             source={require('../../../assets/doctor_mascot_insights.jpg')} 
+                             style={styles.mascotOverlappingImage}
+                             resizeMode="cover"
+                         />
+                         <View style={styles.speechBubbleOverlapping}>
+                             <Text style={styles.briefingTitleOverlapping}>AI Companion Briefing</Text>
+                             <Text style={styles.briefingText}>{shortSummary}</Text>
+
+                             {expandedBriefing && briefDetails ? (
+                                 <View style={styles.expandedBriefingContainer}>
+                                     <View style={styles.briefingDivider} />
+                                     <Text style={styles.briefingTextDetails}>{briefDetails}</Text>
+                                 </View>
+                             ) : null}
+
+                             {briefDetails ? (
+                                 <Pressable 
+                                     style={({ pressed }) => [styles.briefingToggleBtn, pressed && { opacity: 0.7 }]}
+                                     onPress={() => setExpandedBriefing(!expandedBriefing)}
+                                 >
+                                     <Text style={styles.briefingToggleText}>
+                                         {expandedBriefing ? 'Show Less' : 'Read Full Briefing'}
+                                     </Text>
+                                     {expandedBriefing ? (
+                                         <ChevronUp size={14} color={colors.primary} style={{ marginLeft: 2 }} />
+                                     ) : (
+                                         <ChevronDown size={14} color={colors.primary} style={{ marginLeft: 2 }} />
+                                     )}
+                                 </Pressable>
+                             ) : null}
+                         </View>
+                     </Animated.View>
+                 )}
+
+                {/* 4. Top Summary Card (Status Bar) */}
                 {visibleSections.includes('summary') && (
                     <Animated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
                     <View style={styles.summaryColLeft}>
@@ -553,77 +613,9 @@ export default function CompanionDashboardScreen() {
                     </Animated.View>
                 )}
 
-                {/* Low Pill Stock Refill Warning Banner */}
-                {visibleSections.includes('refill') && (
-                    <Animated.View style={[styles.refillBanner, sectionAnimForKey('refill')]}>
-                        <View style={styles.refillBannerHeader}>
-                            <AlertCircle color={colors.warning} size={18} />
-                            <Text style={styles.refillBannerTitle}>Low Medication Stock Alert</Text>
-                        </View>
-                        <ScrollView style={styles.refillList} nestedScrollEnabled={true}>
-                            {data.refill_alerts.map((alert) => (
-                                <View key={alert.medication_id} style={styles.refillItem}>
-                                    <Text style={styles.refillMedName}>{alert.name}</Text>
-                                    <Text style={styles.refillMedStock}>
-                                        Only <Text style={{ color: colors.danger, ...FONT.bold }}>{alert.remaining_doses}</Text> doses left!
-                                    </Text>
-                                    {alert.pharmacy_phone ? (
-                                        <Pressable 
-                                            style={styles.refillCallBtn}
-                                            onPress={() => Linking.openURL(`tel:${alert.pharmacy_phone}`)}
-                                        >
-                                            <Phone size={12} color={colors.primary} />
-                                            <Text style={styles.refillCallText}>Order</Text>
-                                        </Pressable>
-                                    ) : null}
-                                </View>
-                            ))}
-                        </ScrollView>
-                    </Animated.View>
-                )}
-                 {/* Card 1: AI Companion Briefing (Mascot Overlapping Speech Bubble) */}
-                 {visibleSections.includes('briefing') && (
-                     <Animated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
-                         <Image 
-                             source={require('../../../assets/doctor_mascot_insights.jpg')} 
-                             style={styles.mascotOverlappingImage}
-                             resizeMode="cover"
-                         />
-                         <View style={styles.speechBubbleOverlapping}>
-                             <Text style={styles.briefingTitleOverlapping}>AI Companion Briefing</Text>
-                             <Text style={styles.briefingText}>{shortSummary}</Text>
-
-                             {expandedBriefing && briefDetails ? (
-                                 <View style={styles.expandedBriefingContainer}>
-                                     <View style={styles.briefingDivider} />
-                                     <Text style={styles.briefingTextDetails}>{briefDetails}</Text>
-                                 </View>
-                             ) : null}
-
-                             {briefDetails ? (
-                                 <Pressable 
-                                     style={({ pressed }) => [styles.briefingToggleBtn, pressed && { opacity: 0.7 }]}
-                                     onPress={() => setExpandedBriefing(!expandedBriefing)}
-                                 >
-                                     <Text style={styles.briefingToggleText}>
-                                         {expandedBriefing ? 'Show Less' : 'Read Full Briefing'}
-                                     </Text>
-                                     {expandedBriefing ? (
-                                         <ChevronUp size={14} color={colors.primary} style={{ marginLeft: 2 }} />
-                                     ) : (
-                                         <ChevronDown size={14} color={colors.primary} style={{ marginLeft: 2 }} />
-                                     )}
-                                 </Pressable>
-                             ) : null}
-                         </View>
-                     </Animated.View>
-                 )}
-
-
-
-                {/* ⚡ Intervention Center CTA Card */}
+                {/* 5. ⚡ Proactive Intervention Center CTA Card */}
                 {visibleSections.includes('intervention_center') && (
-                    <Animated.View style={[styles.ctaCard, { marginTop: 12, borderColor: '#FED7AA' }, sectionAnimForKey('intervention_center')]}>
+                    <Animated.View style={[styles.ctaCard, { marginTop: 12 }, sectionAnimForKey('intervention_center')]}>
                         <Pressable 
                             style={({ pressed }) => [styles.ctaCardPressable, pressed && { opacity: 0.95 }]}
                             onPress={() => navigation.navigate('InterventionCenter')}
@@ -653,7 +645,154 @@ export default function CompanionDashboardScreen() {
                     </Animated.View>
                 )}
 
-                {/* 🧠 Health Intelligence Center CTA Card */}
+                {/* 6. Daily Medication Timeline Checklist */}
+                {visibleSections.includes('timeline') && (
+                    <Animated.View style={[styles.card, sectionAnimForKey('timeline')]}>
+                        <View style={styles.cardHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: colors.successLight }]}>
+                                <Activity color={colors.success} size={18} />
+                            </View>
+                            <View>
+                                <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
+                                <Text style={styles.cardSub}>Track hourly adherence status</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.timelineContainer}>
+                            {(() => {
+                                const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
+                                const sortedSchedule = [...data.medication_schedule].sort((a, b) => {
+                                    const aOrder = SLOT_ORDER[a.scheduled_time] || 99;
+                                    const bOrder = SLOT_ORDER[b.scheduled_time] || 99;
+                                    if (aOrder !== bOrder) return aOrder - bOrder;
+                                    return a.name.localeCompare(b.name);
+                                });
+                                
+                                return sortedSchedule.map((item, idx) => {
+                                    const isLast = idx === sortedSchedule.length - 1;
+                                return (
+                                    <View key={idx} style={styles.timelineRow}>
+                                        <View style={styles.timelineLeft}>
+                                            <Text style={styles.timelineTime}>
+                                                {item.scheduled_time.toUpperCase()}
+                                            </Text>
+                                            <View style={styles.timelineLineContainer}>
+                                                <View style={[styles.timelineNode, { 
+                                                    backgroundColor: item.taken ? colors.success : colors.textMuted,
+                                                    borderColor: item.taken ? colors.successLight : colors.borderLight 
+                                                }]} />
+                                                {!isLast && <View style={[styles.timelineLine, { 
+                                                    backgroundColor: item.taken ? colors.success : colors.borderLight 
+                                                }]} />}
+                                            </View>
+                                        </View>
+                                        
+                                        <Pressable style={({ pressed }) => [styles.timelineCard, item.taken ? styles.timelineCardTaken : null, pressed && { opacity: 0.7 }]}>
+                                            <View style={{ flex: 1, paddingRight: 8 }}>
+                                                <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
+                                                <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
+                                            </View>
+                                            <View style={[
+                                                styles.timelineStatusBadge, 
+                                                { backgroundColor: item.taken ? colors.successLight : colors.warningLight }
+                                            ]}>
+                                                <Text style={[
+                                                    styles.timelineStatusText, 
+                                                    { color: item.taken ? colors.success : colors.warning }
+                                                ]}>
+                                                    {item.taken ? 'Taken' : 'Pending'}
+                                                </Text>
+                                            </View>
+                                        </Pressable>
+                                    </View>
+                                );
+                                });
+                            })()}
+                        </View>
+                    </Animated.View>
+                )}
+
+                {/* 7. Vitals Card (with beautiful elegant empty states) */}
+                {visibleSections.includes('vitals') && (
+                    <Animated.View style={[styles.card, sectionAnimForKey('vitals')]}>
+                        <View style={styles.cardHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
+                                <HeartPulse color={colors.danger} size={18} />
+                            </View>
+                            <View>
+                                <Text style={styles.cardTitle}>Vitals Status</Text>
+                                <Text style={styles.cardSub}>Latest biometric sync</Text>
+                            </View>
+                        </View>
+
+                        {hasVitals ? (
+                            <View style={styles.vitalsRow}>
+                                <View style={styles.vitalMetricsBox}>
+                                    <Text style={styles.vitalLabel}>Blood Pressure</Text>
+                                    <Text style={styles.vitalBigValue} numberOfLines={1} adjustsFontSizeToFit>
+                                        {data.latest_vital.bp_systolic}/{data.latest_vital.bp_diastolic}
+                                    </Text>
+                                    <Text style={styles.vitalUnit}>mmHg</Text>
+                                </View>
+                                
+                                <View style={styles.vitalDivider} />
+
+                                <View style={styles.vitalMetricsBox}>
+                                    <Text style={styles.vitalLabel}>Status</Text>
+                                    <View style={[styles.vitalBadge, { backgroundColor: colors.successLight }]}>
+                                        <Text style={[styles.vitalBadgeText, { color: colors.success }]}>Normal</Text>
+                                    </View>
+                                    <Text style={styles.vitalTime}>Synced 2h ago</Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.vitalsEmptyContainer}>
+                                {/* Left Side: Illustrative Blood Pressure Monitor */}
+                                <View style={styles.vitalsEmptyLeft}>
+                                    <Image 
+                                        source={require('../../../assets/bp_monitor_illus.jpg')} 
+                                        style={styles.bpMonitorImage}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={styles.bluetoothBadgeOverlay}>
+                                        <Bluetooth size={14} color="#FFF" />
+                                    </View>
+                                </View>
+
+                                {/* Right Side: Status, Description, and Sync Actions */}
+                                <View style={styles.vitalsEmptyRight}>
+                                    <View style={styles.vitalsStatusBadgeRow}>
+                                        <Bluetooth size={14} color={colors.success} />
+                                        <Text style={styles.vitalsStatusBadgeText}>All vitals normal</Text>
+                                    </View>
+                                    
+                                    <Text style={styles.vitalsEmptyDesc}>
+                                        No BP logs recorded today. Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor.
+                                    </Text>
+
+                                    <Pressable style={styles.vitalsSyncBtnContainer} onPress={() => loadData()}>
+                                        <LinearGradient
+                                            colors={['#2563EB', '#1D4ED8']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                            style={styles.vitalsSyncBtnGradient}
+                                        >
+                                            <Text style={styles.vitalsSyncBtnText}>Sync Now</Text>
+                                        </LinearGradient>
+                                    </Pressable>
+
+                                    <Pressable style={styles.vitalsConnectBtn} onPress={() => {
+                                        AlertManager.alert('Connect Device', 'Searching for nearby Bluetooth blood pressure monitors...');
+                                    }}>
+                                        <Text style={styles.vitalsConnectBtnText}>Connect Device</Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+                        )}
+                    </Animated.View>
+                )}
+
+                {/* 8. 🧠 Health Intelligence Center CTA Card */}
                 {visibleSections.includes('intelligence_center') && (
                     <Animated.View style={[styles.ctaCard, sectionAnimForKey('intelligence_center')]}>
                         <Pressable 
@@ -708,28 +847,7 @@ export default function CompanionDashboardScreen() {
                     </Animated.View>
                 )}
 
-                {/* Refresh AI Insights Button */}
-                {visibleSections.includes('refresh') && (
-                    <Animated.View style={[sectionAnimForKey('refresh')]}>
-                        <Pressable 
-                            style={({ pressed }) => [styles.refreshInsightsBtn, pressed && { opacity: 0.8 }]}
-                            onPress={handleManualRefresh}
-                            disabled={refreshing}
-                        >
-                            {refreshing ? (
-                                <ActivityIndicator size="small" color="#FFF" />
-                            ) : (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <RefreshCw size={14} color="#FFF" />
-                                    <Text style={styles.refreshInsightsBtnText}>Refresh Insights</Text>
-                                </View>
-                            )}
-                        </Pressable>
-                    </Animated.View>
-                )}
-
-
-                {/* 2. Adherence Meter Card */}
+                {/* 9. Adherence Meter Card */}
                 {visibleSections.includes('adherence') && (
                     <Animated.View style={[styles.card, sectionAnimForKey('adherence')]}>
                         <View style={styles.cardHeader}>
@@ -801,180 +919,27 @@ export default function CompanionDashboardScreen() {
                     </Animated.View>
                 )}
 
-                {/* 2b. Daily Medication Timeline Checklist */}
-                {visibleSections.includes('timeline') && (
-                    <Animated.View style={[styles.card, sectionAnimForKey('timeline')]}>
-                        <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: colors.successLight }]}>
-                                <Activity color={colors.success} size={18} />
-                            </View>
-                            <View>
-                                <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
-                                <Text style={styles.cardSub}>Track hourly adherence status</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.timelineContainer}>
-                            {(() => {
-                                const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
-                                const sortedSchedule = [...data.medication_schedule].sort((a, b) => {
-                                    const aOrder = SLOT_ORDER[a.scheduled_time] || 99;
-                                    const bOrder = SLOT_ORDER[b.scheduled_time] || 99;
-                                    if (aOrder !== bOrder) return aOrder - bOrder;
-                                    return a.name.localeCompare(b.name);
-                                });
-                                
-                                return sortedSchedule.map((item, idx) => {
-                                    const isLast = idx === sortedSchedule.length - 1;
-                                return (
-                                    <View key={idx} style={styles.timelineRow}>
-                                        <View style={styles.timelineLeft}>
-                                            <Text style={styles.timelineTime}>
-                                                {item.scheduled_time.toUpperCase()}
-                                            </Text>
-                                            <View style={styles.timelineLineContainer}>
-                                                <View style={[styles.timelineNode, { 
-                                                    backgroundColor: item.taken ? colors.success : colors.textMuted,
-                                                    borderColor: item.taken ? colors.successLight : colors.borderLight 
-                                                }]} />
-                                                {!isLast && <View style={[styles.timelineLine, { 
-                                                    backgroundColor: item.taken ? colors.success : colors.borderLight 
-                                                }]} />}
-                                            </View>
-                                        </View>
-                                        
-                                        <Pressable style={({ pressed }) => [styles.timelineCard, item.taken ? styles.timelineCardTaken : null, pressed && { opacity: 0.7 }]}>
-                                            <View style={{ flex: 1, paddingRight: 8 }}>
-                                                <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
-                                                <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
-                                            </View>
-                                            <View style={[
-                                                styles.timelineStatusBadge, 
-                                                { backgroundColor: item.taken ? colors.successLight : colors.warningLight }
-                                            ]}>
-                                                <Text style={[
-                                                    styles.timelineStatusText, 
-                                                    { color: item.taken ? colors.success : colors.warning }
-                                                ]}>
-                                                    {item.taken ? 'Taken' : 'Pending'}
-                                                </Text>
-                                            </View>
-                                        </Pressable>
-                                    </View>
-                                );
-                                });
-                            })()}
-                        </View>
+                {/* 10. Refresh AI Insights Button */}
+                {visibleSections.includes('refresh') && (
+                    <Animated.View style={[sectionAnimForKey('refresh')]}>
+                        <Pressable 
+                            style={({ pressed }) => [styles.refreshInsightsBtn, pressed && { opacity: 0.8 }]}
+                            onPress={handleManualRefresh}
+                            disabled={refreshing}
+                        >
+                            {refreshing ? (
+                                <ActivityIndicator size="small" color={colors.primary} />
+                            ) : (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <RefreshCw size={14} color={colors.primary} />
+                                    <Text style={styles.refreshInsightsBtnText}>Refresh Insights</Text>
+                                </View>
+                            )}
+                        </Pressable>
                     </Animated.View>
-                )}
-
-                {/* 3. Vitals Card (with beautiful elegant empty states) */}
-                {visibleSections.includes('vitals') && (
-                    <Animated.View style={[styles.card, sectionAnimForKey('vitals')]}>
-                        <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
-                                <HeartPulse color={colors.danger} size={18} />
-                            </View>
-                            <View>
-                                <Text style={styles.cardTitle}>Vitals Status</Text>
-                                <Text style={styles.cardSub}>Latest biometric sync</Text>
-                            </View>
-                        </View>
-
-                        {hasVitals ? (
-                            <View style={styles.vitalsRow}>
-                                <View style={styles.vitalMetricsBox}>
-                                    <Text style={styles.vitalLabel}>Blood Pressure</Text>
-                                    <Text style={styles.vitalBigValue} numberOfLines={1} adjustsFontSizeToFit>
-                                        {data.latest_vital.bp_systolic}/{data.latest_vital.bp_diastolic}
-                                    </Text>
-                                    <Text style={styles.vitalUnit}>mmHg</Text>
-                                </View>
-                                
-                                <View style={styles.vitalDivider} />
-
-                                <View style={styles.vitalMetricsBox}>
-                                    <Text style={styles.vitalLabel}>Status</Text>
-                                    <View style={[styles.vitalBadge, { backgroundColor: colors.successLight }]}>
-                                        <Text style={[styles.vitalBadgeText, { color: colors.success }]}>Normal</Text>
-                                    </View>
-                                    <Text style={styles.vitalTime}>Synced 2h ago</Text>
-                                </View>
-                            </View>
-                        ) : (
-                            <View style={styles.vitalsEmptyContainer}>
-                                {/* Left Side: Illustrative Blood Pressure Monitor */}
-                                <View style={styles.vitalsEmptyLeft}>
-                                    <Image 
-                                        source={require('../../../assets/bp_monitor_illus.jpg')} 
-                                        style={styles.bpMonitorImage}
-                                        resizeMode="cover"
-                                    />
-                                    <View style={styles.bluetoothBadgeOverlay}>
-                                        <Bluetooth size={14} color="#FFF" />
-                                    </View>
-                                </View>
-
-                                {/* Right Side: Status, Description, and Sync Actions */}
-                                <View style={styles.vitalsEmptyRight}>
-                                    <View style={styles.vitalsStatusBadgeRow}>
-                                        <Bluetooth size={14} color={colors.primary} />
-                                        <Text style={styles.vitalsStatusBadgeText}>All vitals normal</Text>
-                                    </View>
-                                    
-                                    <Text style={styles.vitalsEmptyDesc}>
-                                        No BP logs recorded today. Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor.
-                                    </Text>
-
-                                    <Pressable style={styles.vitalsSyncBtn} onPress={() => loadData()}>
-                                        <Text style={styles.vitalsSyncBtnText}>Sync Now</Text>
-                                    </Pressable>
-
-                                    <Pressable style={styles.vitalsConnectBtn} onPress={() => {
-                                        AlertManager.alert('Connect Device', 'Searching for nearby Bluetooth blood pressure monitors...');
-                                    }}>
-                                        <Text style={styles.vitalsConnectBtnText}>Connect Device</Text>
-                                    </Pressable>
-                                </View>
-                            </View>
-                        )}
-                    </Animated.View>
-                )}
-
-
-                
-                {/* 4. Alerts Card */}
-                {visibleSections.includes('alerts') && (
-                    data.recent_alerts?.length > 0 ? (
-                        <Animated.View style={[styles.card, sectionAnimForKey('alerts')]}>
-                            <View style={styles.cardHeader}>
-                                <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
-                                    <Bell color={colors.danger} size={18} />
-                                </View>
-                                <View>
-                                    <Text style={styles.cardTitle}>Critical Alerts</Text>
-                                    <Text style={styles.cardSub}>Attention required immediately</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.alertsList}>
-                                {data.recent_alerts.map(a => (
-                                    <View key={a._id} style={styles.alertItem}>
-                                        <View style={styles.alertDot} />
-                                        <Text style={styles.alertDescription}>{a.description}</Text>
-                                    </View>
-                                ))}
-                            </View>
-                        </Animated.View>
-                    ) : (
-                        <Animated.View style={[styles.noAlertsCard, sectionAnimForKey('alerts')]}>
-                            <ShieldCheck color={colors.success} size={24} />
-                            <Text style={styles.noAlertsText}>All systems normal. No active alerts.</Text>
-                        </Animated.View>
-                    )
                 )}
             </ScrollView>
-        </View>
+            </View>
         </TabScreenTransition>
     );
 }
@@ -1007,10 +972,16 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     card: {
-        backgroundColor: colors.surface,
-        borderRadius: radius.xl,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
         padding: spacing.md,
-        ...shadows.card,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -1241,12 +1212,19 @@ const styles = StyleSheet.create({
 
     // No Alerts card
     noAlertsCard: {
-        backgroundColor: colors.successLight,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
-        borderRadius: 24,
         gap: 10,
     },
     noAlertsText: {
@@ -1257,8 +1235,15 @@ const styles = StyleSheet.create({
 
     // Low Pill Stock Refill Banner
     refillBanner: {
-        backgroundColor: colors.warningLight,
-        borderRadius: 24,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
         padding: 16,
         gap: 10,
     },
@@ -1408,13 +1393,19 @@ const styles = StyleSheet.create({
     // Summary Card Styles
     summaryCard: {
         flexDirection: 'row',
-        backgroundColor: colors.surface,
-        borderRadius: radius.xl,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
         paddingVertical: 16,
         paddingHorizontal: 12,
         alignItems: 'center',
         justifyContent: 'space-between',
-        ...shadows.card,
     },
     summaryColLeft: {
         flex: 1.6,
@@ -1526,13 +1517,15 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         lineHeight: 18,
     },
-    vitalsSyncBtn: {
-        backgroundColor: '#2563EB',
-        paddingVertical: 10,
+    vitalsSyncBtnContainer: {
+        marginTop: 4,
         borderRadius: 12,
+        overflow: 'hidden',
+    },
+    vitalsSyncBtnGradient: {
+        paddingVertical: 10,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 4,
     },
     vitalsSyncBtnText: {
         color: '#FFF',
@@ -1881,15 +1874,17 @@ const styles = StyleSheet.create({
         lineHeight: 17,
     },
     refreshInsightsBtn: {
-        backgroundColor: colors.primaryMid,
-        borderRadius: 12,
+        backgroundColor: 'transparent',
+        borderRadius: 14,
+        borderWidth: 2,
+        borderColor: colors.primary,
         paddingVertical: 12,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 8,
     },
     refreshInsightsBtnText: {
-        color: '#FFF',
+        color: colors.primary,
         fontSize: 13,
         ...FONT.bold,
     },
@@ -2060,13 +2055,18 @@ const styles = StyleSheet.create({
         ...shadows.sm,
     },
     speechBubbleOverlapping: {
-        backgroundColor: colors.primarySoft,
-        borderRadius: radius.xl,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
         paddingTop: 36,
         paddingHorizontal: 16,
         paddingBottom: 16,
-        borderWidth: 1.5,
-        borderColor: colors.primarySoft,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
     },
     briefingTitleOverlapping: {
         fontSize: 11,
@@ -2076,11 +2076,15 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     ctaCard: {
-        backgroundColor: colors.surface,
-        borderRadius: radius.xl,
-        borderWidth: 1.5,
-        borderColor: colors.primarySoft,
-        ...shadows.card,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
     },
     ctaCardPressable: {
         padding: spacing.md,
