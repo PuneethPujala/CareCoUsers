@@ -129,25 +129,6 @@ export default function HealthCopilotScreen({ navigation, route }) {
 
     // 1. Medication
     if (itemLower.includes("medication") || itemLower.includes("meds")) {
-      let slot = null;
-      if (itemLower.includes("morning")) slot = "morning";
-      else if (itemLower.includes("afternoon")) slot = "afternoon";
-      else if (itemLower.includes("evening")) slot = "evening";
-      else if (itemLower.includes("night")) slot = "night";
-
-      if (slot) {
-        const slotMeds = dashboardMeds?.filter(
-          (m) => m.scheduled_time?.toLowerCase() === slot || m.type?.toLowerCase() === slot
-        );
-        if (slotMeds && slotMeds.length > 0) {
-          const targetState = !slotMeds.every((m) => m.taken);
-          for (const med of slotMeds) {
-            await optimisticToggleMed(med, targetState);
-          }
-          fetchContext();
-          return;
-        }
-      }
       navigation.navigate("Medications");
       return;
     }
@@ -448,53 +429,63 @@ export default function HealthCopilotScreen({ navigation, route }) {
             </Text>
           ) : (
             <View style={styles.medTaskList}>
-              {carePlan.medication_tasks.map((task, idx) => {
-                const matchingMed = dashboardMeds?.find(
-                  (m) =>
-                    m.name.toLowerCase() === task.name.toLowerCase() &&
-                    m.type.toLowerCase() === task.time_slot.toLowerCase(),
-                );
-                const isChecked = matchingMed
-                  ? matchingMed.taken
-                  : !!checkedMedsTasks[idx];
+              {[...(carePlan.medication_tasks || [])]
+                .sort((a, b) => {
+                  const SLOT_ORDER = {
+                    morning: 1,
+                    noon: 2,
+                    afternoon: 2,
+                    evening: 3,
+                    night: 4,
+                    bedtime: 5,
+                  };
+                  const orderA = SLOT_ORDER[(a.time_slot || '').toLowerCase()] || 10;
+                  const orderB = SLOT_ORDER[(b.time_slot || '').toLowerCase()] || 10;
+                  return orderA - orderB;
+                })
+                .map((task, idx) => {
+                  const matchingMed = dashboardMeds?.find(
+                    (m) =>
+                      m.name.toLowerCase() === task.name.toLowerCase() &&
+                      m.type.toLowerCase() === task.time_slot.toLowerCase(),
+                  );
+                  const isChecked = matchingMed ? matchingMed.taken : false;
 
-                return (
-                  <Pressable
-                    key={`med-${idx}`}
-                    style={({ pressed }) => [
-                      styles.medTaskRow,
-                      isChecked && styles.medTaskRowChecked,
-                      pressed && { opacity: 0.8 },
-                    ]}
-                    onPress={() => toggleMedsTask(task, idx)}
-                  >
-                    {isChecked ? (
-                      <View style={styles.checkedCircleWrap}>
-                        <CheckCircle2
-                          size={16}
-                          color="#22C55E"
-                          strokeWidth={3}
-                        />
+                  return (
+                    <View
+                      key={`med-${idx}`}
+                      style={[
+                        styles.medTaskRow,
+                        isChecked && styles.medTaskRowChecked,
+                      ]}
+                    >
+                      {isChecked ? (
+                        <View style={styles.checkedCircleWrap}>
+                          <CheckCircle2
+                            size={16}
+                            color="#22C55E"
+                            strokeWidth={3}
+                          />
+                        </View>
+                      ) : (
+                        <View style={styles.pendingDot} />
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.medTaskName,
+                            isChecked && styles.medTaskChecked,
+                          ]}
+                        >
+                          {task.name}
+                        </Text>
+                        <Text style={styles.medTaskSlot}>
+                          {task.time_slot.toUpperCase()}
+                        </Text>
                       </View>
-                    ) : (
-                      <View style={styles.pendingDot} />
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.medTaskName,
-                          isChecked && styles.medTaskChecked,
-                        ]}
-                      >
-                        {task.name}
-                      </Text>
-                      <Text style={styles.medTaskSlot}>
-                        {task.time_slot.toUpperCase()}
-                      </Text>
                     </View>
-                  </Pressable>
-                );
-              })}
+                  );
+                })}
             </View>
           )}
         </View>
