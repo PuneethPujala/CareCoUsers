@@ -165,6 +165,29 @@ const getDateRangeForRange = (range, customStart, customEnd) => {
     return { start, end };
 };
 
+class ChartErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+    componentDidCatch(error, errorInfo) {
+        console.warn('Chart render error:', error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <View style={{ height: 200, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                    <Text style={{ color: '#94A3B8', fontSize: 13, fontWeight: '500' }}>Chart unavailable</Text>
+                </View>
+            );
+        }
+        return this.props.children;
+    }
+}
+
 export default function VitalsHistoryScreen({ navigation }) {
     // ─── State & Refs ────────────────────────────────────────────
     const [vitals, setVitals] = useState([]);
@@ -623,50 +646,51 @@ export default function VitalsHistoryScreen({ navigation }) {
         );
     };
 
-    // ─── Render: Quick Stats ─────────────────────────────────────
+    // ─── Render: Quick Stats (Unified Card) ──────────────────────
     const renderQuickStats = (def) => {
         const stats = getStats(def.id);
         if (!stats) return null;
         return (
-            <Animated.ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.statsScroll}
-                style={{ opacity: fadeAnim, marginBottom: 20 }}
-            >
-                <View style={[styles.statCard, { borderTopColor: def.accent }]}>
-                    <View style={styles.statHeader}>
-                        <Text style={styles.statLabel}>Average</Text>
-                        <BarChart3 size={14} color="#64748B" />
+            <Animated.View style={[{ opacity: fadeAnim }, styles.statsCardContainer]}>
+                <View style={styles.statsUnifiedCard}>
+                    <View style={styles.statColumn}>
+                        <View style={styles.statHeader}>
+                            <Text style={styles.statLabel}>Average</Text>
+                            <BarChart3 size={12} color="#64748B" />
+                        </View>
+                        <View style={styles.statValueRow}>
+                            <Text style={styles.statValue}>{stats.avg}</Text>
+                            <Text style={styles.statUnit}>{stats.unit}</Text>
+                        </View>
                     </View>
-                    <View style={styles.statValueRow}>
-                        <Text style={styles.statValue}>{stats.avg}</Text>
-                        <Text style={styles.statUnit}>{stats.unit}</Text>
+                    
+                    <View style={styles.statDivider} />
+                    
+                    <View style={styles.statColumn}>
+                        <View style={styles.statHeader}>
+                            <Text style={styles.statLabel}>Lowest</Text>
+                            <TrendingDown size={12} color="#10B981" />
+                        </View>
+                        <View style={styles.statValueRow}>
+                            <Text style={styles.statValue}>{stats.min}</Text>
+                            <Text style={styles.statUnit}>{stats.unit}</Text>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.statDivider} />
+                    
+                    <View style={styles.statColumn}>
+                        <View style={styles.statHeader}>
+                            <Text style={styles.statLabel}>Highest</Text>
+                            <TrendingUp size={12} color="#EF4444" />
+                        </View>
+                        <View style={styles.statValueRow}>
+                            <Text style={styles.statValue}>{stats.max}</Text>
+                            <Text style={styles.statUnit}>{stats.unit}</Text>
+                        </View>
                     </View>
                 </View>
-                
-                <View style={[styles.statCard, { borderTopColor: '#10B981' }]}>
-                    <View style={styles.statHeader}>
-                        <Text style={styles.statLabel}>Lowest</Text>
-                        <TrendingDown size={14} color="#10B981" />
-                    </View>
-                    <View style={styles.statValueRow}>
-                        <Text style={styles.statValue}>{stats.min}</Text>
-                        <Text style={styles.statUnit}>{stats.unit}</Text>
-                    </View>
-                </View>
-                
-                <View style={[styles.statCard, { borderTopColor: '#EF4444' }]}>
-                    <View style={styles.statHeader}>
-                        <Text style={styles.statLabel}>Highest</Text>
-                        <TrendingUp size={14} color="#EF4444" />
-                    </View>
-                    <View style={styles.statValueRow}>
-                        <Text style={styles.statValue}>{stats.max}</Text>
-                        <Text style={styles.statUnit}>{stats.unit}</Text>
-                    </View>
-                </View>
-            </Animated.ScrollView>
+            </Animated.View>
         );
     };
 
@@ -750,6 +774,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                                     }}
                                     width={SCREEN_W - 80} height={220} chartConfig={chartConfig}
                                     bezier={rangeData.length > 1} style={styles.chart}
+                                    withVerticalLines={false} fromZero={false}
                                     onDataPointClick={({ x, y, value, index }) => showTooltip(x, y, value, rangeData[index].x)}
                                     decorator={() => renderChartInteraction(def)}
                                 />
@@ -770,6 +795,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                                 }}
                                 width={SCREEN_W - 80} height={200} chartConfig={chartConfig}
                                 bezier={mainData.length > 1} style={styles.chart}
+                                withVerticalLines={false} fromZero={false}
                                 onDataPointClick={({ x, y, value, index }) => showTooltip(x, y, value, labels[index])}
                                 decorator={() => renderChartInteraction(def)}
                             />
@@ -861,6 +887,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                                 width={w} height={h} chartConfig={chartConfig}
                                 bezier={timeRange !== 'today' ? rangeData.length > 1 : mainData.length > 1}
                                 style={styles.landscapeChart}
+                                withVerticalLines={false} fromZero={false}
                                 onDataPointClick={({ x, y, value, index }) => showTooltip(x, y, value, timeRange !== 'today' ? rangeData[index].x : labels[index])}
                                 decorator={() => renderChartInteraction(def)}
                             />
@@ -982,18 +1009,24 @@ export default function VitalsHistoryScreen({ navigation }) {
     );
 
     const renderSummaryStatsSkeleton = () => (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll} style={{ marginBottom: 20 }}>
-            {[...Array(3)].map((_, i) => (
-                <View key={i} style={[styles.skeletonStatCard, { borderTopColor: '#E2E8F0' }]}>
-                    <SkeletonItem width={60} height={10} borderRadius={3} style={{ marginBottom: 10 }} />
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginBottom: 12 }}>
-                        <SkeletonItem width={70} height={32} borderRadius={6} />
-                        <SkeletonItem width={30} height={14} borderRadius={4} />
-                    </View>
-                    <SkeletonItem width={80} height={16} borderRadius={4} />
+        <View style={styles.statsCardContainer}>
+            <View style={styles.statsUnifiedCard}>
+                <View style={styles.statColumn}>
+                    <SkeletonItem width={40} height={10} borderRadius={3} style={{ marginBottom: 8 }} />
+                    <SkeletonItem width={60} height={22} borderRadius={6} />
                 </View>
-            ))}
-        </ScrollView>
+                <View style={styles.statDivider} />
+                <View style={styles.statColumn}>
+                    <SkeletonItem width={40} height={10} borderRadius={3} style={{ marginBottom: 8 }} />
+                    <SkeletonItem width={60} height={22} borderRadius={6} />
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statColumn}>
+                    <SkeletonItem width={40} height={10} borderRadius={3} style={{ marginBottom: 8 }} />
+                    <SkeletonItem width={60} height={22} borderRadius={6} />
+                </View>
+            </View>
+        </View>
     );
 
     const renderChartCardSkeleton = () => (
@@ -1237,14 +1270,17 @@ const styles = StyleSheet.create({
     dateLabel: { fontSize: 9, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.5 },
     dateValue: { fontSize: 13, fontWeight: '900', color: '#0F172A' },
 
-    /* Stats Scroll */
-    statsScroll: { gap: 10, paddingBottom: 4 },
-    statCard: {
-        width: 120, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 14,
-        borderTopWidth: 3, borderWidth: 1, borderColor: '#F1F5F9',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.02, shadowRadius: 6, elevation: 1
+    /* Stats Scroll & Unified Card */
+    statsCardContainer: { marginBottom: 20 },
+    statsUnifiedCard: {
+        backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 16, paddingHorizontal: 12,
+        flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 2
     },
-    statHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+    statColumn: { flex: 1, alignItems: 'center' },
+    statDivider: { width: 1, height: 32, backgroundColor: '#E2E8F0' },
+    statsScroll: { gap: 10, paddingBottom: 4 },
+    statHeader: { flexDirection: 'row', gap: 4, alignItems: 'center', marginBottom: 6 },
     statLabel: { fontSize: 10, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
     statValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
     statValue: { fontSize: 22, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5 },
