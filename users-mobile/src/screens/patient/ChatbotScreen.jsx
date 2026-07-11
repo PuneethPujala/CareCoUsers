@@ -16,7 +16,7 @@ import { getApiTokens } from '../../lib/tokenStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService, handleApiError } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
-import { globalChatCache } from './ChatHistoryScreen';
+import { globalChatCache, removeCachedSession } from './ChatHistoryScreen';
 import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const INITIAL_SUGGESTIONS = [
@@ -1298,18 +1298,24 @@ export default function ChatbotScreen({ navigation, route }) {
                     text: 'Delete', 
                     style: 'destructive',
                     onPress: async () => {
+                        const targetId = activeSessionId;
+                        
+                        // 1. Optimistically delete local caches
+                        delete globalChatCache[targetId];
+                        AsyncStorage.removeItem(`chatbot_session_${targetId}`).catch(() => {});
+                        
+                        // 2. Optimistically remove from list cache
+                        removeCachedSession(targetId);
+                        
+                        // 3. Navigate back immediately (zero-latency transition)
+                        navigation.goBack();
+                        
+                        // 4. Perform network request in background
                         try {
                             const params = isCompanion ? { patientId: targetPatientId } : {};
-                            await apiService.chatbot.deleteSession(activeSessionId, params);
-                            
-                            // Delete local caches
-                            delete globalChatCache[activeSessionId];
-                            await AsyncStorage.removeItem(`chatbot_session_${activeSessionId}`);
-                            
-                            navigation.goBack();
+                            await apiService.chatbot.deleteSession(targetId, params);
                         } catch (err) {
-                            console.warn('Failed to delete chat session:', err);
-                            AlertManager.alert('Error', 'Could not delete conversation.', [{ text: 'OK' }], { type: 'error' });
+                            console.warn('Failed to delete chat session in background:', err);
                         }
                     }
                 }

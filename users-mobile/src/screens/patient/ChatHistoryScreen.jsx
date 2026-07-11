@@ -17,7 +17,13 @@ import CompanionHeader from '../../components/ui/CompanionHeader';
 import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 export const globalChatCache = {}; // Keyed by sessionId: { messages, title, updatedAt, sessionId }
-let cachedSessions = null;
+export let cachedSessions = null;
+
+export const removeCachedSession = (sessionId) => {
+    if (Array.isArray(cachedSessions)) {
+        cachedSessions = cachedSessions.filter(s => s._id !== sessionId);
+    }
+};
 
 const preloadRecentSessions = async (recentSessions, isCompanion, targetPatientId) => {
     if (!recentSessions || recentSessions.length === 0) return;
@@ -218,19 +224,29 @@ export default function ChatHistoryScreen() {
                     text: 'Delete',
                     style: 'destructive',
                     onPress: async () => {
+                        const previousSessions = [...sessions];
+                        
+                        // 1. Optimistically update local state immediately
+                        setSessions(prev => {
+                            const next = prev.filter(s => s._id !== session._id);
+                            cachedSessions = next;
+                            return next;
+                        });
+                        
                         try {
                             const params = isCompanion ? { patientId: targetPatientId } : {};
                             await apiService.chatbot.deleteSession(session._id, params);
-                            setSessions(prev => {
-                                const next = prev.filter(s => s._id !== session._id);
-                                cachedSessions = next;
-                                return next;
-                            });
+                            
                             // Clear caches
                             delete globalChatCache[session._id];
                             await AsyncStorage.removeItem(`chatbot_session_${session._id}`);
                         } catch (err) {
                             console.warn('Failed to delete session:', err);
+                            
+                            // 2. Revert state on error
+                            setSessions(previousSessions);
+                            cachedSessions = previousSessions;
+                            
                             const apiErr = handleApiError(err);
                             AlertManager.alert('Error', apiErr.message || 'Could not delete conversation.', [{ text: 'OK' }], { type: 'error' });
                         }
