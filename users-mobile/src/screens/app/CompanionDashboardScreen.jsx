@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp, TriangleAlert, Package2, BotMessageSquare, ClipboardCheck, Clock3, BrainCircuit, ChartColumnIncreasing } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
@@ -469,7 +469,7 @@ export default function CompanionDashboardScreen() {
                         <Animated.View style={[styles.card, sectionAnimForKey('alerts')]}>
                             <View style={styles.cardHeader}>
                                 <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
-                                    <Bell color={colors.danger} size={18} />
+                                    <TriangleAlert color={colors.danger} size={20} />
                                 </View>
                                 <View>
                                     <Text style={styles.cardTitle}>Critical Alerts</Text>
@@ -498,7 +498,7 @@ export default function CompanionDashboardScreen() {
                 {visibleSections.includes('refill') && (
                     <Animated.View style={[styles.refillBanner, sectionAnimForKey('refill')]}>
                         <View style={styles.refillBannerHeader}>
-                            <AlertCircle color={colors.warning} size={18} />
+                            <Package2 color={colors.warning} size={20} />
                             <Text style={styles.refillBannerTitle}>Low Medication Stock Alert</Text>
                         </View>
                         <ScrollView style={styles.refillList} nestedScrollEnabled={true}>
@@ -532,7 +532,10 @@ export default function CompanionDashboardScreen() {
                              resizeMode="cover"
                          />
                          <View style={styles.speechBubbleOverlapping}>
-                             <Text style={styles.briefingTitleOverlapping}>AI Companion Briefing</Text>
+                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                 <BotMessageSquare color="#4F46E5" size={20} />
+                                 <Text style={[styles.briefingTitleOverlapping, { marginBottom: 0 }]}>AI Companion Briefing</Text>
+                             </View>
                              <Text style={styles.briefingText}>{shortSummary}</Text>
 
                              {expandedBriefing && briefDetails ? (
@@ -566,7 +569,7 @@ export default function CompanionDashboardScreen() {
                     <Animated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
                     <View style={styles.summaryColLeft}>
                         <View style={styles.summaryColRow}>
-                            <ShieldCheck color={(data.recent_alerts && data.recent_alerts.length > 0) ? colors.danger : colors.success} size={20} />
+                            <Activity color={(data.recent_alerts && data.recent_alerts.length > 0) ? colors.danger : '#2563EB'} size={20} />
                             <View style={{ marginLeft: 6, flex: 1 }}>
                                 <Text style={styles.summaryColTitle} numberOfLines={1}>
                                     {(data.recent_alerts && data.recent_alerts.length > 0) ? 'Action Needed' : 'Stable Today'}
@@ -621,7 +624,9 @@ export default function CompanionDashboardScreen() {
                             onPress={() => navigation.navigate('InterventionCenter')}
                         >
                             <View style={styles.ctaCardHeader}>
-                                <Text style={styles.ctaEmoji}>⚡</Text>
+                                <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
+                                    <ClipboardCheck color="#059669" size={20} />
+                                </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.ctaTitle}>Proactive Intervention Center</Text>
                                     <Text style={styles.ctaSubtitle}>
@@ -649,8 +654,8 @@ export default function CompanionDashboardScreen() {
                 {visibleSections.includes('timeline') && (
                     <Animated.View style={[styles.card, sectionAnimForKey('timeline')]}>
                         <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: colors.successLight }]}>
-                                <Activity color={colors.success} size={18} />
+                            <View style={[styles.iconBox, { backgroundColor: '#F1F5F9' }]}>
+                                <Clock3 color="#475569" size={20} />
                             </View>
                             <View>
                                 <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
@@ -716,8 +721,8 @@ export default function CompanionDashboardScreen() {
                 {visibleSections.includes('vitals') && (
                     <Animated.View style={[styles.card, sectionAnimForKey('vitals')]}>
                         <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
-                                <HeartPulse color={colors.danger} size={18} />
+                            <View style={[styles.iconBox, { backgroundColor: '#FFF1F2' }]}>
+                                <HeartPulse color="#F43F5E" size={20} />
                             </View>
                             <View>
                                 <Text style={styles.cardTitle}>Vitals Status</Text>
@@ -800,7 +805,9 @@ export default function CompanionDashboardScreen() {
                             onPress={() => navigation.navigate('CompanionAnalytics')}
                         >
                             <View style={styles.ctaCardHeader}>
-                                <Text style={styles.ctaEmoji}>🧠</Text>
+                                <View style={[styles.iconBox, { backgroundColor: '#F5F3FF' }]}>
+                                    <BrainCircuit color="#7C3AED" size={20} />
+                                </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.ctaTitle}>Health Intelligence Center</Text>
                                     <Text style={styles.ctaSubtitle}>Forecasts • Trends • AI Insights</Text>
@@ -851,8 +858,8 @@ export default function CompanionDashboardScreen() {
                 {visibleSections.includes('adherence') && (
                     <Animated.View style={[styles.card, sectionAnimForKey('adherence')]}>
                         <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: colors.primarySoft }]}>
-                                <Activity color={colors.primary} size={18} />
+                            <View style={[styles.iconBox, { backgroundColor: '#ECFEFF' }]}>
+                                <ChartColumnIncreasing color="#0891B2" size={20} />
                             </View>
                             <View>
                                 <Text style={styles.cardTitle}>Medication Adherence</Text>
