@@ -22,7 +22,13 @@ To minimize legal liability and prevent patient anxiety, CareMyMed strictly avoi
 
 ### B. Baseline Guardrails
 * **Clinical Normal Ranges**: All default baseline calculations must derive from standard demographic guidelines, but **must** allow clinical overrides by the patient's primary care manager.
-* **Geriatric Priority**: Never apply strict standard adult athletic metrics to elderly patients where target blood pressures are intentionally managed higher to prevent orthostatic hypotension and fall risks.
+* **Geriatric Precautions**: Elderly patients' normal ranges may differ meaningfully from general adult guidelines and must not be assumed — flag for clinical override rather than hardcoding a fixed elevated target.
+
+### C. No Promising Unbuilt Capabilities
+* **Backend Verification**: UI copy and onboarding guides must never promise a capability (such as sync disconnections, account/data deletions, or file exports) that does not have a corresponding, fully implemented and tested backend API endpoint. Always verify the endpoint exists and is operational before writing the user-facing claim.
+
+### D. Alert Fatigue & Notification Throttling
+* **Alert Throttling**: Repeated non-critical anomaly alerts for the same metric within a short window (e.g., 24 hours) must be suppressed or batched rather than sent individually, avoiding notification flood and protecting the caregiver's response threshold.
 
 ---
 
@@ -48,7 +54,10 @@ Protecting Protected Health Information (PHI) is a core system requirement.
 
 ### B. Security & Scope Enforcement
 * **Access Filtering**: All backend database queries for patient data must pass through the `scopeFilter.js` middleware. Caregivers and companions must only retrieve records belonging to patients who have explicitly granted them access.
-* **Token Rotation**: Keep push tokens and session JWTs encrypted in `expo-secure-store` on the mobile device.
+
+### C. Client-Side Data Security
+* **Secure Token Storage**: Keep push tokens and session JWTs encrypted in `expo-secure-store` on the mobile device.
+* **Screen Security**: Disable screenshot/screen capture capabilities on screens displaying sensitive health profiles if the patient profile flag `allow_screenshots` is set to false. Render a privacy overlay mask when the app transitions into the background.
 
 ---
 
