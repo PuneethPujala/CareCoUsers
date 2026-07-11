@@ -379,6 +379,36 @@ class AndroidHealthAdapter {
                 }));
             }
 
+            // Fallback to native hardware Pedometer if Health Connect steps are 0
+            if (activity.steps === 0) {
+                try {
+                    const { Pedometer } = require('expo-sensors');
+                    const isPedometerAvailable = await Pedometer.isAvailableAsync();
+                    if (isPedometerAvailable) {
+                        const { status } = await Pedometer.getPermissionsAsync();
+                        let finalStatus = status;
+                        if (status !== 'granted') {
+                            const requestResult = await Pedometer.requestPermissionsAsync();
+                            finalStatus = requestResult.status;
+                        }
+                        if (finalStatus === 'granted') {
+                            const pedometerResult = await Pedometer.getStepCountAsync(startOfToday, endTime);
+                            if (pedometerResult && typeof pedometerResult.steps === 'number') {
+                                activity.steps = pedometerResult.steps;
+                                if (activity.distance_meters === 0) {
+                                    activity.distance_meters = Math.round(activity.steps * 0.762);
+                                }
+                                if (activity.active_calories === 0) {
+                                    activity.active_calories = Math.round(activity.steps * 0.04);
+                                }
+                            }
+                        }
+                    }
+                } catch (pedometerErr) {
+                    console.warn('Pedometer fallback query failed:', pedometerErr);
+                }
+            }
+
             if (primaryMeta) {
                 activity.metadata = {
                     device_name: primaryMeta.device || undefined,
