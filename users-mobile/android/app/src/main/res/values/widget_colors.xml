@@ -11,8 +11,8 @@
     <color name="widget_card_bg">#F8FAFC</color>
 
     <!-- Mascot Aura & Hero Card -->
-    <color name="widget_gradient_start">#FAFAFE</color>
-    <color name="widget_gradient_end">#F1F0FF</color>
+    <color name="widget_gradient_start">#E0E7FF</color>
+    <color name="widget_gradient_end">#F3E8FF</color>
     <color name="widget_border_color">#E2E8F0</color>
     <color name="widget_mascot_glow_start">#E0E7FF</color>
     <color name="widget_mascot_glow_end">#00E0E7FF</color>
