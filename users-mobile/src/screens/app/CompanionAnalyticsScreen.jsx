@@ -8,6 +8,7 @@ import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import CompanionHeader from '../../components/ui/CompanionHeader';
 
 const { width } = Dimensions.get('window');
@@ -434,23 +435,11 @@ export default function CompanionAnalyticsScreen() {
     if (!data || !data.patient) {
         return (
             <View style={styles.container}>
-                {/* Ambient Background Decorations */}
-                <View style={StyleSheet.absoluteFill}>
-                    <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
-                        <Defs>
-                            <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <Stop offset="0%" stopColor="#EDE9FE" stopOpacity="0.75" />
-                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-                            </SvgGradient>
-                        </Defs>
-                        {/* Top right curvy gradient backdrop */}
-                        <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
-                        
-                        {/* Stylized high-end wavy/curved lines only in the top hero region */}
-                        <Path d="M-20 160 C80 210, 180 130, 280 210 C340 260, 380 230, 420 290" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.6" />
-                        <Path d="M-40 190 C60 240, 160 160, 260 240 C320 290, 360 260, 400 320" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.35" />
-                    </Svg>
-                </View>
+                {/* Premium Linear Gradient Background */}
+                <LinearGradient
+                    colors={['#EEF2FF', '#F8FAFC']}
+                    style={StyleSheet.absoluteFill}
+                />
 
                 {/* Header */}
                 <CompanionHeader
@@ -547,23 +536,11 @@ export default function CompanionAnalyticsScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Ambient Background Decorations */}
-            <View style={StyleSheet.absoluteFill}>
-                <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
-                    <Defs>
-                        <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#EDE9FE" stopOpacity="0.75" />
-                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-                        </SvgGradient>
-                    </Defs>
-                    {/* Top right curvy gradient backdrop */}
-                    <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
-                    
-                    {/* Stylized high-end wavy/curved lines only in the top hero region */}
-                    <Path d="M-20 160 C80 210, 180 130, 280 210 C340 260, 380 230, 420 290" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.6" />
-                    <Path d="M-40 190 C60 240, 160 160, 260 240 C320 290, 360 260, 400 320" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.35" />
-                </Svg>
-            </View>
+            {/* Premium Linear Gradient Background */}
+            <LinearGradient
+                colors={['#EEF2FF', '#F8FAFC']}
+                style={StyleSheet.absoluteFill}
+            />
 
             {/* Header */}
             <CompanionHeader
@@ -1395,15 +1372,15 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     card: {
-        backgroundColor: colors.surface,
-        borderRadius: radius.xl,
-        padding: spacing.md,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 16,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0A2463',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
         elevation: 2,
     },
     cardTitle: {
@@ -1478,15 +1455,15 @@ const styles = StyleSheet.create({
     
     // AI Insight / Summary Card styles
     summaryCard: {
-        backgroundColor: colors.surface,
-        borderRadius: radius.xl,
-        padding: spacing.md,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 16,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0A2463',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
         elevation: 2,
     },
     summaryHeader: {
@@ -1540,15 +1517,15 @@ const styles = StyleSheet.create({
 
     // Visibility Hero Ring & KPIs (Side-by-side) styles
     kpiCardUnified: {
-        backgroundColor: colors.surface,
-        borderRadius: radius.xl,
-        padding: spacing.md,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 16,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0A2463',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
         elevation: 2,
     },
     kpiCardUnifiedTitle: {
