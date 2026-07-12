@@ -19,5 +19,7 @@ This repository uses [AGENTS.md](file:///c:/dev/CareCoUsers/AGENTS.md) as the si
 > - 📱 **React Native Performance**: [react_native_performance.md](file:///c:/dev/CareCoUsers/.github/agents/react_native_performance.md)
 > - 🔒 **Healthcare Security**: [healthcare_security.md](file:///c:/dev/CareCoUsers/.github/agents/healthcare_security.md)
 > - ❤️ **Elder UX**: [elder_ux.md](file:///c:/dev/CareCoUsers/.github/agents/elder_ux.md)
+> - 🧠 **AI & Clinical Reasoning**: [ai_reasoning_reviewer.md](file:///c:/dev/CareCoUsers/.github/agents/ai_reasoning_reviewer.md)
+> - 🧬 **Health Sync & Data Integrity**: [health_sync_reviewer.md](file:///c:/dev/CareCoUsers/.github/agents/health_sync_reviewer.md)
 
 Detailed flowchart diagrams, pipeline schemas, and interactive guides are maintained in the [docs/architecture](file:///c:/dev/CareCoUsers/docs/architecture/README.md) directory. Please refer to [AGENTS.md](file:///c:/dev/CareCoUsers/AGENTS.md) for repository conventions.

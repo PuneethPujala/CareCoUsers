@@ -2,9 +2,8 @@
 
 This document establishes the core guidelines for developing, modifying, and reviewing code in the CareMyMed repository. It acts as a **first-pass filter** to catch architectural and design errors early in the development lifecycle.
 
-> [!WARNING]
 > **CRITICAL DISCLAIMER: NOT A SUBSTITUTE FOR EXPERT REVIEW**
-> This playbook is a developer-level checklist and a linting guide for AI agents. It does **NOT** substitute for professional clinical safety audits, legal HIPAA compliance reviews, or physical accessibility consulting. All clinical copy, threshold values, and privacy policies must receive final sign-off from qualified human professionals before production deployment.
+> This playbook is a developer-level checklist and a linting guide for AI agents. It does **NOT** substitute for professional clinical safety audits, legal health privacy compliance reviews, or physical accessibility consulting. All clinical copy, threshold values, and privacy policies must receive final sign-off from qualified human professionals before production deployment.
 
 ---
 
@@ -17,8 +16,8 @@ To minimize legal liability and prevent patient anxiety, CareMyMed strictly avoi
 * **Prompt Human Care Interaction**: Every outlier vital alert or missed dose warning must end with an actionable suggestion to rest, log again, or contact the care team.
 
 **Copy Examples:**
-* ❌ *Incorrect*: "Your heart rate is 112 BPM. You may be experiencing tachycardia. Seek emergency help."
-*  *Correct*: "Your heart rate is 112 BPM, which is elevated compared to your baseline. We recommend resting and taking another reading in a few minutes. Please contact your care team if you feel unwell."
+* ❌ *Incorrect*: "Predicted vitals are trending towards critical levels. Please check your health dashboard."
+*  *Correct*: "We noticed readings that may require attention. Please review your health dashboard and contact your healthcare provider if you feel unwell."
 
 ### B. Baseline Guardrails
 * **Clinical Normal Ranges**: All default baseline calculations must derive from standard demographic guidelines, but **must** allow clinical overrides by the patient's primary care manager.
@@ -29,6 +28,7 @@ To minimize legal liability and prevent patient anxiety, CareMyMed strictly avoi
 
 ### D. Alert Fatigue & Notification Throttling
 * **Alert Throttling**: Repeated non-critical anomaly alerts for the same metric within a short window (e.g., 24 hours) must be suppressed or batched rather than sent individually, avoiding notification flood and protecting the caregiver's response threshold.
+* **Combined Notification Rate**: Audit the combined rate across all alerting subsystems (missed medication reminders, low-stock warnings, BP requests, companion nudges). Ensure a single user is not bombarded by concurrent alerts from multiple pipelines. Limit non-critical notifications to a maximum of 3 events in any 4-hour window.
 
 ---
 
@@ -45,11 +45,12 @@ CareMyMed is designed to be accessible to elderly users who may experience visua
 
 ---
 
-## 3. HIPAA, Privacy & PHI Isolation
-Protecting Protected Health Information (PHI) is a core system requirement.
+## 3. Health Privacy & PHI Isolation
+Protecting Protected Health Information (PHI) is a core system requirement that aligns with common healthcare privacy practices.
 
 ### A. Log Sanitization
 * **Log Scrubbing**: Never write patient names, email addresses, phone numbers, raw invite codes, or specific vital statistics into console logs, standard files, or third-party monitoring services (e.g., Sentry).
+* **No Token Substrings**: Never log raw substrings of push tokens or authentication session secrets (e.g. `token.substring(0, 20)`). Instead, print a cryptographic hash (such as SHA-256) of the token or redact the identifier entirely.
 * **Identifier Anonymization**: Use MongoDB ObjectIDs (`patient_id`) for identifying logs, tracking performance metrics, or tracing errors.
 
 ### B. Security & Scope Enforcement
@@ -57,6 +58,7 @@ Protecting Protected Health Information (PHI) is a core system requirement.
 
 ### C. Client-Side Data Security
 * **Secure Token Storage**: Keep push tokens and session JWTs encrypted in `expo-secure-store` on the mobile device.
+* **Storage Fallback Boundaries**: Sensitive session JWTs, patient PII, and medical metrics must *never* fallback to AsyncStorage if EncryptedStorage is unavailable. They must remain exclusively within secure, hardware-backed memory models (`expo-secure-store`, Android KeyStore, or iOS Keychain). AsyncStorage is strictly limited to non-sensitive layout preferences, UI caches, and sync categories metadata.
 * **Screen Security**: Disable screenshot/screen capture capabilities on screens displaying sensitive health profiles if the patient profile flag `allow_screenshots` is set to false. Render a privacy overlay mask when the app transitions into the background.
 
 ---
