@@ -113,77 +113,128 @@ export const estimateSleep = async () => {
           now,
         );
         if (events && events.length > 0) {
-          // Filter to only include interactive user events (screen interactive/non-interactive, app foreground/background, unlock, and power events)
-          // This prevents background syncs, notifications, and standby bucket changes from splitting quiet periods.
-          const interactiveEvents = events.filter(e => 
-            e.eventType === 7 ||  // SCREEN_INTERACTIVE / USER_INTERACTION
-            e.eventType === 8 ||  // SCREEN_NON_INTERACTIVE
-            e.eventType === 10 || // KEYGUARD_HIDDEN (Device unlocked)
-            e.eventType === 1 ||  // ACTIVITY_RESUMED
-            e.eventType === 2 ||  // ACTIVITY_PAUSED
-            e.eventType === 18 || // DEVICE_SHUTDOWN
-            e.eventType === 19    // DEVICE_STARTUP
-          );
+          console.info("[SleepEstimation] Total raw events retrieved:", events.length);
+
+          // Filter to only include interactive user events (screen interactive, device unlock, startup, etc.)
+          // We specifically exclude our own app packages (com.careco.users, com.caremymed) to prevent
+          // background syncs or silent push notifications from fragmenting the sleep gap.
+          const interactiveEvents = events.filter(e => {
+            if (e.packageName === "com.careco.users" || e.packageName === "com.caremymed") {
+              console.info(`[SleepEstimation] Excluded self-app background wake event type ${e.eventType} at ${new Date(e.timeStamp).toLocaleTimeString()}`);
+              return false;
+            }
+            return (
+              e.eventType === 7 ||  // SCREEN_INTERACTIVE / USER_INTERACTION
+              e.eventType === 8 ||  // SCREEN_NON_INTERACTIVE
+              e.eventType === 10 || // KEYGUARD_HIDDEN (Device unlocked)
+              e.eventType === 1 ||  // ACTIVITY_RESUMED
+              e.eventType === 2 ||  // ACTIVITY_PAUSED
+              e.eventType === 18 || // DEVICE_SHUTDOWN
+              e.eventType === 19    // DEVICE_STARTUP
+            );
+          });
 
           const sortedEvents = [...(interactiveEvents.length > 0 ? interactiveEvents : events)].sort(
             (a, b) => a.timeStamp - b.timeStamp,
           );
 
-          let maxGapMs = 0;
-          let sleepStart = null;
-          let sleepEnd = null;
-
+          // Find silence gaps >= 30 minutes
+          const SILENCE_THRESHOLD_MS = 30 * 60 * 1000;
+          const inactiveGaps = [];
           for (let i = 0; i < sortedEvents.length - 1; i++) {
-            const gap =
-              sortedEvents[i + 1].timeStamp - sortedEvents[i].timeStamp;
-            if (gap > maxGapMs) {
-              maxGapMs = gap;
-              sleepStart = sortedEvents[i].timeStamp;
-              sleepEnd = sortedEvents[i + 1].timeStamp;
+            const start = sortedEvents[i].timeStamp;
+            const end = sortedEvents[i + 1].timeStamp;
+            const gap = end - start;
+            if (gap >= SILENCE_THRESHOLD_MS) {
+              inactiveGaps.push({ start, end, duration: gap });
             }
           }
 
-          const durationHours = maxGapMs / (1000 * 60 * 60);
-          const currentDate = new Date(now);
-          const currentHour = currentDate.getHours();
+          // Merge consecutive inactive gaps separated by < 20 minutes of user activity
+          const MAX_WAKE_INTERVAL_MS = 20 * 60 * 1000;
+          const mergedBlocks = [];
+          if (inactiveGaps.length > 0) {
+            let currentBlock = { ...inactiveGaps[0] };
+            for (let i = 1; i < inactiveGaps.length; i++) {
+              const nextGap = inactiveGaps[i];
+              const activeDuration = nextGap.start - currentBlock.end;
+              if (activeDuration <= MAX_WAKE_INTERVAL_MS) {
+                currentBlock.end = nextGap.end;
+                currentBlock.duration += nextGap.duration;
+              } else {
+                mergedBlocks.push(currentBlock);
+                currentBlock = { ...nextGap };
+              }
+            }
+            mergedBlocks.push(currentBlock);
+          }
 
-          // Only show if the overnight gap is between 3 and 14 hours and checked during morning/noon hours
-          if (
-            durationHours >= 3 &&
-            durationHours <= 14 &&
-            currentHour >= 4 &&
-            currentHour < 13
-          ) {
-            const lastActiveDate = new Date(sleepStart);
-            const wakeUpDate = new Date(sleepEnd);
+          let bestBlock = null;
+          if (mergedBlocks.length > 0) {
+            // Pick block with the maximum total sleep duration
+            const sortedBlocks = [...mergedBlocks].sort((a, b) => b.duration - a.duration);
+            bestBlock = sortedBlocks[0];
+          } else {
+            // Fallback: Pick single largest gap
+            let maxGapMs = 0;
+            let sleepStart = null;
+            let sleepEnd = null;
+            for (let i = 0; i < sortedEvents.length - 1; i++) {
+              const gap = sortedEvents[i + 1].timeStamp - sortedEvents[i].timeStamp;
+              if (gap > maxGapMs) {
+                maxGapMs = gap;
+                sleepStart = sortedEvents[i].timeStamp;
+                sleepEnd = sortedEvents[i + 1].timeStamp;
+              }
+            }
+            if (maxGapMs > 0) {
+              bestBlock = { start: sleepStart, end: sleepEnd, duration: maxGapMs };
+            }
+          }
 
-            const formatTime = (date) => {
-              let hrs = date.getHours();
-              const minutes = date.getMinutes();
-              const ampm = hrs >= 12 ? "PM" : "AM";
-              hrs = hrs % 12;
-              hrs = hrs ? hrs : 12;
-              const minStr = minutes < 10 ? "0" + minutes : minutes;
-              return `${hrs}:${minStr} ${ampm}`;
-            };
+          if (bestBlock) {
+            const durationHours = bestBlock.duration / (1000 * 60 * 60);
+            const currentDate = new Date(now);
+            const currentHour = currentDate.getHours();
 
-            return {
-              estimate: {
-                hours: Math.round(durationHours * 10) / 10,
-                rawHours: durationHours,
-                startTime: formatTime(lastActiveDate),
-                endTime: formatTime(wakeUpDate),
-                dateStr: todayStr,
-                lastActiveTime: sleepStart,
-                currentTime: sleepEnd,
-                source: "device_inactivity",
-              },
-              source: "usage_stats",
-              confidenceLabel: "estimated",
-              needsPermission: null,
-              displayTitle: "🌙 Estimated Sleep",
-              displaySubtitle: "Based on device activity",
-            };
+            // Only show if the overnight gap is between 3 and 14 hours and checked during morning/noon hours
+            if (
+              durationHours >= 3 &&
+              durationHours <= 14 &&
+              currentHour >= 4 &&
+              currentHour < 13
+            ) {
+              const lastActiveDate = new Date(bestBlock.start);
+              const wakeUpDate = new Date(bestBlock.end);
+
+              const formatTime = (date) => {
+                let hrs = date.getHours();
+                const minutes = date.getMinutes();
+                const ampm = hrs >= 12 ? "PM" : "AM";
+                hrs = hrs % 12;
+                hrs = hrs ? hrs : 12;
+                const minStr = minutes < 10 ? "0" + minutes : minutes;
+                return `${hrs}:${minStr} ${ampm}`;
+              };
+
+              return {
+                estimate: {
+                  hours: Math.round(durationHours * 10) / 10,
+                  rawHours: durationHours,
+                  startTime: formatTime(lastActiveDate),
+                  endTime: formatTime(wakeUpDate),
+                  dateStr: todayStr,
+                  lastActiveTime: bestBlock.start,
+                  currentTime: bestBlock.end,
+                  source: "device_inactivity",
+                },
+                source: "usage_stats",
+                confidenceLabel: "estimated",
+                needsPermission: null,
+                displayTitle: "🌙 Estimated Sleep",
+                displaySubtitle: "Based on device activity",
+              };
+            }
           }
         }
       } else {

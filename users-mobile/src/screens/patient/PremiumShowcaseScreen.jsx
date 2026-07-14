@@ -95,6 +95,7 @@ export default function PremiumShowcaseScreen({ navigation, route }) {
 
     // Force EXPIRING_SOON if isRenewal navigation param is passed
     const forcedRenewal = route.params?.isRenewal || false;
+    const isRenewal = forcedRenewal || (plan !== 'free' && expiresAt);
     if (forcedRenewal) {
         uiState = 'EXPIRING_SOON';
     }
@@ -194,19 +195,32 @@ export default function PremiumShowcaseScreen({ navigation, route }) {
                             ))}
                         </View>
 
-                        {/* Informational Current Plan Details Card */}
-                        <View style={s.infoPlanCard}>
-                            <View style={s.infoPlanLeft}>
-                                <Text style={s.infoPlanTitle}>Annual Premium</Text>
-                                <Text style={s.infoPlanPrice}>₹8,000 /yr</Text>
-                                <Text style={s.infoPlanSub}>Expires on {expiryDateFormatted}</Text>
-                            </View>
-                            <View style={s.infoPlanRight}>
-                                <View style={s.saveBadge}>
-                                    <Text style={s.saveBadgeText}>SAVE 17%</Text>
-                                </View>
-                                <Text style={s.saveCrossPrice}>₹9,600</Text>
-                            </View>
+                        {/* Pricing Toggle Cards */}
+                        <Text style={s.sectionHeader}>Choose your plan</Text>
+                        <View style={[s.plansGrid, { marginBottom: 28 }]}>
+                            {PLANS.map(plan => {
+                                const isSelected = selectedPlanId === plan.id;
+                                return (
+                                    <Pressable 
+                                        key={plan.id}
+                                        onPress={() => setSelectedPlanId(plan.id)}
+                                        style={[s.planCard, isSelected && s.planCardActive, { borderColor: isSelected ? plan.color : '#E2E8F0' }]}
+                                    >
+                                        {plan.badge && (
+                                            <View style={s.badge}>
+                                                <Text style={s.badgeText}>{plan.badge}</Text>
+                                            </View>
+                                        )}
+                                        <Text style={[s.planName, isSelected && { color: plan.color }]}>{plan.name}</Text>
+                                        <Text style={[s.planPrice, isSelected && { color: plan.color }]}>{plan.price}</Text>
+                                        <Text style={s.planSub}>{plan.subtitle}</Text>
+
+                                        <View style={[s.radio, isSelected && { borderColor: plan.color }]}>
+                                            {isSelected && <View style={[s.radioFill, { backgroundColor: plan.color }]} />}
+                                        </View>
+                                    </Pressable>
+                                );
+                            })}
                         </View>
 
                         {/* Actions Block */}
@@ -215,18 +229,10 @@ export default function PremiumShowcaseScreen({ navigation, route }) {
                                 style={({ pressed }) => [s.continueBtn, pressed && { opacity: 0.95 }]}
                                 onPress={() => setShowCheckout(true)}
                             >
-                                <LinearGradient colors={['#7C3AED', '#6D28D9']} style={s.continueGradient}>
-                                    <Text style={s.continueText}>Continue Plan</Text>
+                                <LinearGradient colors={selectedPlan.gradient} style={s.continueGradient}>
+                                    <Text style={s.continueText}>Continue with {selectedPlan.name.split(' ')[0]}</Text>
                                     <Text style={s.continueSubText}>Keep all Premium benefits</Text>
                                 </LinearGradient>
-                            </Pressable>
-
-                            <Pressable 
-                                style={({ pressed }) => [s.exploreBtn, pressed && { backgroundColor: '#F8FAFC' }]}
-                                onPress={() => setShowCheckout(true)}
-                            >
-                                <CalendarRange size={18} color="#7C3AED" style={{ marginRight: 8 }} />
-                                <Text style={s.exploreBtnText}>Explore Plans</Text>
                             </Pressable>
                         </View>
 
