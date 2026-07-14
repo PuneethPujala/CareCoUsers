@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image, Animated, Modal, TouchableOpacity } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp, TriangleAlert, Package2, BotMessageSquare, ClipboardCheck, Clock3, BrainCircuit, ChartColumnIncreasing } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp, TriangleAlert, Package2, BotMessageSquare, ClipboardCheck, Clock3, BrainCircuit, ChartColumnIncreasing, X } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
@@ -10,6 +10,7 @@ import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 're
 import { LinearGradient } from 'expo-linear-gradient';
 import CompanionHeader from '../../components/ui/CompanionHeader';
 import TabScreenTransition from '../../components/ui/TabScreenTransition';
+import StreakCalendar from '../../components/health/StreakCalendar';
 
 const { width } = Dimensions.get('window');
 
@@ -81,6 +82,26 @@ export default function CompanionDashboardScreen() {
     const navigation = useNavigation();
     const reduceMotion = useReduceMotion();
 
+    const [showCalendarModal, setShowCalendarModal] = useState(false);
+    const [historyData, setHistoryData] = useState(null);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+    const [showMedicationListModal, setShowMedicationListModal] = useState(false);
+
+    const handleViewCalendar = async () => {
+        setShowCalendarModal(true);
+        if (!selectedPatientId) return;
+        setLoadingHistory(true);
+        try {
+            const res = await apiService.companion.getPatientHealthHistory({ patientId: selectedPatientId });
+            setHistoryData(res.data);
+        } catch (err) {
+            console.warn('Failed to load patient health history', err);
+            AlertManager.alert('Error', 'Failed to retrieve patient adherence history.');
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
     const visibleSections = useMemo(() => {
         if (!data || !data.patient) return [];
         
@@ -88,13 +109,13 @@ export default function CompanionDashboardScreen() {
         return [
             'alerts',
             (data.refill_alerts && data.refill_alerts.length > 0) ? 'refill' : null,
+            'adherence',
+            'vitals',
+            'intelligence_center',
             'briefing',
             'summary',
             'intervention_center',
             (data.medication_schedule && data.medication_schedule.length > 0) ? 'timeline' : null,
-            'vitals',
-            'intelligence_center',
-            'adherence',
             'refresh',
         ].filter(Boolean);
     }, [data]);
@@ -523,196 +544,77 @@ export default function CompanionDashboardScreen() {
                     </Animated.View>
                 )}
 
-                {/* 3. AI Companion Briefing (Mascot Overlapping Speech Bubble) */}
-                {visibleSections.includes('briefing') && (
-                     <Animated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
-                         <Image 
-                             source={require('../../../assets/doctor_mascot_insights.jpg')} 
-                             style={styles.mascotOverlappingImage}
-                             resizeMode="cover"
-                         />
-                         <View style={styles.speechBubbleOverlapping}>
-                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                 <BotMessageSquare color="#4F46E5" size={20} />
-                                 <Text style={[styles.briefingTitleOverlapping, { marginBottom: 0 }]}>AI Companion Briefing</Text>
-                             </View>
-                             <Text style={styles.briefingText}>{shortSummary}</Text>
 
-                             {expandedBriefing && briefDetails ? (
-                                 <View style={styles.expandedBriefingContainer}>
-                                     <View style={styles.briefingDivider} />
-                                     <Text style={styles.briefingTextDetails}>{briefDetails}</Text>
-                                 </View>
-                             ) : null}
 
-                             {briefDetails ? (
-                                 <Pressable 
-                                     style={({ pressed }) => [styles.briefingToggleBtn, pressed && { opacity: 0.7 }]}
-                                     onPress={() => setExpandedBriefing(!expandedBriefing)}
-                                 >
-                                     <Text style={styles.briefingToggleText}>
-                                         {expandedBriefing ? 'Show Less' : 'Read Full Briefing'}
-                                     </Text>
-                                     {expandedBriefing ? (
-                                         <ChevronUp size={14} color={colors.primary} style={{ marginLeft: 2 }} />
-                                     ) : (
-                                         <ChevronDown size={14} color={colors.primary} style={{ marginLeft: 2 }} />
-                                     )}
-                                 </Pressable>
-                             ) : null}
-                         </View>
-                     </Animated.View>
-                 )}
 
-                {/* 4. Top Summary Card (Status Bar) */}
-                {visibleSections.includes('summary') && (
-                    <Animated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
-                    <View style={styles.summaryColLeft}>
-                        <View style={styles.summaryColRow}>
-                            <Activity color={(data.recent_alerts && data.recent_alerts.length > 0) ? colors.danger : '#2563EB'} size={20} />
-                            <View style={{ marginLeft: 6, flex: 1 }}>
-                                <Text style={styles.summaryColTitle} numberOfLines={1}>
-                                    {(data.recent_alerts && data.recent_alerts.length > 0) ? 'Action Needed' : 'Stable Today'}
-                                </Text>
-                                <Text style={styles.summaryColSub}>
-                                    {(data.recent_alerts && data.recent_alerts.length > 0) ? `${data.recent_alerts.length} active alerts` : 'All vitals normal'}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                    
-                    <View style={styles.summaryDivider} />
-                    
-                    <View style={styles.summaryColCenter}>
-                        <Text style={styles.summaryColLabel}>Adherence</Text>
-                        <Text 
-                            style={[
-                                styles.summaryColValue, 
-                                { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
-                            ]}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                        >
-                            {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
-                        </Text>
-                        <Text style={styles.summaryColLabelSub}>
-                            {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
-                        </Text>
-                    </View>
-                    
-                    <View style={styles.summaryDivider} />
-                    
-                    <View style={styles.summaryColRight}>
-                        <Text style={styles.summaryColLabel}>Last Sync</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                            <Text style={styles.summaryColValueSmall}>
-                                {hasVitals ? '2h ago' : '8m ago'}
-                            </Text>
-                            <Pressable onPress={() => loadData()}>
-                                <RefreshCw size={12} color={colors.primary} />
-                            </Pressable>
-                        </View>
-                    </View>
-                    </Animated.View>
-                )}
-
-                {/* 5. ⚡ Proactive Intervention Center CTA Card */}
-                {visibleSections.includes('intervention_center') && (
-                    <Animated.View style={[styles.ctaCard, { marginTop: 12 }, sectionAnimForKey('intervention_center')]}>
-                        <Pressable 
-                            style={({ pressed }) => [styles.ctaCardPressable, pressed && { opacity: 0.95 }]}
-                            onPress={() => navigation.navigate('InterventionCenter')}
-                        >
-                            <View style={styles.ctaCardHeader}>
-                                <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
-                                    <ClipboardCheck color="#059669" size={20} />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.ctaTitle}>Proactive Intervention Center</Text>
-                                    <Text style={styles.ctaSubtitle}>
-                                        {pendingInterventionsCount > 0 
-                                            ? `${pendingInterventionsCount} care intervention${pendingInterventionsCount > 1 ? 's' : ''} recommended`
-                                            : 'No immediate actions needed today'}
-                                    </Text>
-                                </View>
-                                {pendingInterventionsCount > 0 && (
-                                    <View style={styles.activeBadgeContainer}>
-                                        <Text style={styles.activeBadgeText}>{pendingInterventionsCount}</Text>
-                                    </View>
-                                )}
-                                <ChevronRight color={colors.primary} size={20} />
-                            </View>
-                            <View style={styles.ctaViewDetailsRow}>
-                                <Text style={styles.ctaViewDetailsText}>Open Action Center</Text>
-                                <ChevronRight size={14} color={colors.primary} />
-                            </View>
-                        </Pressable>
-                    </Animated.View>
-                )}
-
-                {/* 6. Daily Medication Timeline Checklist */}
-                {visibleSections.includes('timeline') && (
-                    <Animated.View style={[styles.card, sectionAnimForKey('timeline')]}>
+                {/* 9. Adherence Meter Card */}
+                {visibleSections.includes('adherence') && (
+                    <Animated.View style={[styles.card, sectionAnimForKey('adherence')]}>
                         <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: '#F1F5F9' }]}>
-                                <Clock3 color="#475569" size={20} />
+                            <View style={[styles.iconBox, { backgroundColor: '#ECFEFF' }]}>
+                                <ChartColumnIncreasing color="#0891B2" size={20} />
                             </View>
                             <View>
-                                <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
-                                <Text style={styles.cardSub}>Track hourly adherence status</Text>
+                                <Text style={styles.cardTitle}>Medication Adherence</Text>
+                                <Text style={styles.cardSub}>Today's completed schedule</Text>
                             </View>
                         </View>
 
-                        <View style={styles.timelineContainer}>
-                            {(() => {
-                                const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
-                                const sortedSchedule = [...data.medication_schedule].sort((a, b) => {
-                                    const aOrder = SLOT_ORDER[a.scheduled_time] || 99;
-                                    const bOrder = SLOT_ORDER[b.scheduled_time] || 99;
-                                    if (aOrder !== bOrder) return aOrder - bOrder;
-                                    return a.name.localeCompare(b.name);
-                                });
-                                
-                                return sortedSchedule.map((item, idx) => {
-                                    const isLast = idx === sortedSchedule.length - 1;
-                                return (
-                                    <View key={idx} style={styles.timelineRow}>
-                                        <View style={styles.timelineLeft}>
-                                            <Text style={styles.timelineTime}>
-                                                {item.scheduled_time.toUpperCase()}
-                                            </Text>
-                                            <View style={styles.timelineLineContainer}>
-                                                <View style={[styles.timelineNode, { 
-                                                    backgroundColor: item.taken ? colors.success : colors.textMuted,
-                                                    borderColor: item.taken ? colors.successLight : colors.borderLight 
-                                                }]} />
-                                                {!isLast && <View style={[styles.timelineLine, { 
-                                                    backgroundColor: item.taken ? colors.success : colors.borderLight 
-                                                }]} />}
-                                            </View>
-                                        </View>
-                                        
-                                        <Pressable style={({ pressed }) => [styles.timelineCard, item.taken ? styles.timelineCardTaken : null, pressed && { opacity: 0.7 }]}>
-                                            <View style={{ flex: 1, paddingRight: 8 }}>
-                                                <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
-                                                <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
-                                            </View>
+                        <View style={styles.meterRow}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.largeValue} numberOfLines={1} adjustsFontSizeToFit>
+                                    {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
+                                </Text>
+                                <View style={styles.streakBadge}>
+                                    <Text style={styles.streakText}>🔥 {data.patient.current_streak} Day Streak</Text>
+                                </View>
+                            </View>
+
+                            {/* Custom Pure-CSS Circular Progress Approximation */}
+                            <View style={styles.circularProgressPlaceholder}>
+                                <View style={[
+                                    styles.circleSegment, 
+                                    { borderColor: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
+                                ]}>
+                                    <Text style={styles.circleInsideText}>
+                                        {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Dynamic Status Banner */}
+                        <View style={[
+                            styles.statusBanner,
+                            { backgroundColor: adherence > 75 ? colors.successLight : adherence > 50 ? colors.warningLight : colors.dangerLight }
+                        ]}>
+                            <Text style={[
+                                styles.statusBannerText,
+                                { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
+                            ]}>
+                                {adherence > 75 ? 'Adherence is stable. Keep it up!' : 'Some medicines were missed today.'}
+                            </Text>
+                        </View>
+
+                        {/* Custom Weekly Progress Micro-Chart */}
+                        <View style={styles.chartContainer}>
+                            <Text style={styles.chartTitle}>Weekly Adherence Trend</Text>
+                            <View style={styles.barChart}>
+                                {(data?.weekly_adherence || mockWeeklyAdherence).map((item, idx) => (
+                                    <View key={idx} style={styles.barWrapper}>
+                                        <View style={styles.barTrack}>
                                             <View style={[
-                                                styles.timelineStatusBadge, 
-                                                { backgroundColor: item.taken ? colors.successLight : colors.warningLight }
-                                            ]}>
-                                                <Text style={[
-                                                    styles.timelineStatusText, 
-                                                    { color: item.taken ? colors.success : colors.warning }
-                                                ]}>
-                                                    {item.taken ? 'Taken' : 'Pending'}
-                                                </Text>
-                                            </View>
-                                        </Pressable>
+                                                styles.barFill, 
+                                                { 
+                                                    height: `${item.rate}%`,
+                                                    backgroundColor: item.rate > 75 ? colors.success : item.rate > 50 ? colors.warning : colors.danger 
+                                                }
+                                            ]} />
+                                        </View>
+                                        <Text style={styles.barLabel}>{item.day}</Text>
                                     </View>
-                                );
-                                });
-                            })()}
+                                ))}
+                            </View>
                         </View>
                     </Animated.View>
                 )}
@@ -854,77 +756,257 @@ export default function CompanionDashboardScreen() {
                     </Animated.View>
                 )}
 
-                {/* 9. Adherence Meter Card */}
-                {visibleSections.includes('adherence') && (
-                    <Animated.View style={[styles.card, sectionAnimForKey('adherence')]}>
-                        <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: '#ECFEFF' }]}>
-                                <ChartColumnIncreasing color="#0891B2" size={20} />
-                            </View>
-                            <View>
-                                <Text style={styles.cardTitle}>Medication Adherence</Text>
-                                <Text style={styles.cardSub}>Today's completed schedule</Text>
+                {/* 3. AI Companion Briefing (Mascot Overlapping Speech Bubble) */}
+                {visibleSections.includes('briefing') && (
+                     <Animated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
+                         <Image 
+                             source={require('../../../assets/doctor_mascot_insights.jpg')} 
+                             style={styles.mascotOverlappingImage}
+                             resizeMode="cover"
+                         />
+                         <View style={styles.speechBubbleOverlapping}>
+                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                 <BotMessageSquare color="#4F46E5" size={20} />
+                                 <Text style={[styles.briefingTitleOverlapping, { marginBottom: 0 }]}>AI Companion Briefing</Text>
+                             </View>
+                             <Text style={styles.briefingText}>{shortSummary}</Text>
+
+                             {expandedBriefing && briefDetails ? (
+                                 <View style={styles.expandedBriefingContainer}>
+                                     <View style={styles.briefingDivider} />
+                                     <Text style={styles.briefingTextDetails}>{briefDetails}</Text>
+                                 </View>
+                             ) : null}
+
+                             {briefDetails ? (
+                                 <Pressable 
+                                     style={({ pressed }) => [styles.briefingToggleBtn, pressed && { opacity: 0.7 }]}
+                                     onPress={() => setExpandedBriefing(!expandedBriefing)}
+                                 >
+                                     <Text style={styles.briefingToggleText}>
+                                         {expandedBriefing ? 'Show Less' : 'Read Full Briefing'}
+                                     </Text>
+                                     {expandedBriefing ? (
+                                         <ChevronUp size={14} color={colors.primary} style={{ marginLeft: 2 }} />
+                                     ) : (
+                                         <ChevronDown size={14} color={colors.primary} style={{ marginLeft: 2 }} />
+                                     )}
+                                 </Pressable>
+                             ) : null}
+                         </View>
+                     </Animated.View>
+                 )}
+
+                {/* 4. Top Summary Card (Status Bar) */}
+                {visibleSections.includes('summary') && (
+                    <Animated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
+                    <View style={styles.summaryColLeft}>
+                        <View style={styles.summaryColRow}>
+                            <Activity color={(data.recent_alerts && data.recent_alerts.length > 0) ? colors.danger : '#2563EB'} size={20} />
+                            <View style={{ marginLeft: 6, flex: 1 }}>
+                                <Text style={styles.summaryColTitle} numberOfLines={1}>
+                                    {(data.recent_alerts && data.recent_alerts.length > 0) ? 'Action Needed' : 'Stable Today'}
+                                </Text>
+                                <Text style={styles.summaryColSub}>
+                                    {(data.recent_alerts && data.recent_alerts.length > 0) ? `${data.recent_alerts.length} active alerts` : 'All vitals normal'}
+                                </Text>
                             </View>
                         </View>
+                    </View>
+                    
+                    <View style={styles.summaryDivider} />
+                    
+                    <View style={styles.summaryColCenter}>
+                        <Text style={styles.summaryColLabel}>Adherence</Text>
+                        <Text 
+                            style={[
+                                styles.summaryColValue, 
+                                { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
+                            ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                        >
+                            {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
+                        </Text>
+                        <Text style={styles.summaryColLabelSub}>
+                            {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
+                        </Text>
+                    </View>
+                    
+                    <View style={styles.summaryDivider} />
+                    
+                    <View style={styles.summaryColRight}>
+                        <Text style={styles.summaryColLabel}>Last Sync</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                            <Text style={styles.summaryColValueSmall}>
+                                {hasVitals ? '2h ago' : '8m ago'}
+                            </Text>
+                            <Pressable onPress={() => loadData()}>
+                                <RefreshCw size={12} color={colors.primary} />
+                            </Pressable>
+                        </View>
+                    </View>
+                    </Animated.View>
+                )}
 
-                        <View style={styles.meterRow}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.largeValue} numberOfLines={1} adjustsFontSizeToFit>
-                                    {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
-                                </Text>
-                                <View style={styles.streakBadge}>
-                                    <Text style={styles.streakText}>🔥 {data.patient.current_streak} Day Streak</Text>
+                {/* 5. ⚡ Proactive Intervention Center CTA Card */}
+                {visibleSections.includes('intervention_center') && (
+                    <Animated.View style={[styles.ctaCard, { marginTop: 12 }, sectionAnimForKey('intervention_center')]}>
+                        <Pressable 
+                            style={({ pressed }) => [styles.ctaCardPressable, pressed && { opacity: 0.95 }]}
+                            onPress={() => navigation.navigate('InterventionCenter')}
+                        >
+                            <View style={styles.ctaCardHeader}>
+                                <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
+                                    <ClipboardCheck color="#059669" size={20} />
                                 </View>
-                            </View>
-
-                            {/* Custom Pure-CSS Circular Progress Approximation */}
-                            <View style={styles.circularProgressPlaceholder}>
-                                <View style={[
-                                    styles.circleSegment, 
-                                    { borderColor: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
-                                ]}>
-                                    <Text style={styles.circleInsideText}>
-                                        {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.ctaTitle}>Proactive Intervention Center</Text>
+                                    <Text style={styles.ctaSubtitle}>
+                                        {pendingInterventionsCount > 0 
+                                            ? `${pendingInterventionsCount} care intervention${pendingInterventionsCount > 1 ? 's' : ''} recommended`
+                                            : 'No immediate actions needed today'}
                                     </Text>
                                 </View>
-                            </View>
-                        </View>
-
-                        {/* Dynamic Status Banner */}
-                        <View style={[
-                            styles.statusBanner,
-                            { backgroundColor: adherence > 75 ? colors.successLight : adherence > 50 ? colors.warningLight : colors.dangerLight }
-                        ]}>
-                            <Text style={[
-                                styles.statusBannerText,
-                                { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
-                            ]}>
-                                {adherence > 75 ? 'Adherence is stable. Keep it up!' : 'Some medicines were missed today.'}
-                            </Text>
-                        </View>
-
-                        {/* Custom Weekly Progress Micro-Chart */}
-                        <View style={styles.chartContainer}>
-                            <Text style={styles.chartTitle}>Weekly Adherence Trend</Text>
-                            <View style={styles.barChart}>
-                                {(data?.weekly_adherence || mockWeeklyAdherence).map((item, idx) => (
-                                    <View key={idx} style={styles.barWrapper}>
-                                        <View style={styles.barTrack}>
-                                            <View style={[
-                                                styles.barFill, 
-                                                { 
-                                                    height: `${item.rate}%`,
-                                                    backgroundColor: item.rate > 75 ? colors.success : item.rate > 50 ? colors.warning : colors.danger 
-                                                }
-                                            ]} />
-                                        </View>
-                                        <Text style={styles.barLabel}>{item.day}</Text>
+                                {pendingInterventionsCount > 0 && (
+                                    <View style={styles.activeBadgeContainer}>
+                                        <Text style={styles.activeBadgeText}>{pendingInterventionsCount}</Text>
                                     </View>
-                                ))}
+                                )}
+                                <ChevronRight color={colors.primary} size={20} />
                             </View>
+                            <View style={styles.ctaViewDetailsRow}>
+                                <Text style={styles.ctaViewDetailsText}>Open Action Center</Text>
+                                <ChevronRight size={14} color={colors.primary} />
+                            </View>
+                        </Pressable>
+                    </Animated.View>
+                )}
+
+                {/* 6. Daily Medication Timeline Checklist */}
+                {visibleSections.includes('timeline') && (
+                    <Animated.View style={[styles.card, sectionAnimForKey('timeline')]}>
+                        <View style={styles.cardHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: '#F1F5F9' }]}>
+                                <Clock3 color="#475569" size={20} />
+                            </View>
+                            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <View>
+                                    <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
+                                    <Text style={styles.cardSub}>Track hourly adherence status</Text>
+                                </View>
+                                <Pressable 
+                                    style={styles.timelineCalendarBtn} 
+                                    onPress={handleViewCalendar}
+                                >
+                                    <Calendar size={14} color="#7C3AED" />
+                                    <Text style={styles.timelineCalendarBtnText}>View Calendar</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+
+                        <View style={styles.timelineContainer}>
+                            {(() => {
+                                const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
+                                const sortedSchedule = [...data.medication_schedule].sort((a, b) => {
+                                    const aOrder = SLOT_ORDER[a.scheduled_time] || 99;
+                                    const bOrder = SLOT_ORDER[b.scheduled_time] || 99;
+                                    if (aOrder !== bOrder) return aOrder - bOrder;
+                                    return a.name.localeCompare(b.name);
+                                });
+                                
+                                const TIME_MAPPING = {
+                                    morning: { time: '08:00', label: 'MORNING' },
+                                    afternoon: { time: '13:00', label: 'AFTERNOON' },
+                                    evening: { time: '17:00', label: 'AFTERNOON' },
+                                    night: { time: '21:00', label: 'NIGHT' },
+                                    as_needed: { time: 'AS NEEDED', label: 'PRN' }
+                                };
+                                
+                                return (
+                                    <>
+                                        {sortedSchedule.map((item, idx) => {
+                                            const isLast = idx === sortedSchedule.length - 1;
+                                            return (
+                                                <View key={idx} style={styles.timelineRow}>
+                                                    {/* Left part: Time & Period */}
+                                                    <View style={styles.timelineTimeCol}>
+                                                        <Text style={styles.timelineTimeHour}>
+                                                            {TIME_MAPPING[item.scheduled_time]?.time || '08:00'}
+                                                        </Text>
+                                                        <Text style={styles.timelineTimePeriod}>
+                                                            {TIME_MAPPING[item.scheduled_time]?.label || 'MORNING'}
+                                                        </Text>
+                                                    </View>
+
+                                                    {/* Middle part: Dotted Line and Node */}
+                                                    <View style={styles.timelineLineCol}>
+                                                        <View style={styles.timelineLineContainer}>
+                                                            {!isLast && <View style={[styles.timelineLine, { 
+                                                                borderColor: item.taken ? '#10B981' : '#CBD5E1' 
+                                                            }]} />}
+                                                            
+                                                            {item.taken ? (
+                                                                <View style={styles.timelineCheckNode}>
+                                                                    <Text style={styles.timelineCheckText}>✓</Text>
+                                                                </View>
+                                                            ) : (
+                                                                <View style={styles.timelinePendingNode} />
+                                                            )}
+                                                        </View>
+                                                    </View>
+
+                                                    {/* Right part: clean card */}
+                                                    <Pressable style={({ pressed }) => [styles.timelineCard, item.taken ? styles.timelineCardTaken : null, pressed && { opacity: 0.7 }]}>
+                                                        {/* Pill/Capsule Icon in rounded square */}
+                                                        <View style={[styles.timelineIconBox, { backgroundColor: item.taken ? '#ECFDF5' : '#F1F5F9' }]}>
+                                                            <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={item.taken ? '#10B981' : '#64748B'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <Path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+                                                                <Path d="m8.5 8.5 7 7" />
+                                                            </Svg>
+                                                        </View>
+
+                                                        <View style={{ flex: 1, paddingRight: 8 }}>
+                                                            <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
+                                                            <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
+                                                        </View>
+
+                                                        <View style={[
+                                                            styles.timelineStatusBadge, 
+                                                            { backgroundColor: item.taken ? '#ECFDF5' : '#FEF3C7' }
+                                                        ]}>
+                                                            <Text style={[
+                                                                styles.timelineStatusText, 
+                                                                { color: item.taken ? '#10B981' : '#D97706' }
+                                                            ]}>
+                                                                {item.taken ? 'Taken' : 'Pending'}
+                                                            </Text>
+                                                        </View>
+
+                                                        <ChevronRight size={16} color="#94A3B8" style={{ marginLeft: 6 }} />
+                                                    </Pressable>
+                                                </View>
+                                            );
+                                        })}
+                                        
+                                        <Pressable 
+                                            style={({ pressed }) => [styles.timelineViewAllBtn, pressed && { opacity: 0.85 }]}
+                                            onPress={() => setShowMedicationListModal(true)}
+                                        >
+                                            <Text style={styles.timelineViewAllText}>View Full Medication List</Text>
+                                            <ChevronRight size={14} color="#7C3AED" />
+                                        </Pressable>
+                                    </>
+                                );
+                            })()}
                         </View>
                     </Animated.View>
                 )}
+
+
+
+
+
 
                 {/* 10. Refresh AI Insights Button */}
                 {visibleSections.includes('refresh') && (
@@ -946,6 +1028,118 @@ export default function CompanionDashboardScreen() {
                     </Animated.View>
                 )}
             </ScrollView>
+
+            {/* Modal 1: Adherence Calendar */}
+            <Modal
+                visible={showCalendarModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowCalendarModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>Adherence Calendar</Text>
+                                <Text style={styles.modalSub}>{data?.patient?.name}'s 35-Day consistency board</Text>
+                            </View>
+                            <TouchableOpacity 
+                                style={styles.modalCloseBtn}
+                                onPress={() => setShowCalendarModal(false)}
+                            >
+                                <X size={20} color="#64748B" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        {loadingHistory ? (
+                            <View style={styles.modalLoading}>
+                                <ActivityIndicator size="large" color={colors.primary} />
+                                <Text style={styles.modalLoadingText}>Loading health history...</Text>
+                            </View>
+                        ) : (
+                            <ScrollView contentContainerStyle={styles.modalScroll}>
+                                <StreakCalendar
+                                    dailyLog={
+                                        historyData?.history?.map((h) => ({
+                                            date: formatDate(h.date, "YYYY-MM-DD"),
+                                            adherence: h.adherence?.today ?? null,
+                                            mood: h.mood ?? null,
+                                            sleepHours: h.sleepHours ?? null,
+                                            bp: h.bpAvg ?? null,
+                                            score: h.score ?? null,
+                                        })) || []
+                                    }
+                                    timezone={data?.patient?.timezone || "Asia/Kolkata"}
+                                    profile={data?.patient}
+                                    onPressLogActivity={null}
+                                />
+                            </ScrollView>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal 2: Full Medication List */}
+            <Modal
+                visible={showMedicationListModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowMedicationListModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>Medication Schedule</Text>
+                                <Text style={styles.modalSub}>{data?.patient?.name}'s current active medications</Text>
+                            </View>
+                            <TouchableOpacity 
+                                style={styles.modalCloseBtn}
+                                onPress={() => setShowMedicationListModal(false)}
+                            >
+                                <X size={20} color="#64748B" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <ScrollView contentContainerStyle={styles.modalScroll}>
+                            {data?.medication_schedule && data.medication_schedule.length > 0 ? (
+                                <View style={styles.medListContainer}>
+                                    {data.medication_schedule.map((med, idx) => (
+                                        <View key={idx} style={styles.medListItem}>
+                                            <View style={[styles.medListIconContainer, { backgroundColor: med.taken ? '#ECFDF5' : '#F8FAFC' }]}>
+                                                <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={med.taken ? '#10B981' : '#64748B'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <Path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+                                                    <Path d="m8.5 8.5 7 7" />
+                                                </Svg>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.medListName}>{med.name}</Text>
+                                                <Text style={styles.medListDetails}>{med.dosage} • {med.route}</Text>
+                                                <Text style={styles.medListTime}>Scheduled: {med.scheduled_time?.toUpperCase()}</Text>
+                                            </View>
+                                            <View style={[
+                                                styles.medListStatusBadge,
+                                                { backgroundColor: med.taken ? '#ECFDF5' : '#FEF3C7' }
+                                            ]}>
+                                                <Text style={[
+                                                    styles.medListStatusText,
+                                                    { color: med.taken ? '#10B981' : '#D97706' }
+                                                ]}>
+                                                    {med.taken ? 'Taken' : 'Pending'}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : (
+                                <View style={styles.emptyMedsContainer}>
+                                    <Text style={styles.emptyMedsText}>No medications scheduled for today</Text>
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
             </View>
         </TabScreenTransition>
     );
@@ -1306,67 +1500,107 @@ const styles = StyleSheet.create({
 
     // Daily Medication Timeline Styles
     timelineContainer: {
-        marginTop: 10,
+        marginTop: 14,
         gap: 16,
     },
     timelineRow: {
         flexDirection: 'row',
-        gap: 12,
-        alignItems: 'center',
-    },
-    timelineLeft: {
-        width: 76,
         alignItems: 'center',
         position: 'relative',
     },
-    timelineTime: {
-        fontSize: 10,
-        ...FONT.bold,
-        color: colors.textMuted,
-        textAlign: 'center',
+    timelineTimeCol: {
+        width: 70,
+        alignItems: 'flex-start',
+        justifyContent: 'center',
     },
-    timelineLineContainer: {
-        alignItems: 'center',
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: 16,
-    },
-    timelineNode: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        borderWidth: 2,
-        zIndex: 2,
-    },
-    timelineLine: {
-        width: 2,
-        flex: 1,
-        position: 'absolute',
-        top: 8,
-        bottom: -16,
-        zIndex: 1,
-    },
-    timelineCard: {
-        flex: 1,
-        backgroundColor: '#F8FAFC',
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    timelineCardTaken: {
-        backgroundColor: colors.successLight + '33',
-    },
-    timelineMedName: {
+    timelineTimeHour: {
         fontSize: 13,
         ...FONT.bold,
         color: colors.textPrimary,
     },
-    timelineMedDosage: {
+    timelineTimePeriod: {
+        fontSize: 9,
+        ...FONT.medium,
+        color: colors.textMuted,
+        marginTop: 2,
+    },
+    timelineLineCol: {
+        width: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'stretch',
+    },
+    timelineLineContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        height: '100%',
+        width: '100%',
+    },
+    timelineLine: {
+        position: 'absolute',
+        top: 24,
+        bottom: -24,
+        width: 1,
+        borderStyle: 'dashed',
+        borderLeftWidth: 1.5,
+        zIndex: 1,
+    },
+    timelineCheckNode: {
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: '#10B981',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2,
+    },
+    timelineCheckText: {
+        color: '#FFFFFF',
         fontSize: 10,
+        fontWeight: 'bold',
+        marginTop: -1,
+    },
+    timelinePendingNode: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        borderWidth: 2,
+        borderColor: '#CBD5E1',
+        backgroundColor: '#FFFFFF',
+        zIndex: 2,
+    },
+    timelineCard: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        borderRadius: 18,
+        padding: 12,
+        marginLeft: 4,
+    },
+    timelineCardTaken: {
+        backgroundColor: '#F0FDF4',
+        borderColor: '#DCFCE7',
+    },
+    timelineIconBox: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+    },
+    timelineMedName: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: colors.textPrimary,
+    },
+    timelineMedDosage: {
+        fontSize: 11,
         ...FONT.medium,
         color: colors.textMuted,
         marginTop: 2,
@@ -1375,9 +1609,41 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     timelineStatusText: {
-        fontSize: 9,
+        fontSize: 10,
+        ...FONT.bold,
+    },
+    timelineCalendarBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        backgroundColor: '#F5F3FF',
+    },
+    timelineCalendarBtnText: {
+        color: '#7C3AED',
+        fontSize: 11,
+        ...FONT.semibold,
+    },
+    timelineViewAllBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: '#E9E3FF',
+        borderRadius: 20,
+        paddingVertical: 10,
+        marginTop: 14,
+    },
+    timelineViewAllText: {
+        color: '#7C3AED',
+        fontSize: 12,
         ...FONT.bold,
     },
 
@@ -2183,5 +2449,126 @@ const styles = StyleSheet.create({
         color: '#D97706',
         marginTop: 4,
         lineHeight: 18,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(15, 23, 42, 0.4)',
+        justifyContent: 'flex-end',
+    },
+    modalContainer: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingTop: 20,
+        paddingHorizontal: spacing.screen,
+        maxHeight: '85%',
+        minHeight: '40%',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 20,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    modalTitle: {
+        fontSize: 18,
+        ...FONT.bold,
+        color: colors.textPrimary,
+    },
+    modalSub: {
+        fontSize: 12,
+        ...FONT.medium,
+        color: colors.textMuted,
+        marginTop: 2,
+    },
+    modalCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalScroll: {
+        paddingVertical: 16,
+        paddingBottom: 40,
+    },
+    modalLoading: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 48,
+        gap: 12,
+    },
+    modalLoadingText: {
+        fontSize: 14,
+        ...FONT.semibold,
+        color: colors.textSecondary,
+    },
+    medListContainer: {
+        gap: 12,
+    },
+    medListItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        gap: 12,
+    },
+    medListIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    medListName: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: colors.textPrimary,
+    },
+    medListDetails: {
+        fontSize: 12,
+        ...FONT.medium,
+        color: colors.textSecondary,
+        marginTop: 2,
+    },
+    medListTime: {
+        fontSize: 10,
+        ...FONT.heavy,
+        color: colors.primary,
+        marginTop: 4,
+        letterSpacing: 0.5,
+    },
+    medListStatusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    medListStatusText: {
+        fontSize: 11,
+        ...FONT.bold,
+    },
+    emptyMedsContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 48,
+    },
+    emptyMedsText: {
+        fontSize: 14,
+        ...FONT.medium,
+        color: colors.textMuted,
     },
 });

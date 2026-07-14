@@ -47,6 +47,7 @@ import CompanionAlertsScreen from '../screens/app/CompanionAlertsScreen';
 import CompanionProfileScreen from '../screens/app/CompanionProfileScreen';
 import CompanionChatListScreen from '../screens/app/CompanionChatListScreen';
 import CompanionAnalyticsScreen from '../screens/app/CompanionAnalyticsScreen';
+import CareCircleScreen from '../screens/app/CareCircleScreen';
 
 import PatientHomeScreen from "../screens/patient/HomeScreen";
 import MyCallerScreen from "../screens/patient/MyCallerScreen";
@@ -161,6 +162,7 @@ const CompanionMainStack = () => (
         <Stack.Screen name="CompanionHome" component={CompanionHomeScreen} />
         <Stack.Screen name="CompanionTabs" component={CompanionTabNavigator} />
         <Stack.Screen name="CompanionAnalytics" component={CompanionAnalyticsScreen} />
+        <Stack.Screen name="CareCircle" component={CareCircleScreen} />
         <Stack.Screen name="ChatHistory" component={ChatHistoryScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="InterventionCenter" component={InterventionCenterScreen} />
@@ -289,15 +291,28 @@ export default function AppNavigator({ fontsLoaded }) {
     }, [isBootstrapping, fontsLoaded]);
 
     useEffect(() => {
-        if (user) {
-            if (patient?.allow_screenshots === false) {
-                ScreenCapture.preventScreenCaptureAsync().catch(err => console.warn('preventScreenCaptureAsync failed', err));
+        let isMounted = true;
+        const applyCaptureSetting = async () => {
+            // Defer setting the secure capture flag slightly to prevent the window redraw from clashing with settings screen transitions/modal animations
+            await new Promise(resolve => setTimeout(resolve, 800));
+            if (!isMounted) return;
+
+            if (user) {
+                if (patient?.allow_screenshots === false) {
+                    await ScreenCapture.preventScreenCaptureAsync().catch(err => console.warn('preventScreenCaptureAsync failed', err));
+                } else {
+                    await ScreenCapture.allowScreenCaptureAsync().catch(err => console.warn('allowScreenCaptureAsync failed', err));
+                }
             } else {
-                ScreenCapture.allowScreenCaptureAsync().catch(err => console.warn('allowScreenCaptureAsync failed', err));
+                await ScreenCapture.allowScreenCaptureAsync().catch(() => { });
             }
-        } else {
-            ScreenCapture.allowScreenCaptureAsync().catch(() => { });
-        }
+        };
+
+        applyCaptureSetting();
+
+        return () => {
+            isMounted = false;
+        };
     }, [user, patient?.allow_screenshots]);
 
     useEffect(() => {

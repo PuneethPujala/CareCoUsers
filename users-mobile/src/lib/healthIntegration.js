@@ -168,8 +168,9 @@ export const hasPermissions = (granted, requested, mode = 'all') => {
 export const requestHealthPermissions = async () => {
     if (Platform.OS === 'android' && HealthConnect) {
         try {
-            // Fire-and-forget permission request (Android 14 / Health Connect won't double-prompt if already granted)
-            await HealthConnect.requestPermission(REQUIRED_PERMISSIONS);
+            // Combine REQUIRED and OPTIONAL permissions to prompt for all of them together at the start
+            const ALL_PERMISSIONS = [...REQUIRED_PERMISSIONS, ...OPTIONAL_PERMISSIONS];
+            await HealthConnect.requestPermission(ALL_PERMISSIONS);
             
             // Check status via getGrantedPermissions to prevent false-negatives from empty request results
             const grantedPermissions = await HealthConnect.getGrantedPermissions();
@@ -198,6 +199,18 @@ export const requestHealthPermissions = async () => {
                         AppleHealthKit.Constants.Permissions.OxygenSaturation,
                         AppleHealthKit.Constants.Permissions.Water,
                         AppleHealthKit.Constants.Permissions.BodyTemperature,
+                        AppleHealthKit.Constants.Permissions.StepCount,
+                        AppleHealthKit.Constants.Permissions.DistanceWalkingRunning,
+                        AppleHealthKit.Constants.Permissions.Workout,
+                        AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
+                        AppleHealthKit.Constants.Permissions.BasalEnergyBurned,
+                        AppleHealthKit.Constants.Permissions.FlightsClimbed,
+                        AppleHealthKit.Constants.Permissions.Vo2Max,
+                        AppleHealthKit.Constants.Permissions.Weight,
+                        AppleHealthKit.Constants.Permissions.Height,
+                        AppleHealthKit.Constants.Permissions.BodyFatPercentage,
+                        AppleHealthKit.Constants.Permissions.BloodGlucose,
+                        AppleHealthKit.Constants.Permissions.RespiratoryRate,
                     ],
                 },
             };

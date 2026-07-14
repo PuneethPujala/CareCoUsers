@@ -91,7 +91,24 @@ export default function App() {
     // Privacy overlay: only when fully backgrounded (task switcher).
     // 'inactive' fires on iOS when control center is pulled down — that's still
     // "in app" from the user's perspective, so we don't cover the UI then.
-    const showPrivacyOverlay = appState === 'background';
+    // We add a 500ms debounce before showing the overlay to prevent the screen
+    // from briefly flashing when native system permission dialogs or biometrics appear on Android.
+    const [showPrivacyOverlay, setShowPrivacyOverlay] = useState(false);
+
+    useEffect(() => {
+        let timer = null;
+        if (appState === 'background') {
+            timer = setTimeout(() => {
+                setShowPrivacyOverlay(true);
+            }, 500);
+        } else {
+            if (timer) clearTimeout(timer);
+            setShowPrivacyOverlay(false);
+        }
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [appState]);
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>

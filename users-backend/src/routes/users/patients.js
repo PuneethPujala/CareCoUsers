@@ -20,6 +20,7 @@ const {
 const { authenticateSession } = require('../../middleware/authenticate');
 const { validateObjectId } = require('../../middleware/validateObjectId');
 const { computeHealthScore } = require('../../services/healthScoreService');
+const SubscriptionService = require('../../services/SubscriptionService');
 
 const router = express.Router();
 
@@ -99,136 +100,7 @@ async function refreshHealthScoreCache(patientId, targetDate = null) {
 
 // ─── Subscription & Onboarding ────────────────────────────────────────────────
 
-async function activateSubscription(patient, planId) {
-  const isActive = patient.subscription?.status === 'active';
-  const isExpired =
-    patient.subscription?.expires_at &&
-    new Date(patient.subscription.expires_at) < new Date();
 
-  const isTest = process.env.NODE_ENV === 'test';
-  const session = isTest ? null : await mongoose.startSession();
-  if (session) session.startTransaction();
-
-  try {
-    const orgId =
-      patient.organization_id ||
-      new mongoose.Types.ObjectId('674f07e1525049b7348908f9');
-
-    // Map plan pricing correctly
-    const planAmounts = {
-      premium_monthly: 800,
-      premium_annual: 8000,
-      basic: 800,
-    };
-    const resolvedPlan = planId || patient.pending_plan || 'basic';
-    const amount = planAmounts[resolvedPlan] || 800;
-    const durationDays = resolvedPlan === 'premium_annual' ? 365 : 30;
-
-    let newExpiresAt;
-    if (isActive && !isExpired && patient.subscription?.expires_at) {
-      // Stack the days on top of the current remaining days
-      newExpiresAt = new Date(
-        new Date(patient.subscription.expires_at).getTime() +
-          durationDays * 86400000
-      );
-    } else {
-      // Start fresh from today
-      newExpiresAt = new Date(Date.now() + durationDays * 86400000);
-    }
-
-    const subscriptionUpdates = {
-      'subscription.status': 'active',
-      'subscription.plan': resolvedPlan,
-      'subscription.amount': amount,
-      'subscription.payment_date': new Date(),
-      'subscription.expires_at': newExpiresAt,
-      'subscription.next_billing': newExpiresAt,
-      paid: 1,
-    };
-
-    if (!isActive || isExpired) {
-      subscriptionUpdates['subscription.started_at'] = new Date();
-    }
-
-    await Patient.updateOne(
-      { _id: patient._id },
-      { $set: subscriptionUpdates },
-      { session }
-    );
-
-    const Profile = require('../../models/Profile');
-    const manager = await Profile.findOne({
-      organization_id: orgId,
-      role: { $in: ['manager', 'admin', 'super_admin', 'care manager'] },
-    }).session(session);
-
-    if (manager && !patient.assigned_manager_id) {
-      await Patient.updateOne(
-        { _id: patient._id },
-        { $set: { assigned_manager_id: manager._id } },
-        { session }
-      );
-
-      const Alert = require('../../models/Alert');
-      await Alert.create(
-        [
-          {
-            type: 'team_lead_recommended',
-            patient_id: patient._id,
-            manager_id: manager._id,
-            organization_id: orgId,
-            description: `New patient "${patient.name || patient.email}" subscribed. Needs caregiver assignment.`,
-            auto_generated: true,
-            status: 'open',
-          },
-        ],
-        { session }
-      );
-    }
-
-    await Notification.create(
-      [
-        {
-          patient_id: patient._id,
-          type: 'system',
-          title: 'Welcome to CareMyMed! 🎉',
-          message:
-            'Your account is now active. Explore the app while we appoint your dedicated caller.',
-          target_screen: 'HealthProfile',
-        },
-      ],
-      { session }
-    );
-
-    if (session) await session.commitTransaction();
-    logger.info('Subscription activated atomically', {
-      patientId: patient._id,
-      plan: subscriptionUpdates['subscription.plan'],
-    });
-
-    if (patient.expo_push_token) {
-      const PushNotificationService = require('../../utils/pushNotifications');
-      PushNotificationService.sendPush(
-        patient.expo_push_token,
-        'Welcome to CareMyMed! 🎉',
-        'Your account is now active.'
-      ).catch((err) =>
-        logger.warn('Push notification failed', { error: err.message })
-      );
-    }
-
-    return await Patient.findById(patient._id);
-  } catch (error) {
-    if (session) await session.abortTransaction();
-    logger.error('Subscription transaction aborted', {
-      error: error.message,
-      patientId: patient._id,
-    });
-    throw error;
-  } finally {
-    if (session) session.endSession();
-  }
-}
 
 // ─── Public endpoints ─────────────────────────────────────────────────────────
 
@@ -414,7 +286,7 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
     // We no longer block active users from subscribing.
     // If they are already active, we just stack their days in `subscribeAndSeedDemoData`.
 
-    patient = await activateSubscription(patient, resolvedPlanId);
+    patient = await SubscriptionService.activateSubscription(patient, resolvedPlanId);
 
     res.json({
       success: true,
@@ -3270,10 +3142,10 @@ async function subscribeAndSeedDemoData(patient, planId) {
   logger.warn(
     'subscribeAndSeedDemoData is deprecated, use activateSubscription instead.'
   );
-  return activateSubscription(patient, planId);
+  return SubscriptionService.activateSubscription(patient, planId);
 }
 
-router.activateSubscription = activateSubscription;
+router.activateSubscription = SubscriptionService.activateSubscription;
 router.subscribeAndSeedDemoData = subscribeAndSeedDemoData;
 
 module.exports = router;

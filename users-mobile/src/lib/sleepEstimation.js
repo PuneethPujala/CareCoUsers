@@ -113,8 +113,19 @@ export const estimateSleep = async () => {
           now,
         );
         if (events && events.length > 0) {
-          // Sort events chronologically (ascending)
-          const sortedEvents = [...events].sort(
+          // Filter to only include interactive user events (screen interactive/non-interactive, app foreground/background, unlock, and power events)
+          // This prevents background syncs, notifications, and standby bucket changes from splitting quiet periods.
+          const interactiveEvents = events.filter(e => 
+            e.eventType === 7 ||  // SCREEN_INTERACTIVE / USER_INTERACTION
+            e.eventType === 8 ||  // SCREEN_NON_INTERACTIVE
+            e.eventType === 10 || // KEYGUARD_HIDDEN (Device unlocked)
+            e.eventType === 1 ||  // ACTIVITY_RESUMED
+            e.eventType === 2 ||  // ACTIVITY_PAUSED
+            e.eventType === 18 || // DEVICE_SHUTDOWN
+            e.eventType === 19    // DEVICE_STARTUP
+          );
+
+          const sortedEvents = [...(interactiveEvents.length > 0 ? interactiveEvents : events)].sort(
             (a, b) => a.timeStamp - b.timeStamp,
           );
 

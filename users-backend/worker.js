@@ -364,13 +364,86 @@ async function start() {
     handleJobFailure('health-history-backfill', job, err);
   });
 
+  // ── Worker 7: Patient Lifecycle (sequential processing for race condition protection) ─
+  const lifecycleWorker = new Worker(
+    'patient-lifecycle',
+    async (job) => {
+      const { name, data } = job;
+      console.log(`[Worker] Processing patient-lifecycle job ${job.id} for event ${name}`);
+      
+      if (name === 'subscription_activated') {
+        const { patientId, orgId } = data;
+        
+        const Patient = require('./src/models/Patient');
+        const patientObj = await Patient.findById(patientId);
+        if (!patientObj) {
+          throw new Error(`Patient not found for ID: ${patientId}`);
+        }
+
+        // Idempotency check:
+        // If a care manager is already assigned, we do NOT run AssignmentService to prevent double assignments / races.
+        if (patientObj.assigned_manager_id) {
+          console.log(`[Worker] Patient ${patientId} already has manager assigned: ${patientObj.assigned_manager_id}. Skipping assignment.`);
+        } else {
+          const AssignmentService = require('./src/services/AssignmentService');
+          await AssignmentService.assignManager(patientId, orgId);
+        }
+
+        // In-app system welcome notification idempotency check
+        const Notification = require('./src/models/Notification');
+        const existingNotif = await Notification.findOne({
+          patient_id: patientId,
+          type: 'system',
+          title: 'Welcome to CareMyMed! 🎉',
+        });
+
+        if (!existingNotif) {
+          await Notification.create({
+            patient_id: patientId,
+            type: 'system',
+            title: 'Welcome to CareMyMed! 🎉',
+            message: 'Your account is now active. Explore the app while we appoint your dedicated caller.',
+            target_screen: 'HealthProfile',
+          });
+        }
+
+        // Send push notification to user device
+        if (patientObj.expo_push_token) {
+          const PushNotificationService = require('./src/utils/pushNotifications');
+          await PushNotificationService.sendPush(
+            patientObj.expo_push_token,
+            'Welcome to CareMyMed! 🎉',
+            'Your account is now active.'
+          ).catch((err) =>
+            console.warn('[Worker] Push notification failed', {
+              error: err.message,
+              patientId,
+            })
+          );
+        }
+      }
+    },
+    {
+      connection,
+      concurrency: 1, // Concurrency 1 ensures sequential matching per job to eliminate read-then-write assignment races!
+    }
+  );
+
+  lifecycleWorker.on('completed', (job) => {
+    handleJobCompleted('patient-lifecycle', job);
+  });
+  lifecycleWorker.on('failed', (job, err) => {
+    handleJobFailure('patient-lifecycle', job, err);
+  });
+
   console.log('✅ All workers registered and listening for jobs');
-  console.log('   📋 medication-reminders (every 1 min)');
-  console.log('   🤖 ai-notifications     (every 60 min)');
-  console.log('   🔮 vitals-prediction     (on-demand)');
-  console.log('   ❤️  health-state-recompute (on-demand/debounced)');
-  console.log('   🧠 companion-insights     (2-min debounced)');
-  console.log('   📅 health-history-backfill (on-demand/background)');
+  console.log('   📋 medication-reminders   (every 1 min)');
+  console.log('   🤖 ai-notifications       (every 60 min)');
+  console.log('   🔮 vitals-prediction       (on-demand)');
+  console.log('   ❤️  health-state-recompute   (on-demand/debounced)');
+  console.log('   🧠 companion-insights       (2-min debounced)');
+  console.log('   📅 health-history-backfill   (on-demand/background)');
+  console.log('   👥 patient-lifecycle        (on-demand/sequential)');
 
   // ── Graceful shutdown ───────────────────────────────────────
   const shutdown = async (signal) => {
@@ -396,6 +469,7 @@ async function start() {
         healthWorker.pause(),
         companionWorker.pause(),
         backfillWorker.pause(),
+        lifecycleWorker.pause(),
       ]);
 
       // Then wait for active jobs and close workers
@@ -406,6 +480,7 @@ async function start() {
         healthWorker.close(),
         companionWorker.close(),
         backfillWorker.close(),
+        lifecycleWorker.close(),
       ]);
 
       console.log('🔒 All workers stopped.');

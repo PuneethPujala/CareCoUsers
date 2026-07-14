@@ -132,6 +132,19 @@ const healthHistoryBackfillQueue = new Queue('health-history-backfill', {
   },
 });
 
+// ── Patient Lifecycle ───────────────────────────────────────────
+// Sequence lifecycle events (e.g. manager assignment, welcome workflows)
+const patientLifecycleQueue = new Queue('patient-lifecycle', {
+  connection,
+  defaultJobOptions: {
+    removeOnComplete: true,
+    removeOnFail: true,
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 5000 },
+    priority: PRIORITY.HIGH,
+  },
+});
+
 module.exports = {
   medicationReminderQueue,
   aiNotificationQueue,
@@ -139,5 +152,6 @@ module.exports = {
   healthStateQueue,
   companionInsightsQueue,
   healthHistoryBackfillQueue,
+  patientLifecycleQueue,
   PRIORITY,
 };

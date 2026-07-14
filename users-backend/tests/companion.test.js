@@ -985,4 +985,107 @@ describe('Companion Routes', () => {
       );
     });
   });
+
+  describe('RESTful /relationships Endpoints', () => {
+    it('GET /api/companion/relationships returns relationships of the companion', async () => {
+      const mockRelationships = [
+        {
+          _id: 'rel-1',
+          companion_id: fakeId('companion-profile-id'),
+          patient_id: { _id: fakeId('patient-1'), name: 'Priyanka' },
+          relationship_type: 'Mother',
+          joined_at: new Date(),
+          is_active: true,
+          status: 'accepted'
+        }
+      ];
+
+      CompanionAccess.find = jest.fn().mockReturnValue({
+        populate: jest.fn().mockResolvedValue(mockRelationships)
+      });
+
+      const res = await request(app).get('/api/companion/relationships');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.relationships).toHaveLength(1);
+      expect(res.body.relationships[0].relationship_type).toBe('Mother');
+    });
+
+    it('POST /api/companion/relationships links a new patient via code', async () => {
+      const mockPatientObj = {
+        _id: fakeId('patient-123'),
+        name: 'Jane Patient',
+        trusted_contacts: [],
+        save: jest.fn().mockResolvedValue({}),
+      };
+      
+      Patient.findOne = jest.fn().mockResolvedValue(mockPatientObj);
+      CompanionAccess.findOne = jest.fn().mockResolvedValue(null);
+      CompanionAccess.create = jest.fn().mockResolvedValue({
+        _id: 'rel-created',
+        companion_id: fakeId('companion-profile-id'),
+        patient_id: mockPatientObj._id,
+        relationship_type: 'Sibling',
+        status: 'accepted',
+        is_active: true
+      });
+
+      const res = await request(app)
+        .post('/api/companion/relationships')
+        .send({ invite_code: 'NEWCOD', relationship_type: 'Sibling' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.relationship.relationship_type).toBe('Sibling');
+      expect(mockPatientObj.save).toHaveBeenCalled();
+    });
+
+    it('PATCH /api/companion/relationships/:id updates relationship metadata', async () => {
+      const mockAccess = {
+        _id: 'rel-1',
+        companion_id: fakeId('companion-profile-id'),
+        relationship_type: 'Other',
+        save: jest.fn().mockResolvedValue({}),
+      };
+
+      CompanionAccess.findOne = jest.fn().mockResolvedValue(mockAccess);
+
+      const res = await request(app)
+        .patch('/api/companion/relationships/rel-1')
+        .send({ relationship_type: 'Spouse' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(mockAccess.relationship_type).toBe('Spouse');
+      expect(mockAccess.save).toHaveBeenCalled();
+    });
+
+    it('DELETE /api/companion/relationships/:id revokes the relationship access', async () => {
+      const mockAccess = {
+        _id: 'rel-1',
+        companion_id: fakeId('companion-profile-id'),
+        patient_id: fakeId('patient-123'),
+        is_active: true,
+        status: 'accepted',
+        save: jest.fn().mockResolvedValue({}),
+      };
+
+      CompanionAccess.findOne = jest.fn().mockResolvedValue(mockAccess);
+      Patient.findById = jest.fn().mockResolvedValue({
+        _id: fakeId('patient-123'),
+        trusted_contacts: [],
+        save: jest.fn().mockResolvedValue({}),
+      });
+
+      const res = await request(app).delete('/api/companion/relationships/rel-1');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(mockAccess.is_active).toBe(false);
+      expect(mockAccess.status).toBe('revoked');
+      expect(mockAccess.save).toHaveBeenCalled();
+    });
+  });
 });
+

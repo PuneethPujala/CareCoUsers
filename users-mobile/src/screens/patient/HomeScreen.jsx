@@ -36,6 +36,7 @@ import {
   Activity,
   CalendarDays,
   CheckCircle2,
+  Check,
   Bell,
   Heart,
   Wind,
@@ -72,6 +73,8 @@ import * as sleepEstimation from "../../lib/sleepEstimation";
 import { syncAllSchedules } from "../../utils/notifications";
 import usePatientStore from "../../store/usePatientStore";
 import SmartInput from "../../components/ui/SmartInput";
+import AnimatedCard from "../../components/ui/AnimatedCard";
+import AnimatedCounter from "../../components/ui/AnimatedCounter";
 import AlertManager from "../../utils/AlertManager";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -208,12 +211,64 @@ const VitalsCard = ({
   color,
   status = "Stable",
   historyValues,
+  onPress,
 }) => {
   const { t } = useTranslation();
   const isLogged = status === "Recorded";
 
+  const renderValue = () => {
+    if (!isLogged || !value || value === "—") {
+      return (
+        <Text style={[styles.vitalsCardValue, { color: "#CBD5E1" }]}>
+          —
+        </Text>
+      );
+    }
+    const str = String(value);
+    if (str.includes("/")) {
+      const parts = str.split("/");
+      const val1 = Number(parts[0]) || 0;
+      const val2 = Number(parts[1]) || 0;
+      return (
+        <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+          <AnimatedCounter
+            value={val1}
+            decimals={0}
+            style={[styles.vitalsCardValue, { color: "#0F172A" }]}
+          />
+          <Text style={[styles.vitalsCardValue, { color: "#0F172A" }]}>/</Text>
+          <AnimatedCounter
+            value={val2}
+            decimals={0}
+            style={[styles.vitalsCardValue, { color: "#0F172A" }]}
+          />
+        </View>
+      );
+    }
+    const num = Number(str);
+    if (isNaN(num)) {
+      return (
+        <Text style={[styles.vitalsCardValue, { color: "#0F172A" }]}>
+          {str}
+        </Text>
+      );
+    }
+    return (
+      <AnimatedCounter
+        value={num}
+        decimals={0}
+        style={[styles.vitalsCardValue, { color: "#0F172A" }]}
+      />
+    );
+  };
+
   return (
-    <View style={styles.vitalsCard}>
+    <AnimatedCard
+      pressScale={0.98}
+      hapticType="selection"
+      onPress={onPress}
+      style={[styles.vitalsCard, { minHeight: 155, borderWidth: 0 }]}
+    >
       <View style={styles.vitalsCardTop}>
         <View
           style={[
@@ -261,14 +316,7 @@ const VitalsCard = ({
           marginTop: 4,
         }}
       >
-        <Text
-          style={[
-            styles.vitalsCardValue,
-            { color: isLogged ? "#0F172A" : "#CBD5E1" },
-          ]}
-        >
-          {value}
-        </Text>
+        {renderValue()}
         <Text style={styles.vitalsCardUnit}>{unit}</Text>
       </View>
 
@@ -281,7 +329,7 @@ const VitalsCard = ({
           ? t("home.logged_today", { defaultValue: "Logged today" })
           : t("home.tap_history", { defaultValue: "Tap History" })}
       </Text>
-    </View>
+    </AnimatedCard>
   );
 };
 
@@ -2650,78 +2698,155 @@ export default function PatientHomeScreen({ navigation }) {
                 </Pressable>
               </View>
 
-              {totalMeds > 0 ? (
-                <Animated.View
-                  style={{ transform: [{ scale: medsCardScaleAnim }] }}
-                >
-                  <Pressable
-                    style={styles.medSummaryCard}
-                    onPress={() => setMedsExpanded(!medsExpanded)}
+              {totalMeds > 0 ? (() => {
+                const getMedCardContent = () => {
+                  if (adherencePct === 100) {
+                    return {
+                      title: "Perfect Day!",
+                      subtitle: "All your medications taken\nGreat job staying consistent!",
+                      bannerText: "You're building a healthy habit!",
+                      bannerIcon: TrendingUp,
+                    };
+                  } else if (adherencePct >= 50) {
+                    return {
+                      title: "On Track!",
+                      subtitle: `${takenCount} of ${totalMeds} medications taken\nKeep going to finish today's plan!`,
+                      bannerText: "More than halfway there!",
+                      bannerIcon: TrendingUp,
+                    };
+                  } else {
+                    return {
+                      title: "Starting strong!",
+                      subtitle: `${takenCount} of ${totalMeds} medications taken\nConsistency is key to your health.`,
+                      bannerText: "Log your next dose when taken",
+                      bannerIcon: Pill,
+                    };
+                  }
+                };
+                const cardContent = getMedCardContent();
+                const ringColor = adherencePct === 100 ? "#10B981" : (adherencePct >= 50 ? "#8B5CF6" : "#EF4444");
+                const ringBgColor = adherencePct === 100 ? "#E6F4EA" : (adherencePct >= 50 ? "#F3E8FF" : "#FEE2E2");
+                const statusText = adherencePct === 100 ? "On track" : (adherencePct >= 50 ? "On track" : "Behind");
+                const statusTextColor = adherencePct === 100 ? "#10B981" : (adherencePct >= 50 ? "#8B5CF6" : "#EF4444");
+
+                return (
+                  <Animated.View
+                    style={{ transform: [{ scale: medsCardScaleAnim }] }}
                   >
-                    <LinearGradient
-                      colors={
-                        adherencePct === 100
-                          ? ["#22C55E", "#16A34A"]
-                          : adherencePct >= 50
-                            ? ["#8B5CF6", "#7C3AED"]
-                            : ["#EF4444", "#DC2626"]
-                      }
-                      style={styles.medSummaryGradient}
+                    <Pressable
+                      style={styles.medSummaryCard}
+                      onPress={() => setMedsExpanded(!medsExpanded)}
                     >
-                      <View style={styles.medSummaryMainRow}>
-                        <View style={{ flex: 1 }}>
-                          {adherencePct === 100 ? (
-                            <Text style={styles.medSummaryStatusTitle}>
-                              🏆 Perfect Day!
-                            </Text>
-                          ) : (
-                            <Text style={styles.medSummaryStatusTitle}>
-                              🟢 On Track
-                            </Text>
-                          )}
-                          <Text style={styles.medSummaryDetails}>
-                            {takenCount} of {totalMeds} medications taken
-                          </Text>
+                      {/* Top Row: Trophy, Title, Subtitle, Circular Progress Ring */}
+                      <View style={styles.medSummaryTopRow}>
+                        <View style={styles.medSummaryLeftPart}>
+                          <View style={styles.trophyIconCircle}>
+                            <Trophy size={20} color="#10B981" fill="#10B981" />
+                            <View style={{ position: 'absolute', top: 4, right: 4 }}>
+                              <Sparkles size={8} color="#10B981" fill="#10B981" />
+                            </View>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.medSummaryTitleText}>{cardContent.title}</Text>
+                            <Text style={styles.medSummarySubText}>{cardContent.subtitle}</Text>
+                          </View>
                         </View>
-                        <View style={styles.medSummaryPercentage}>
-                          <Text style={styles.medPercentageText}>
-                            {adherencePct}%
-                          </Text>
+
+                        {/* Circular Progress Ring */}
+                        <View style={styles.progressRingContainer}>
+                          <Svg width={68} height={68}>
+                            <SvgCircle
+                              cx={34}
+                              cy={34}
+                              r={30.5}
+                              stroke={ringBgColor}
+                              strokeWidth={5}
+                              fill="transparent"
+                            />
+                            <SvgCircle
+                              cx={34}
+                              cy={34}
+                              r={30.5}
+                              stroke={ringColor}
+                              strokeWidth={5}
+                              fill="transparent"
+                              strokeDasharray={191.6}
+                              strokeDashoffset={191.6 - (adherencePct / 100) * 191.6}
+                              strokeLinecap="round"
+                              transform="rotate(-90 34 34)"
+                            />
+                          </Svg>
+                          <View style={styles.progressRingTextContainer}>
+                            <Text style={styles.progressRingPercentText}>{adherencePct}%</Text>
+                            <Text style={[styles.progressRingStatusText, { color: statusTextColor }]}>{statusText}</Text>
+                          </View>
                         </View>
                       </View>
 
-                      {/* Progress Bar */}
-                      <View style={styles.medProgressBarBg}>
-                        <View
-                          style={[
-                            styles.medProgressBarFill,
-                            { width: `${adherencePct}%` },
-                          ]}
-                        />
+                      {/* Progress Timeline Row */}
+                      <View style={styles.timelineContainer}>
+                        <View style={styles.timelineWrapper}>
+                          {/* Connecting Track Line */}
+                          <View style={styles.timelineTrackLine} />
+                          {/* Active Progress Line */}
+                          <View 
+                            style={[
+                              styles.timelineActiveLine, 
+                              { 
+                                width: `${totalMeds > 1 ? (Math.max(0, takenCount - 1) / (totalMeds - 1)) * 100 : (takenCount > 0 ? 100 : 0)}%`,
+                                backgroundColor: ringColor 
+                              }
+                            ]} 
+                          />
+                          
+                          {/* Spaced Dot Checkmarks */}
+                          <View style={styles.timelineDotsRow}>
+                            {Array.from({ length: totalMeds }).map((_, index) => {
+                              const isCompleted = index < takenCount;
+                              return (
+                                <View 
+                                  key={index} 
+                                  style={[
+                                    styles.timelineDot, 
+                                    isCompleted 
+                                      ? [styles.timelineDotCompleted, { backgroundColor: ringColor, borderColor: ringColor }] 
+                                      : styles.timelineDotPending
+                                  ]}
+                                >
+                                  {isCompleted && <Check size={10} color="#FFFFFF" strokeWidth={3} />}
+                                </View>
+                              );
+                            })}
+                          </View>
+                        </View>
+
+                        {/* Timeline Labels */}
+                        <View style={styles.timelineLabelsRow}>
+                          <Text style={styles.timelineLabelText}>{takenCount} taken</Text>
+                          <Text style={styles.timelineLabelText}>{totalMeds} scheduled</Text>
+                        </View>
                       </View>
 
-                      <View style={styles.medSummaryFooterRow}>
-                        <Text style={styles.medSummaryFooterText}>
-                          {medsExpanded
-                            ? t("home.hide", { defaultValue: "Hide items" })
-                            : t("home.view_details", {
-                                defaultValue: "Tap to view schedule",
-                              })}
-                        </Text>
-                        <ChevronDown
-                          size={14}
-                          color="#FFF"
+                      {/* Motivational Habit Banner */}
+                      <View style={[styles.habitBanner, { backgroundColor: ringBgColor, borderColor: ringColor + '20' }]}>
+                        <View style={styles.habitBannerLeft}>
+                          <cardContent.bannerIcon size={16} color={statusTextColor} strokeWidth={2.5} />
+                          <Text style={[styles.habitBannerText, { color: statusTextColor }]}>{cardContent.bannerText}</Text>
+                        </View>
+                        <ChevronRight 
+                          size={16} 
+                          color={statusTextColor} 
                           style={{
                             transform: [
-                              { rotate: medsExpanded ? "180deg" : "0deg" },
+                              { rotate: medsExpanded ? "90deg" : "0deg" },
                             ],
                           }}
                         />
                       </View>
-                    </LinearGradient>
-                  </Pressable>
-                </Animated.View>
-              ) : (
+                    </Pressable>
+                  </Animated.View>
+                );
+              })() : (
                 <View style={styles.emptyCard}>
                   <View style={styles.emptyIconBox}>
                     <Pill size={28} color="#CBD5E1" strokeWidth={1.5} />
@@ -2882,6 +3007,7 @@ export default function PatientHomeScreen({ navigation }) {
                       color="#EF4444"
                       status={vitals?.heart_rate ? "Recorded" : "Not Logged"}
                       historyValues={hrHistory}
+                      onPress={() => navigation.navigate("VitalsHistory", { activeMetricId: "heart_rate" })}
                     />
                     <VitalsCard
                       label={t("home.blood_pressure", {
@@ -2901,6 +3027,7 @@ export default function PatientHomeScreen({ navigation }) {
                           : "Not Logged"
                       }
                       historyValues={bpHistory}
+                      onPress={() => navigation.navigate("VitalsHistory", { activeMetricId: "blood_pressure" })}
                     />
                     <VitalsCard
                       label={t("home.oxygen_saturation", {
@@ -2920,6 +3047,7 @@ export default function PatientHomeScreen({ navigation }) {
                           : "Not Logged"
                       }
                       historyValues={spo2History}
+                      onPress={() => navigation.navigate("VitalsHistory", { activeMetricId: "oxygen_saturation" })}
                     />
                     <VitalsCard
                       label={t("home.hydration", { defaultValue: "Hydration" })}
@@ -2933,6 +3061,7 @@ export default function PatientHomeScreen({ navigation }) {
                         vitals?.hydration != null ? "Recorded" : "Not Logged"
                       }
                       historyValues={hydHistory}
+                      onPress={() => navigation.navigate("VitalsHistory", { activeMetricId: "hydration" })}
                     />
                   </ScrollView>
                 ) : (
@@ -3745,65 +3874,154 @@ const styles = StyleSheet.create({
 
   // ── Medications Plan ──
   medSummaryCard: {
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    marginBottom: 14,
-    ...shadows.hero,
-  },
-  medSummaryGradient: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
     padding: 20,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    marginBottom: 14,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.03,
+    shadowRadius: 16,
+    elevation: 3,
   },
-  medSummaryMainRow: {
+  medSummaryTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 18,
   },
-  medSummaryStatusTitle: {
+  medSummaryLeftPart: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    flex: 1,
+    marginRight: 12,
+  },
+  trophyIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#E6F4EA",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  medSummaryTitleText: {
     fontSize: 18,
-    fontWeight: "900",
-    color: "#FFFFFF",
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 4,
   },
-  medSummaryDetails: {
+  medSummarySubText: {
     fontSize: 13,
-    color: "rgba(255, 255, 255, 0.85)",
-    marginTop: 2,
+    color: "#475569",
+    lineHeight: 18,
     fontWeight: "500",
   },
-  medSummaryPercentage: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  progressRingContainer: {
+    width: 68,
+    height: 68,
+    position: "relative",
     alignItems: "center",
     justifyContent: "center",
   },
-  medPercentageText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "900",
+  progressRingTextContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  medProgressBarBg: {
-    height: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    borderRadius: 3,
-    overflow: "hidden",
-    marginBottom: 14,
+  progressRingPercentText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F172A",
   },
-  medProgressBarFill: {
-    height: 6,
+  progressRingStatusText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#10B981",
+    marginTop: -2,
+  },
+  timelineContainer: {
+    marginBottom: 18,
+  },
+  timelineWrapper: {
+    height: 24,
+    justifyContent: "center",
+    position: "relative",
+    marginVertical: 8,
+  },
+  timelineTrackLine: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    height: 4,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 2,
+  },
+  timelineActiveLine: {
+    position: "absolute",
+    left: 12,
+    height: 4,
+    backgroundColor: "#10B981",
+    borderRadius: 2,
+  },
+  timelineDotsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  timelineDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+  },
+  timelineDotCompleted: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
+  },
+  timelineDotPending: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 3,
+    borderColor: "#CBD5E1",
   },
-  medSummaryFooterRow: {
+  timelineLabelsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    marginTop: 4,
+  },
+  timelineLabelText: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "700",
+  },
+  habitBanner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: "#F0FDF4",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#DCFCE7",
   },
-  medSummaryFooterText: {
-    fontSize: 12,
-    color: "#FFFFFF",
+  habitBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  habitBannerText: {
+    fontSize: 13,
     fontWeight: "700",
+    color: "#15803D",
   },
 
   // ── Vitals Section (Apple Health style) ──

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
 import { colors, radius, spacing, shadows, layout } from '../../theme';
-import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, Shield, MessageSquare } from 'lucide-react-native';
+import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, Shield, MessageSquare, ArrowLeft, AlertCircle } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AlertManager from '../../utils/AlertManager';
@@ -94,36 +94,39 @@ const getAlertPriorityStyles = (type) => {
         case 'critical':
             return {
                 accent: '#EF4444',
-                bg: '#FFF8F8',
-                border: '#FEE2E2',
+                bg: '#FFFFFF',
+                border: '#F1F5F9',
                 text: '#0F172A',
                 label: 'CRITICAL',
                 bgOuter: '#FFF0F2',
                 bgInner: '#FFE4E6',
-                badgeBg: '#FEE2E2',
+                badgeBg: '#FFF0F2',
+                isWarning: true,
             };
         case 'warning':
             return {
                 accent: '#EF4444',
-                bg: '#FFF8F8',
-                border: '#FEE2E2',
+                bg: '#FFFFFF',
+                border: '#F1F5F9',
                 text: '#0F172A',
                 label: 'WARNING',
                 bgOuter: '#FFF0F2',
                 bgInner: '#FFE4E6',
-                badgeBg: '#FEE2E2',
+                badgeBg: '#FFF0F2',
+                isWarning: true,
             };
         case 'info':
         default:
             return {
                 accent: '#4F46E5',
-                bg: '#F8FAFF',
-                border: '#E0E7FF',
+                bg: '#FFFFFF',
+                border: '#F1F5F9',
                 text: '#0F172A',
                 label: 'INFO',
                 bgOuter: '#EEF2FF',
                 bgInner: '#E0E7FF',
-                badgeBg: '#E0E7FF',
+                badgeBg: '#EEF2FF',
+                isWarning: false,
             };
     }
 };
@@ -173,7 +176,7 @@ export default function CompanionAlertsScreen() {
         setRefreshing(false);
     };
 
-    const acknowledgeAlert = async (id) => {
+    const acknowledgeAlert = async (id, logCall = false) => {
         const previousAlerts = alerts;
         const previousData = data;
 
@@ -188,7 +191,7 @@ export default function CompanionAlertsScreen() {
         });
 
         try {
-            await apiService.companion.acknowledgeAlert(id);
+            await apiService.companion.acknowledgeAlert(id, { logCall });
             // Non-blocking refresh to sync any other background updates
             loadData();
         } catch (err) {
@@ -200,11 +203,14 @@ export default function CompanionAlertsScreen() {
         }
     };
 
-    const handleCall = () => {
+    const handleCall = (alertId) => {
         const phone = data?.patient?.phone;
         const dialablePhone = sanitizePhoneForLink(phone);
         if (dialablePhone) {
             Linking.openURL(`tel:${dialablePhone}`);
+            if (alertId) {
+                acknowledgeAlert(alertId, true);
+            }
         } else {
             AlertManager.alert('No Phone Number', `${data?.patient?.name || 'The patient'} does not have a phone number configured.`);
         }
@@ -283,17 +289,26 @@ export default function CompanionAlertsScreen() {
                     style={StyleSheet.absoluteFill}
                 />
 
-                <CompanionHeader
-                    style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
-                    subtitle="Alert Center"
-                    title="Patient's Alerts"
-                    onBack={() => navigation.goBack()}
-                    right={(
-                        <View style={styles.bellButton}>
-                            <Bell color={C.dark} size={20} />
+                {/* Custom Header matching the first picture */}
+                <View style={styles.customHeader}>
+                    <View style={styles.headerTopRow}>
+                        <Pressable 
+                            onPress={() => navigation.goBack()}
+                            style={({ pressed }) => [styles.backButtonCircle, pressed && { opacity: 0.6 }]}
+                        >
+                            <ArrowLeft color={colors.textPrimary} size={24} />
+                        </Pressable>
+                        
+                        <View style={styles.headerTitleContainer}>
+                            <Text style={styles.headerSubtitleText}>ALERT CENTER</Text>
+                            <Text style={styles.headerTitleText}>Patient's Alerts</Text>
                         </View>
-                    )}
-                />
+
+                        <View style={styles.bellButtonCircle}>
+                            <Bell color={colors.textPrimary} size={20} />
+                        </View>
+                    </View>
+                </View>
 
                 <ScrollView contentContainerStyle={styles.content}>
                     {/* Quick Connect Skeleton */}
@@ -376,22 +391,39 @@ export default function CompanionAlertsScreen() {
                 style={StyleSheet.absoluteFill}
             />
 
-            <CompanionHeader
-                style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
-                subtitle="Alert Center"
-                title={`${data.patient.name}'s Alerts`}
-                badge={alerts.length > 0 ? `${alerts.length} Active` : null}
-                onBack={() => navigation.goBack()}
-                right={(
+            {/* Custom Header matching the first picture */}
+            <View style={styles.customHeader}>
+                <View style={styles.headerTopRow}>
+                    <Pressable 
+                        onPress={() => navigation.goBack()}
+                        style={({ pressed }) => [styles.backButtonCircle, pressed && { opacity: 0.6 }]}
+                    >
+                        <ArrowLeft color={colors.textPrimary} size={24} />
+                    </Pressable>
+                    
+                    <View style={styles.headerTitleContainer}>
+                        <Text style={styles.headerSubtitleText}>ALERT CENTER</Text>
+                        <Text style={styles.headerTitleText}>{data.patient.name}'s Alerts</Text>
+                    </View>
+
                     <Pressable
-                        style={styles.bellButton}
+                        style={styles.bellButtonCircle}
                         onPress={() => loadData()}
                     >
-                        <Bell color={C.dark} size={20} />
-                        {alerts.length > 0 && <View style={styles.bellDot} />}
+                        <Bell color={colors.textPrimary} size={20} />
+                        {alerts.length > 0 && <View style={styles.bellDotIcon} />}
                     </Pressable>
+                </View>
+
+                {alerts.length > 0 && (
+                    <View style={styles.headerBadgeContainer}>
+                        <View style={styles.activeAlertsBadge}>
+                            <View style={styles.activeAlertsBadgeDot} />
+                            <Text style={styles.activeAlertsBadgeText}>{alerts.length} Active</Text>
+                        </View>
+                    </View>
                 )}
-            />
+            </View>
 
             <ScrollView 
                 contentContainerStyle={styles.content}
@@ -432,41 +464,36 @@ export default function CompanionAlertsScreen() {
                     <View style={styles.section}>
                         <View style={styles.alertsHeaderRow}>
                             <View style={styles.alertsHeaderLeft}>
-                                <View style={styles.verticalTitleBar} />
-                                <Text style={styles.sectionTitle}>Active Alerts Requiring Actions</Text>
+                                <View style={styles.activeAlertDotRed} />
+                                <Text style={styles.sectionTitle}>Active Alerts</Text>
                             </View>
                             <Pressable 
                                 style={styles.viewAllBtnInline}
                                 onPress={() => setShowLogsModal(true)}
                             >
                                 <Text style={styles.viewAllTextInline}>View All</Text>
-                                <ChevronRight color="#2563EB" size={14} />
+                                <ChevronRight color={colors.primary} size={14} />
                             </Pressable>
                         </View>
                         {alerts.map(a => {
                             const styleCfg = getAlertPriorityStyles(a.type);
+                            const isWarning = styleCfg.isWarning;
                             return (
                                 <View key={a._id} style={[styles.premiumAlertCard, { backgroundColor: styleCfg.bg, borderColor: styleCfg.border }]}>
-                                    {/* Accent strip */}
-                                    <View style={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        top: 0,
-                                        bottom: 0,
-                                        width: 4,
-                                        backgroundColor: styleCfg.accent,
-                                    }} />
-
                                     <View style={styles.alertContentRow}>
                                         {/* Left: Concentric circles with icon */}
                                         <View style={styles.alertIconConcentricContainer}>
                                             <View style={[styles.alertIconOuterRing, { backgroundColor: styleCfg.bgOuter }]}>
                                                 <View style={[styles.alertIconInnerRing, { backgroundColor: styleCfg.bgInner }]}>
-                                                    <ShieldAlert color={styleCfg.accent} size={22} />
+                                                    {isWarning ? (
+                                                        <AlertCircle color={styleCfg.accent} size={22} />
+                                                    ) : (
+                                                        <ShieldAlert color={styleCfg.accent} size={22} />
+                                                    )}
                                                 </View>
                                             </View>
                                         </View>
-
+ 
                                         {/* Right: Text Stack */}
                                         <View style={styles.alertTextColumn}>
                                             {/* Tiny severity label pill */}
@@ -477,20 +504,23 @@ export default function CompanionAlertsScreen() {
                                             <Text style={styles.alertDescText}>{a.description}</Text>
                                             <View style={styles.alertTimeRow}>
                                                 <Clock size={12} color={styleCfg.accent} />
-                                                <Text style={styles.alertTimeText}>Triggered: Today, 9:15 AM</Text>
+                                                <Text style={styles.alertTimeText}>Today, 9:15 AM</Text>
                                             </View>
                                         </View>
+                                        
+                                        {/* Small chevron right indicator */}
+                                        <ChevronRight size={18} color="#CBD5E1" style={{ marginRight: 2 }} />
                                     </View>
                                     
                                     {/* Bottom Action Buttons */}
                                     <View style={styles.alertActionsRow}>
-                                        <Pressable style={({ pressed }) => [styles.callNowBtn, { backgroundColor: styleCfg.accent }, pressed && { opacity: 0.75 }]} onPress={handleCall}>
+                                        <Pressable style={({ pressed }) => [styles.callNowBtn, { backgroundColor: styleCfg.accent }, pressed && { opacity: 0.75 }]} onPress={() => handleCall(a._id)}>
                                             <Phone color="#FFF" size={16} />
                                             <Text style={styles.callNowBtnText}>Call Now</Text>
                                         </Pressable>
                                         <Pressable style={({ pressed }) => [styles.dismissBtn, pressed && { opacity: 0.7 }]} onPress={() => acknowledgeAlert(a._id)}>
-                                            <CheckCircle2 color="#475569" size={16} />
-                                            <Text style={styles.dismissBtnText}>Dismiss</Text>
+                                            <CheckCircle2 color={isWarning ? '#EF4444' : '#475569'} size={16} />
+                                            <Text style={[styles.dismissBtnText, isWarning ? { color: '#EF4444' } : null]}>Dismiss</Text>
                                         </Pressable>
                                     </View>
                                 </View>
@@ -510,122 +540,20 @@ export default function CompanionAlertsScreen() {
                     </View>
                 )}
 
-                {/* 2. Security Settings Checklist Card */}
-                <View style={styles.securityCheckupCard}>
-                    <View style={styles.checkupList}>
-                        {/* Item 1: Security Checkup Header Row */}
-                        <View style={styles.checkupItemRow}>
-                            <View style={[styles.checkupIconBox, { backgroundColor: '#ECFDF5' }]}>
-                                <ShieldCheck color="#10B981" size={20} />
-                            </View>
-                            
-                            <View style={{ flex: 1, gap: 2 }}>
-                                <Text style={styles.checkupItemName}>Security Checkup</Text>
-                                <Text style={styles.checkupItemDesc}>All monitoring systems are active and running</Text>
-                            </View>
+                {/* 2. Security Settings Status Card (standalone) */}
+                <View style={styles.secureCardStandalone}>
+                    <View style={[styles.checkupIconBox, { backgroundColor: '#ECFDF5' }]}>
+                        <ShieldCheck color="#10B981" size={22} />
+                    </View>
+                    
+                    <View style={{ flex: 1, gap: 2, marginLeft: 12 }}>
+                        <Text style={styles.secureCardTitle}>Care Circle is Secure</Text>
+                        <Text style={styles.secureCardDesc}>No critical issues detected. We are monitoring in the background.</Text>
+                    </View>
 
-                            <View style={styles.allGoodBadge}>
-                                <Check color="#10B981" size={12} strokeWidth={3} />
-                                <Text style={styles.allGoodBadgeText}>All Good</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.checkupDivider} />
-
-                        {/* Item 2: Adherence Tracking */}
-                        {(() => {
-                            const active = data.medication_schedule && data.medication_schedule.length > 0;
-                            return (
-                                <Pressable style={({ pressed }) => [styles.checkupItemRow, pressed && { opacity: 0.7 }]}>
-                                    <View style={[styles.checkupIconBox, { backgroundColor: '#ECFDF5' }]}>
-                                        <Activity color="#10B981" size={20} />
-                                    </View>
-                                    
-                                    <View style={{ flex: 1, gap: 2 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            {active && <View style={styles.activeDot} />}
-                                            <Text style={styles.checkupItemName}>
-                                                {active ? `Real-time Adherence Tracking (${data.medication_schedule.length} meds)` : 'Real-time Adherence Tracking'}
-                                            </Text>
-                                        </View>
-                                        <Text style={styles.checkupItemDesc}>Monitoring medication intake in real-time</Text>
-                                    </View>
-
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                        <View style={[styles.statusBadge, { backgroundColor: active ? '#ECFDF5' : '#F1F5F9' }]}>
-                                            <Text style={[styles.statusBadgeText, { color: active ? '#10B981' : '#64748B' }]}>
-                                                {active ? 'Active' : 'Inactive'}
-                                            </Text>
-                                        </View>
-                                        <ChevronRight color="#94A3B8" size={16} />
-                                    </View>
-                                </Pressable>
-                            );
-                        })()}
-
-                        <View style={styles.checkupDivider} />
-
-                        {/* Item 3: Twilio SMS */}
-                        {(() => {
-                            const active = !!data.patient.phone;
-                            const phoneLast4 = active ? data.patient.phone.slice(-4) : '2611';
-                            return (
-                                <Pressable style={styles.checkupItemRow}>
-                                    <View style={[styles.checkupIconBox, { backgroundColor: '#EFF6FF' }]}>
-                                        <MessageSquare color="#2563EB" size={20} />
-                                    </View>
-                                    
-                                    <View style={{ flex: 1, gap: 2 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            {active && <View style={styles.activeDot} />}
-                                            <Text style={styles.checkupItemName}>Twilio SMS Notifications (...{phoneLast4})</Text>
-                                        </View>
-                                        <Text style={styles.checkupItemDesc}>Automated alerts are configured and operational</Text>
-                                    </View>
-
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                        <View style={[styles.statusBadge, { backgroundColor: active ? '#ECFDF5' : '#F1F5F9' }]}>
-                                            <Text style={[styles.statusBadgeText, { color: active ? '#10B981' : '#64748B' }]}>
-                                                {active ? 'Active' : 'Inactive'}
-                                            </Text>
-                                        </View>
-                                        <ChevronRight color="#94A3B8" size={16} />
-                                    </View>
-                                </Pressable>
-                            );
-                        })()}
-
-                        <View style={styles.checkupDivider} />
-
-                        {/* Item 4: Emergency Contact Guard */}
-                        {(() => {
-                            const contactCount = data.patient.trusted_contacts ? data.patient.trusted_contacts.length : 2;
-                            const active = contactCount > 0;
-                            return (
-                                <Pressable style={styles.checkupItemRow}>
-                                    <View style={[styles.checkupIconBox, { backgroundColor: '#ECFDF5' }]}>
-                                        <Shield color="#10B981" size={20} />
-                                    </View>
-                                    
-                                    <View style={{ flex: 1, gap: 2 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            {active && <View style={styles.activeDot} />}
-                                            <Text style={styles.checkupItemName}>Emergency Contact Guard ({contactCount} linked)</Text>
-                                        </View>
-                                        <Text style={styles.checkupItemDesc}>Emergency contacts are set and ready</Text>
-                                    </View>
-
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                        <View style={[styles.statusBadge, { backgroundColor: active ? '#ECFDF5' : '#F1F5F9' }]}>
-                                            <Text style={[styles.statusBadgeText, { color: active ? '#10B981' : '#64748B' }]}>
-                                                {active ? 'Active' : 'Inactive'}
-                                            </Text>
-                                        </View>
-                                        <ChevronRight color="#94A3B8" size={16} />
-                                    </View>
-                                </Pressable>
-                            );
-                        })()}
+                    <View style={styles.allGoodBadge}>
+                        <Check color="#10B981" size={12} strokeWidth={3} />
+                        <Text style={styles.allGoodBadgeText}>All Good</Text>
                     </View>
                 </View>
 
@@ -689,7 +617,13 @@ export default function CompanionAlertsScreen() {
                                                  <ShieldAlert color={badgeColor} size={16} />
                                              ) : isWarning ? (
                                                  <Clock color={badgeColor} size={16} />
-                                             ) : h.category === 'medicine' ? (
+                                             ) : h.category === 'call' ? (
+                                                 <Phone color={badgeColor} size={16} />
+                                          ) : h.category === 'call' ? (
+                                             <Phone color={badgeColor} size={16} />
+                                         ) : h.category === 'call' ? (
+                                             <Phone color={badgeColor} size={16} />
+                                         ) : h.category === 'medicine' ? (
                                                  <Check color={badgeColor} size={16} strokeWidth={3} />
                                              ) : h.category === 'vital' ? (
                                                  <Activity color={badgeColor} size={16} />
@@ -764,6 +698,8 @@ export default function CompanionAlertsScreen() {
                                              <ShieldAlert color={badgeColor} size={16} />
                                          ) : isWarning ? (
                                              <Clock color={badgeColor} size={16} />
+                                         ) : h.category === 'call' ? (
+                                             <Phone color={badgeColor} size={16} />
                                          ) : h.category === 'medicine' ? (
                                              <Check color={badgeColor} size={16} strokeWidth={3} />
                                          ) : h.category === 'vital' ? (
@@ -800,6 +736,99 @@ export default function CompanionAlertsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
+    customHeader: {
+        paddingHorizontal: 24,
+        paddingBottom: 12,
+        backgroundColor: 'transparent',
+    },
+    headerTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 16,
+    },
+    backButtonCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        ...shadows.sm,
+    },
+    bellButtonCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        position: 'relative',
+        ...shadows.sm,
+    },
+    bellDotIcon: {
+        position: 'absolute',
+        top: 14,
+        right: 14,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#EF4444',
+    },
+    headerTitleContainer: {
+        flex: 1,
+        marginLeft: 16,
+        marginRight: 8,
+    },
+    headerSubtitleText: {
+        fontSize: 10,
+        ...FONT.bold,
+        color: colors.primary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    headerTitleText: {
+        fontSize: 24,
+        ...FONT.heavy,
+        color: colors.textPrimary,
+        marginTop: 2,
+    },
+    headerBadgeContainer: {
+        paddingLeft: 64,
+        marginTop: 8,
+    },
+    activeAlertsBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF0F2',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 20,
+        alignSelf: 'flex-start',
+    },
+    activeAlertsBadgeDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#E11D48',
+        marginRight: 6,
+    },
+    activeAlertsBadgeText: {
+        color: '#E11D48',
+        fontSize: 11,
+        ...FONT.semibold,
+    },
+    activeAlertDotRed: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#EF4444',
+        marginRight: 8,
+    },
     quickConnectCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
@@ -1062,41 +1091,48 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
     },
 
-    // Security checkup checklist card styles
-    securityCheckupCard: {
-        backgroundColor: '#FFFFFF',
+    // Standalone secure card styles
+    secureCardStandalone: {
+        backgroundColor: '#ECFDF5',
         borderRadius: 20,
-        padding: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 18,
         borderWidth: 1,
-        borderColor: '#F1F5F9',
+        borderColor: '#A7F3D0',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         shadowColor: '#0A2463',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.02,
         shadowRadius: 8,
         elevation: 2,
     },
+    secureCardTitle: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: '#065F46',
+    },
+    secureCardDesc: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: '#047857',
+        lineHeight: 16,
+        marginTop: 2,
+    },
     allGoodBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: '#ECFDF5',
+        backgroundColor: '#D1FAE5',
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 12,
     },
     allGoodBadgeText: {
-        color: '#10B981',
+        color: '#059669',
         fontSize: 11,
         ...FONT.bold,
-    },
-    checkupList: {
-        gap: 12,
-    },
-    checkupItemRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        paddingVertical: 6,
     },
     checkupIconBox: {
         width: 40,
@@ -1104,23 +1140,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    checkupItemName: {
-        fontSize: 13,
-        ...FONT.bold,
-        color: '#0F172A',
-    },
-    checkupItemDesc: {
-        fontSize: 11,
-        ...FONT.medium,
-        color: colors.textMuted,
-    },
-    activeDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#10B981',
-        marginRight: 6,
     },
     checkupDivider: {
         height: 1,

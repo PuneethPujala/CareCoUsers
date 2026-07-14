@@ -488,6 +488,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
       aiPrediction,
       companionInsights,
       riskTimeline,
+      recentCalls,
     ] = await Promise.all([
       MedicineLog.find({
         patient_id: patient._id,
@@ -531,6 +532,14 @@ router.get('/patient-status', authenticate, async (req, res) => {
         return RiskTransition.find({ patient_id: patient._id })
           .sort({ date: -1 })
           .lean();
+      })(),
+      (async () => {
+        const CallLog = require('../models/CallLog');
+        return CallLog.find({ patientId: patient._id })
+          .sort({ scheduledTime: -1 })
+          .limit(10)
+          .lean()
+          .catch(() => []);
       })(),
     ]);
 
@@ -732,6 +741,20 @@ router.get('/patient-status', authenticate, async (req, res) => {
       }
     }
 
+    // Add call logs
+    if (recentCalls && recentCalls.length > 0) {
+      for (const call of recentCalls) {
+        activity_logs.push({
+          id: `call-${call._id}`,
+          title: call.status === 'completed' ? 'Call Completed' : 'Call Attempted',
+          desc: call.notes || 'Companion called patient.',
+          date: call.scheduledTime || call.createdAt || new Date(),
+          category: 'call',
+          badge: call.status === 'completed' ? 'Success' : 'Info',
+        });
+      }
+    }
+
     // Sort descending by date and limit to top 8 items
     activity_logs.sort((a, b) => new Date(b.date) - new Date(a.date));
     const final_activity_logs = activity_logs.slice(0, 8);
@@ -846,6 +869,52 @@ router.get('/patient-status', authenticate, async (req, res) => {
 });
 
 /**
+ * GET /api/companion/patient-health-history
+ * Returns the 30-day health history for a linked patient.
+ */
+router.get('/patient-health-history', authenticate, async (req, res) => {
+  try {
+    if (!req.profile || req.profile.role !== 'companion') {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    const patientId = req.query.patientId;
+    if (!patientId) {
+      return res.status(400).json({ error: 'Patient ID is required.' });
+    }
+
+    // Verify access relationship
+    const access = await CompanionAccess.findOne({
+      companion_id: req.profile._id,
+      patient_id: patientId,
+      is_active: true,
+      status: 'accepted',
+    });
+
+    if (!access) {
+      return res.status(403).json({ error: 'Access denied for this patient.' });
+    }
+
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient not found.' });
+    }
+
+    const timezone = patient.timezone || 'Asia/Kolkata';
+    const { getHealthHistory } = require('../services/patientHealthStateService');
+    const historyData = await getHealthHistory(patient._id, timezone);
+
+    res.json(historyData);
+  } catch (err) {
+    logger.error('Companion patient health history error', {
+      error: err.message,
+      profileId: req.profile?._id,
+    });
+    res.status(500).json({ error: 'Failed to load patient health history.' });
+  }
+});
+
+/**
  * GET /api/companion/linked-patients
  * Lightweight endpoint to get basic details of linked patients.
  */
@@ -916,6 +985,175 @@ router.get('/linked-patients', authenticate, async (req, res) => {
       profileId: req.user?.id,
     });
     res.status(500).json({ error: 'Failed to load linked patients.' });
+  }
+});
+
+/**
+ * GET /api/companion/relationships
+ * Fetch all active companion relationships.
+ */
+router.get('/relationships', authenticate, async (req, res) => {
+  try {
+    if (!req.profile || req.profile.role !== 'companion') {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const relationships = await CompanionAccess.find({
+      companion_id: req.profile._id,
+      is_active: true,
+      status: 'accepted',
+    }).populate(
+      'patient_id',
+      'name email phone avatar_url healthScoreCache gamification risk_level'
+    );
+    res.json({ success: true, relationships });
+  } catch (err) {
+    logger.error('Get relationships error', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch care circle.' });
+  }
+});
+
+/**
+ * POST /api/companion/relationships
+ * Link a new patient via invite code.
+ */
+router.post('/relationships', authenticate, async (req, res) => {
+  try {
+    if (!req.profile || req.profile.role !== 'companion') {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const { invite_code, relationship_type = 'Other' } = req.body;
+    if (!invite_code) {
+      return res.status(400).json({ error: 'Invite code is required.' });
+    }
+    const patient = await Patient.findOne({
+      invite_code: invite_code.toUpperCase(),
+      invite_code_expires_at: { $gt: new Date() },
+    });
+    if (!patient) {
+      return res.status(400).json({ error: 'Invalid or expired invite code.' });
+    }
+    let access = await CompanionAccess.findOne({
+      companion_id: req.profile._id,
+      patient_id: patient._id,
+    });
+    if (access) {
+      if (access.is_active && access.status === 'accepted') {
+        return res.status(400).json({ error: 'You are already linked to this patient.' });
+      }
+      access.is_active = true;
+      access.status = 'accepted';
+      access.relationship_type = relationship_type;
+      access.revoked_at = undefined;
+      access.revoked_by = undefined;
+      await access.save();
+    } else {
+      access = await CompanionAccess.create({
+        companion_id: req.profile._id,
+        patient_id: patient._id,
+        relationship_type,
+        access_level: 'caregiver',
+        permissions: ['read_only', 'alerts'],
+        status: 'accepted',
+        is_active: true,
+        joined_at: new Date(),
+        created_by: req.profile._id,
+      });
+    }
+    
+    // Add companion to trusted contacts for backwards compatibility
+    const hasContact = patient.trusted_contacts.some(
+      (c) => c.email.toLowerCase() === req.profile.email.toLowerCase()
+    );
+    if (!hasContact) {
+      patient.trusted_contacts.push({
+        name: req.profile.fullName,
+        phone: req.profile.phone || 'N/A',
+        relation: relationship_type === 'Other' ? 'Family' : relationship_type,
+        email: req.profile.email,
+        can_view_data: true,
+        is_primary: false,
+        is_emergency: false,
+        permissions: ['read_only'],
+      });
+    }
+    patient.invite_code = undefined;
+    patient.invite_code_expires_at = undefined;
+    await patient.save();
+
+    res.status(201).json({ success: true, relationship: access });
+  } catch (err) {
+    logger.error('Post relationship error', { error: err.message });
+    res.status(500).json({ error: 'Failed to link patient.' });
+  }
+});
+
+/**
+ * PATCH /api/companion/relationships/:id
+ * Update relationship details (type or notification preferences).
+ */
+router.patch('/relationships/:id', authenticate, async (req, res) => {
+  try {
+    if (!req.profile || req.profile.role !== 'companion') {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const { relationship_type, notification_preferences } = req.body;
+    const access = await CompanionAccess.findOne({
+      _id: req.params.id,
+      companion_id: req.profile._id,
+    });
+    if (!access) {
+      return res.status(404).json({ error: 'Relationship not found.' });
+    }
+    if (relationship_type) access.relationship_type = relationship_type;
+    if (notification_preferences) {
+      access.notification_preferences = {
+        ...access.notification_preferences,
+        ...notification_preferences,
+      };
+    }
+    await access.save();
+    res.json({ success: true, relationship: access });
+  } catch (err) {
+    logger.error('Update relationship error', { error: err.message });
+    res.status(500).json({ error: 'Failed to update relationship.' });
+  }
+});
+
+/**
+ * DELETE /api/companion/relationships/:id
+ * Revoke companion access to a patient.
+ */
+router.delete('/relationships/:id', authenticate, async (req, res) => {
+  try {
+    if (!req.profile || req.profile.role !== 'companion') {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const access = await CompanionAccess.findOne({
+      _id: req.params.id,
+      companion_id: req.profile._id,
+    });
+    if (!access) {
+      return res.status(404).json({ error: 'Relationship not found.' });
+    }
+    access.is_active = false;
+    access.status = 'revoked';
+    access.revoked_at = new Date();
+    access.revoked_by = req.profile._id;
+    await access.save();
+    
+    // Also remove companion from patient's trusted contacts for backwards compatibility
+    const patient = await Patient.findById(access.patient_id);
+    if (patient) {
+      patient.trusted_contacts = patient.trusted_contacts.filter(
+        (c) => c.email.toLowerCase() !== req.profile.email.toLowerCase()
+      );
+      await patient.save();
+    }
+
+    res.json({ success: true, message: 'Successfully removed from Care Circle.' });
+  } catch (err) {
+    logger.error('Delete relationship error', { error: err.message });
+    res.status(500).json({ error: 'Failed to delete relationship.' });
   }
 });
 
@@ -1110,6 +1348,23 @@ router.post('/alerts/:id/acknowledge', authenticate, async (req, res) => {
         },
       }
     );
+
+    if (req.body.logCall) {
+      const alert = await Alert.findById(req.params.id);
+      if (alert) {
+        const CallLog = require('../models/CallLog');
+        const callLog = new CallLog({
+          patientId: alert.patient_id,
+          caretakerId: req.profile._id,
+          organizationId: alert.organization_id,
+          scheduledTime: new Date(),
+          duration: 0,
+          status: 'completed',
+          notes: `Auto-logged: Companion checked in via phone call from alert: ${alert.description || alert.type}`,
+        });
+        await callLog.save();
+      }
+    }
 
     await logEvent(
       req.user.id,

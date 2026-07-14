@@ -347,7 +347,11 @@ export const apiService = {
         linkPatient: (data) => api.post('/companion/link-patient', data),
         getPatientStatus: (params) => api.get('/companion/patient-status', { params }),
         getLinkedPatients: () => api.get('/companion/linked-patients'),
-        acknowledgeAlert: (id) => api.post(`/companion/alerts/${id}/acknowledge`),
+        getRelationships: () => api.get('/companion/relationships'),
+        addRelationship: (data) => api.post('/companion/relationships', data),
+        updateRelationship: (id, data) => api.patch(`/companion/relationships/${id}`, data),
+        deleteRelationship: (id) => api.delete(`/companion/relationships/${id}`),
+        acknowledgeAlert: (id, data) => api.post(`/companion/alerts/${id}/acknowledge`, data),
         nudge: (data) => api.post('/companion/nudge', data),
         requestBP: (data) => api.post('/companion/request-bp', data),
         generateInviteCode: (patientId) => api.post(`/companion/patients/${patientId}/invite-code`),
@@ -355,6 +359,7 @@ export const apiService = {
         getInterventions: (params) => api.get('/companion/interventions', { params }),
         completeIntervention: (data) => api.post('/companion/interventions', data),
         getExtendedAnalytics: (params) => api.get('/companion/analytics-extended', { params }),
+        getPatientHealthHistory: (params) => api.get('/companion/patient-health-history', { params }),
     },
 
     callers: {

@@ -689,6 +689,11 @@ export default function PatientProfileScreen({ navigation }) {
         : plan === 'explore' ? 'Explore Plan' : plan === 'basic' ? 'Basic Plan' : 'Free Plan';
     const planColor = isPremium ? '#A855F7' : plan === 'explore' ? '#9333EA' : '#16A34A';
     const planBg = isPremium ? '#F5F3FF' : plan === 'explore' ? '#F3E8FF' : '#DCFCE7';
+    const expiresAt = patient?.subscription?.expires_at;
+    const expiresAtStr = expiresAt ? new Date(expiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+    const premiumSubtext = expiresAtStr
+        ? `Valid until ${expiresAtStr}`
+        : t('profile.active_care_plan', { defaultValue: 'Your active care plan' });
     const dobStr = patient?.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
     const genderStr = patient?.gender ? GENDER_LABELS[patient.gender] || patient.gender : null;
     const bloodStr = patient?.blood_type && patient.blood_type !== 'unknown' ? patient.blood_type : null;
@@ -845,7 +850,7 @@ export default function PatientProfileScreen({ navigation }) {
                             <View style={s.starBadge}><Star size={18} color="#FFF" fill="#FFF" /></View>
                             <View style={{ flexShrink: 1 }}>
                                 <Text style={s.premiumPlan}>{planLabel}</Text>
-                                <Text style={s.premiumSub}>{t('profile.active_care_plan', { defaultValue: 'Your active care plan' })}</Text>
+                                <Text style={s.premiumSub}>{premiumSubtext}</Text>
                             </View>
                         </View>
                         <View style={[s.premiumBtn, { backgroundColor: planBg }]}>

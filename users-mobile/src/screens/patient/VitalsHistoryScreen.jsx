@@ -23,6 +23,8 @@ import { handleAxiosError } from '../../lib/axiosInstance';
 import { colors, layout } from '../../theme';
 import SmartInput from '../../components/ui/SmartInput';
 import TabScreenTransition from '../../components/ui/TabScreenTransition';
+import AnimatedCard from '../../components/ui/AnimatedCard';
+import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import OfflineSyncService from '../../lib/OfflineSyncService';
 import HealthSyncService from '../../services/HealthSyncService';
 import usePatientStore from '../../store/usePatientStore';
@@ -238,7 +240,7 @@ const getMinSpanData = (metricId, timeRange, rangeData, mainData, vitals, extrac
     }
 };
 
-export default function VitalsHistoryScreen({ navigation }) {
+export default function VitalsHistoryScreen({ navigation, route }) {
     // ─── State & Refs ────────────────────────────────────────────
     const [vitals, setVitals] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -271,7 +273,13 @@ export default function VitalsHistoryScreen({ navigation }) {
         heart_rate: '', systolic: '', diastolic: '', oxygen_saturation: '', hydration: '',
     });
     const [formError, setFormError] = useState(null);
-    const [activeMetricId, setActiveMetricId] = useState('heart_rate');
+    const [activeMetricId, setActiveMetricId] = useState(route?.params?.activeMetricId || 'heart_rate');
+
+    useEffect(() => {
+        if (route?.params?.activeMetricId) {
+            setActiveMetricId(route.params.activeMetricId);
+        }
+    }, [route?.params?.activeMetricId]);
 
     const [syncStatus, setSyncStatus] = useState({
         enabled: false,
@@ -567,7 +575,7 @@ export default function VitalsHistoryScreen({ navigation }) {
     const renderHeroCard = (def) => {
         if (!vitals.length) {
             return (
-                <View style={styles.heroCard}>
+                <View style={[styles.heroCard, { height: 130, justifyContent: 'center' }]}>
                     <View style={styles.emptyHeroContent}>
                         <Heart size={28} color="#94A3B8" />
                         <Text style={styles.emptyHeroText}>No data available for this range</Text>
@@ -584,13 +592,16 @@ export default function VitalsHistoryScreen({ navigation }) {
         const comparison = getComparisonText(def.id, latestVal, vitals);
         
         const StatusIcon = status.icon;
-        const formattedValue = altVal ? `${latestVal}/${altVal}` : latestVal;
         const timeStr = new Date(latest.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }).toLowerCase();
         const dateStr = new Date(latest.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
         return (
             <Animated.View style={[{ opacity: staggerAnims[0] }]}>
-                <View style={styles.heroCard}>
+                <AnimatedCard 
+                    pressScale={0.98} 
+                    hapticType="selection"
+                    style={[styles.heroCard, { minHeight: 130, borderWidth: 0 }]}
+                >
                     <View style={styles.heroTop}>
                         <View style={styles.heroLeft}>
                             <View style={[styles.heroIconCircle, { backgroundColor: def.bgTint }]}>
@@ -599,7 +610,27 @@ export default function VitalsHistoryScreen({ navigation }) {
                             <View>
                                 <Text style={styles.heroLabel}>Latest {def.title}</Text>
                                 <View style={styles.heroValueContainer}>
-                                    <Text style={styles.heroValue}>{formattedValue}</Text>
+                                    {altVal ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <AnimatedCounter 
+                                                value={latestVal} 
+                                                decimals={0} 
+                                                style={styles.heroValue}
+                                            />
+                                            <Text style={styles.heroValue}>/</Text>
+                                            <AnimatedCounter 
+                                                value={altVal} 
+                                                decimals={0} 
+                                                style={styles.heroValue}
+                                            />
+                                        </View>
+                                    ) : (
+                                        <AnimatedCounter 
+                                            value={latestVal} 
+                                            decimals={def.id === 'heart_rate' ? 0 : 1} 
+                                            style={styles.heroValue}
+                                        />
+                                    )}
                                     <Text style={styles.heroUnit}> {def.unit}</Text>
                                 </View>
                             </View>
@@ -620,7 +651,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                             Updated {dateStr} at {timeStr}
                         </Text>
                     </View>
-                </View>
+                </AnimatedCard>
             </Animated.View>
         );
     };
@@ -700,6 +731,14 @@ export default function VitalsHistoryScreen({ navigation }) {
     const renderQuickStats = (def) => {
         const stats = getStats(def.id);
         if (!stats) return null;
+
+        const getFontSize = (val) => {
+            const str = String(val || '');
+            if (str.length > 5) return 15; // e.g. "125/76"
+            if (str.length > 3) return 18; // e.g. "120"
+            return 22; // default e.g. "72", "98"
+        };
+
         return (
             <Animated.View style={[{ opacity: fadeAnim }, styles.statsCardContainer]}>
                 <View style={styles.statsUnifiedCard}>
@@ -709,7 +748,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                             <BarChart3 size={12} color="#64748B" />
                         </View>
                         <View style={styles.statValueRow}>
-                            <Text style={styles.statValue}>{stats.avg}</Text>
+                            <Text style={[styles.statValue, { fontSize: getFontSize(stats.avg) }]}>{stats.avg}</Text>
                             <Text style={styles.statUnit}>{stats.unit}</Text>
                         </View>
                     </View>
@@ -722,7 +761,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                             <TrendingDown size={12} color="#10B981" />
                         </View>
                         <View style={styles.statValueRow}>
-                            <Text style={styles.statValue}>{stats.min}</Text>
+                            <Text style={[styles.statValue, { fontSize: getFontSize(stats.min) }]}>{stats.min}</Text>
                             <Text style={styles.statUnit}>{stats.unit}</Text>
                         </View>
                     </View>
@@ -735,7 +774,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                             <TrendingUp size={12} color="#EF4444" />
                         </View>
                         <View style={styles.statValueRow}>
-                            <Text style={styles.statValue}>{stats.max}</Text>
+                            <Text style={[styles.statValue, { fontSize: getFontSize(stats.max) }]}>{stats.max}</Text>
                             <Text style={styles.statUnit}>{stats.unit}</Text>
                         </View>
                     </View>
@@ -1356,9 +1395,9 @@ const styles = StyleSheet.create({
     statsScroll: { gap: 10, paddingBottom: 4 },
     statHeader: { flexDirection: 'row', gap: 4, alignItems: 'center', marginBottom: 6 },
     statLabel: { fontSize: 10, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
-    statValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+    statValueRow: { flexDirection: 'column', alignItems: 'center', marginTop: 2 },
     statValue: { fontSize: 22, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5 },
-    statUnit: { fontSize: 11, fontWeight: '700', color: '#94A3B8' },
+    statUnit: { fontSize: 10, fontWeight: '700', color: '#94A3B8', marginTop: 2 },
 
     /* Chart Card */
     chartCard: {

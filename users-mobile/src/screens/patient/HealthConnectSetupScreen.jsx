@@ -796,98 +796,59 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 <>
                     {/* Hero */}
                     <View style={styles.obHero}>
-                        <View style={styles.obIconWrap}>
-                            <Heart size={32} color="#FFFFFF" strokeWidth={2} />
+                        <View style={styles.heroOrbOuter}>
+                            <View style={styles.heroOrbInner}>
+                                <View style={styles.obIconWrap}>
+                                    <Heart size={26} color="#FFFFFF" strokeWidth={2.5} fill="#FFFFFF" />
+                                </View>
+                            </View>
                         </View>
                         <Text style={styles.obTitle}>Connect your health data</Text>
                         <Text style={styles.obSubtitle}>
-                            CareMyMed works with {platformName} to give you and your care team real-time health insights.
+                            Sync CareMyMed with {platformName} to get real-time health updates and insights.
                         </Text>
                     </View>
 
-                    {/* Benefits */}
+                    {/* Benefits Card (High End UI) */}
                     <View style={styles.obSection}>
-                        <Text style={styles.obSectionTitle}>What you'll get</Text>
+                        <View style={styles.obBenefitsCard}>
+                            <View style={styles.obBenefitRow}>
+                                <View style={[styles.obBenefitIcon, { backgroundColor: '#FFF1F2' }]}>
+                                    <Heart size={16} color="#F43F5E" strokeWidth={2.5} />
+                                </View>
+                                <View style={styles.obBenefitText}>
+                                    <Text style={styles.obBenefitTitle}>Vitals Integration</Text>
+                                    <Text style={styles.obBenefitDesc}>Automatically import heart rate, blood pressure, temperature, and SpO₂.</Text>
+                                </View>
+                            </View>
 
-                        <View style={styles.obBenefitRow}>
-                            <View style={[styles.obBenefitIcon, { backgroundColor: '#FEE2E2' }]}>
-                                <Heart size={18} color="#EF4444" strokeWidth={2.5} />
-                            </View>
-                            <View style={styles.obBenefitText}>
-                                <Text style={styles.obBenefitTitle}>Track vitals automatically</Text>
-                                <Text style={styles.obBenefitDesc}>Heart rate, blood pressure, oxygen levels, and temperature — synced from your wearable.</Text>
-                            </View>
-                        </View>
+                            <View style={styles.obDivider} />
 
-                        <View style={styles.obBenefitRow}>
-                            <View style={[styles.obBenefitIcon, { backgroundColor: '#D1FAE5' }]}>
-                                <Activity size={18} color="#10B981" strokeWidth={2.5} />
+                            <View style={styles.obBenefitRow}>
+                                <View style={[styles.obBenefitIcon, { backgroundColor: '#ECFDF5' }]}>
+                                    <Activity size={16} color="#10B981" strokeWidth={2.5} />
+                                </View>
+                                <View style={styles.obBenefitText}>
+                                    <Text style={styles.obBenefitTitle}>Activity & Steps</Text>
+                                    <Text style={styles.obBenefitDesc}>Track daily progress, steps, calories burned, and workouts.</Text>
+                                </View>
                             </View>
-                            <View style={styles.obBenefitText}>
-                                <Text style={styles.obBenefitTitle}>Monitor daily activity</Text>
-                                <Text style={styles.obBenefitDesc}>Steps, workouts, calories, and distance — all in one place.</Text>
-                            </View>
-                        </View>
 
-                        <View style={styles.obBenefitRow}>
-                            <View style={[styles.obBenefitIcon, { backgroundColor: '#E0E7FF' }]}>
-                                <Sliders size={18} color="#6366F1" strokeWidth={2.5} />
-                            </View>
-                            <View style={styles.obBenefitText}>
-                                <Text style={styles.obBenefitTitle}>Personalized health insights</Text>
-                                <Text style={styles.obBenefitDesc}>Your care team uses this data to spot trends and adjust your care plan.</Text>
+                            <View style={styles.obDivider} />
+
+                            <View style={styles.obBenefitRow}>
+                                <View style={[styles.obBenefitIcon, { backgroundColor: '#EEF2FF' }]}>
+                                    <Lock size={16} color="#6366F1" strokeWidth={2.5} />
+                                </View>
+                                <View style={styles.obBenefitText}>
+                                    <Text style={styles.obBenefitTitle}>Secure & Read-Only</Text>
+                                    <Text style={styles.obBenefitDesc}>Your health data is fully encrypted. We only read data and never write/modify records.</Text>
+                                </View>
                             </View>
                         </View>
                     </View>
 
-                    {/* What we'll read */}
-                    <View style={styles.obSection}>
-                        <Text style={styles.obSectionTitle}>What CareMyMed will read</Text>
-
-                        <View style={styles.obDataCategory}>
-                            <View style={styles.obDataCatHeader}>
-                                <View style={styles.obDataCatBadge}><Text style={styles.obDataCatBadgeTxt}>CORE</Text></View>
-                                <Text style={styles.obDataCatLabel}>Requested on connect</Text>
-                            </View>
-                            <Text style={styles.obDataCatItems}>Heart rate · Blood pressure · SpO₂ · Sleep · Temperature · Hydration</Text>
-                        </View>
-
-                        <View style={styles.obDataCategory}>
-                            <View style={styles.obDataCatHeader}>
-                                <View style={[styles.obDataCatBadge, { backgroundColor: '#D1FAE5' }]}><Text style={[styles.obDataCatBadgeTxt, { color: '#059669' }]}>FITNESS</Text></View>
-                                <Text style={styles.obDataCatLabel}>Enable later in settings</Text>
-                            </View>
-                            <Text style={styles.obDataCatItems}>Steps · Distance · Calories · Exercise · VO₂ max</Text>
-                        </View>
-
-                        <View style={styles.obDataCategory}>
-                            <View style={styles.obDataCatHeader}>
-                                <View style={[styles.obDataCatBadge, { backgroundColor: '#E0E7FF' }]}><Text style={[styles.obDataCatBadgeTxt, { color: '#4338CA' }]}>ADVANCED</Text></View>
-                                <Text style={styles.obDataCatLabel}>Enable later in settings</Text>
-                            </View>
-                            <Text style={styles.obDataCatItems}>Weight · Height · Body fat · Blood glucose · Respiratory rate</Text>
-                        </View>
-                    </View>
-
-                    {/* Privacy — only claims that are true today */}
-                    <View style={styles.obSection}>
-                        <Text style={styles.obSectionTitle}>Your privacy</Text>
-
-                        <View style={styles.obPrivacyRow}>
-                            <Lock size={16} color={colors.textSecondary} />
-                            <Text style={styles.obPrivacyText}>Your data is encrypted and stored securely</Text>
-                        </View>
-                        <View style={styles.obPrivacyRow}>
-                            <ShieldCheck size={16} color={colors.textSecondary} />
-                            <Text style={styles.obPrivacyText}>CareMyMed only reads data — we never modify your health records</Text>
-                        </View>
-                        <View style={styles.obPrivacyRow}>
-                            <Settings size={16} color={colors.textSecondary} />
-                            <Text style={styles.obPrivacyText}>You can revoke access anytime in your device's {Platform.OS === 'ios' ? 'Health' : 'Health Connect'} settings</Text>
-                        </View>
-                    </View>
-
-                    {/* Connect button */}
+                    {/* Connect button & Note */}
                     <View style={styles.obActionArea}>
                         <Pressable
                             style={({ pressed }) => [styles.obConnectBtn, pressed && { opacity: 0.85 }]}
@@ -904,7 +865,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             )}
                         </Pressable>
                         <Text style={styles.obConnectNote}>
-                            A system dialog will ask you to approve the permissions above.
+                            Secure connection · You can revoke access anytime in device settings.
                         </Text>
                     </View>
                 </>
@@ -1246,31 +1207,41 @@ export default function HealthConnectSetupScreen({ navigation }) {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carouselContentContainer}>
                         {/* Device 1 */}
                         <View style={styles.deviceCard}>
-                            <Image source={galaxyWatchImg} style={styles.deviceImage} resizeMode="contain" />
+                            <View style={styles.deviceImageContainer}>
+                                <Image source={galaxyWatchImg} style={styles.deviceImage} resizeMode="contain" />
+                            </View>
                             <Text style={[styles.deviceName, { marginBottom: 0 }]}>Galaxy Watch</Text>
                         </View>
 
                         {/* Device 2 */}
                         <View style={styles.deviceCard}>
-                            <Image source={ouraRingImg} style={styles.deviceImage} resizeMode="contain" />
+                            <View style={styles.deviceImageContainer}>
+                                <Image source={ouraRingImg} style={styles.deviceImage} resizeMode="contain" />
+                            </View>
                             <Text style={[styles.deviceName, { marginBottom: 0 }]}>Oura Ring</Text>
                         </View>
 
                         {/* Device 3 */}
                         <View style={styles.deviceCard}>
-                            <Image source={pixelWatchImg} style={styles.deviceImage} resizeMode="contain" />
+                            <View style={styles.deviceImageContainer}>
+                                <Image source={pixelWatchImg} style={styles.deviceImage} resizeMode="contain" />
+                            </View>
                             <Text style={[styles.deviceName, { marginBottom: 0 }]}>Pixel Watch</Text>
                         </View>
 
                         {/* Device 4 */}
                         <View style={styles.deviceCard}>
-                            <Image source={fitbitImg} style={styles.deviceImage} resizeMode="contain" />
+                            <View style={styles.deviceImageContainer}>
+                                <Image source={fitbitImg} style={styles.deviceImage} resizeMode="contain" />
+                            </View>
                             <Text style={[styles.deviceName, { marginBottom: 0 }]}>Fitbit Sense</Text>
                         </View>
 
                         {/* Device 5 */}
                         <View style={styles.deviceCard}>
-                            <Image source={garminImg} style={styles.deviceImage} resizeMode="contain" />
+                            <View style={styles.deviceImageContainer}>
+                                <Image source={garminImg} style={styles.deviceImage} resizeMode="contain" />
+                            </View>
                             <Text style={[styles.deviceName, { marginBottom: 0 }]}>Garmin Venu</Text>
                         </View>
                     </ScrollView>
@@ -1825,17 +1796,28 @@ const styles = StyleSheet.create({
     deviceCard: {
         width: 124,
         backgroundColor: '#FFFFFF',
-        borderRadius: radius.lg,
+        borderRadius: 24,
         padding: 14,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: colors.borderLight,
         ...shadows.card,
     },
+    deviceImageContainer: {
+        width: 96,
+        height: 96,
+        borderRadius: 16,
+        backgroundColor: '#F8FAFC',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 10,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
     deviceImage: {
         width: 68,
         height: 68,
-        marginBottom: 10,
     },
     deviceName: {
         fontSize: 13,
@@ -2095,17 +2077,33 @@ const styles = StyleSheet.create({
     obHero: {
         alignItems: 'center',
         paddingTop: 32,
-        paddingBottom: 24,
+        paddingBottom: 20,
         paddingHorizontal: 24,
     },
+    heroOrbOuter: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        backgroundColor: 'rgba(99, 102, 241, 0.05)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    heroOrbInner: {
+        width: 76,
+        height: 76,
+        borderRadius: 38,
+        backgroundColor: 'rgba(99, 102, 241, 0.12)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     obIconWrap: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         backgroundColor: '#6366F1',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 20,
     },
     obTitle: {
         ...FONT.bold,
@@ -2123,7 +2121,24 @@ const styles = StyleSheet.create({
     },
     obSection: {
         paddingHorizontal: 20,
-        marginBottom: 24,
+        marginBottom: 20,
+    },
+    obBenefitsCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.02,
+        shadowRadius: 16,
+        elevation: 2,
+    },
+    obDivider: {
+        height: 1,
+        backgroundColor: '#F1F5F9',
+        marginVertical: 14,
     },
     obSectionTitle: {
         ...FONT.semibold,
@@ -2133,8 +2148,7 @@ const styles = StyleSheet.create({
     },
     obBenefitRow: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 16,
+        alignItems: 'center',
         gap: 14,
     },
     obBenefitIcon: {
@@ -2157,7 +2171,7 @@ const styles = StyleSheet.create({
         ...FONT.regular,
         fontSize: 13,
         color: colors.textSecondary,
-        lineHeight: 19,
+        lineHeight: 18,
     },
     obDataCategory: {
         backgroundColor: colors.cardBg || '#F8FAFC',
@@ -2219,9 +2233,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 10,
         backgroundColor: '#6366F1',
-        borderRadius: 16,
+        borderRadius: 18,
         paddingVertical: 16,
         width: '100%',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 4,
     },
     obConnectBtnTxt: {
         ...FONT.semibold,
