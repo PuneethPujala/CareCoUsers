@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Platform, Dimensions, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
     ChevronLeft, ChevronRight, Check, Sparkles, Activity, 
@@ -244,7 +244,14 @@ export default function PremiumShowcaseScreen({ navigation, route }) {
                             </View>
                             <Pressable 
                                 style={s.footerRight} 
-                                onPress={() => AlertManager.alert('Manage Subscription', 'You can manage your subscription payment method and terms directly inside settings or Google Play.')}
+                                onPress={() => {
+                                    const subUrl = Platform.OS === 'ios'
+                                        ? 'https://apps.apple.com/account/subscriptions'
+                                        : 'https://play.google.com/store/account/subscriptions';
+                                    Linking.openURL(subUrl).catch(() => {
+                                        AlertManager.alert('Manage Subscription', 'Please open the App Store or Play Store to manage your subscription.');
+                                    });
+                                }}
                             >
                                 <Text style={s.manageSubscriptionText}>Manage subscription</Text>
                                 <ChevronRight size={14} color="#7C3AED" />
@@ -291,6 +298,20 @@ export default function PremiumShowcaseScreen({ navigation, route }) {
 
                         <Pressable style={s.activeBackBtn} onPress={() => navigation.goBack()}>
                             <Text style={s.activeBackText}>Back to Dashboard</Text>
+                        </Pressable>
+
+                        <Pressable 
+                            style={[s.activeBackBtn, { marginTop: 12, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#CBD5E1' }]} 
+                            onPress={() => {
+                                const subUrl = Platform.OS === 'ios'
+                                    ? 'https://apps.apple.com/account/subscriptions'
+                                    : 'https://play.google.com/store/account/subscriptions';
+                                Linking.openURL(subUrl).catch(() => {
+                                    AlertManager.alert('Manage Subscription', 'Please open the App Store or Play Store to manage your subscription.');
+                                });
+                            }}
+                        >
+                            <Text style={s.activeBackText}>Manage Subscription</Text>
                         </Pressable>
                     </ScrollView>
                 </View>
