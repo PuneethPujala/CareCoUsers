@@ -1,3 +1,15 @@
+/**
+ * CareMyMed — TabScreenTransition
+ *
+ * Wraps every screen to provide a unified page entrance animation:
+ *   opacity: 0 → 1
+ *   translateY: 15px → 0
+ *   spring: gentle (damping: 24, stiffness: 80)
+ *
+ * Uses centralized motion tokens from reanimatedMotion.js.
+ * Apple doesn't scale pages — we removed the scale transform.
+ */
+
 import React, { useEffect } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import Animated, {
@@ -7,6 +19,7 @@ import Animated, {
     withTiming,
     interpolate,
 } from 'react-native-reanimated';
+import { reanimatedMotion } from '../../theme/reanimatedMotion';
 
 export default function TabScreenTransition({ children, style }) {
     const isFocused = useIsFocused();
@@ -14,29 +27,26 @@ export default function TabScreenTransition({ children, style }) {
 
     useEffect(() => {
         if (isFocused) {
-            progress.value = withSpring(1, {
-                damping: 18,
-                stiffness: 110,
-                mass: 0.9,
-            });
+            progress.value = withSpring(1, reanimatedMotion.springs.gentle);
         } else {
-            progress.value = withTiming(0, { duration: 150 });
+            progress.value = withTiming(0, {
+                duration: reanimatedMotion.durations.tap,
+            });
         }
     }, [isFocused, progress]);
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            opacity: progress.value,
-            transform: [
-                {
-                    translateY: interpolate(progress.value, [0, 1], [25, 0]),
-                },
-                {
-                    scale: interpolate(progress.value, [0, 1], [0.975, 1]),
-                },
-            ],
-        };
-    });
+    const animatedStyle = useAnimatedStyle(() => ({
+        opacity: progress.value,
+        transform: [
+            {
+                translateY: interpolate(
+                    progress.value,
+                    [0, 1],
+                    [reanimatedMotion.fadeUp.page, 0]
+                ),
+            },
+        ],
+    }));
 
     return (
         <Animated.View style={[{ flex: 1 }, style, animatedStyle]}>

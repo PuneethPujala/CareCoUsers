@@ -69,6 +69,7 @@ import PrescriptionVerificationScreen from "../screens/patient/PrescriptionVerif
 import ChatFAB from "../components/ui/ChatFAB";
 import HealthCopilotScreen from "../screens/patient/HealthCopilotScreen";
 import InterventionCenterScreen from "../screens/app/InterventionCenterScreen";
+import BottomSheetProvider from "../components/ui/BottomSheetProvider";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -187,10 +188,10 @@ const PatientOnboardingStack = () => (
 );
 
 const MainAppStack = () => (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: "slide_from_right", animationDuration: 250 }}>
         <Stack.Screen name="PatientTabs" component={PatientTabNavigator} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ presentation: "modal" }} />
-        <Stack.Screen name="VitalsHistory" component={VitalsHistoryScreen} />
+        <Stack.Screen name="VitalsHistory" component={VitalsHistoryScreen} options={{ animation: "fade_from_bottom" }} />
         <Stack.Screen name="LocationSearch" component={LocationSearchScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="AddAddress" component={AddAddressScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="HealthConnectSetup" component={HealthConnectSetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
@@ -505,12 +506,14 @@ export default function AppNavigator({ fontsLoaded }) {
     }
 
     return (
-        <View style={{ flex: 1 }}>
-            <GlobalSyncBanner />
-            <MainAppStack />
-            <CustomAlert ref={alertRef} />
-            <AchievementCelebration />
-        </View>
+        <BottomSheetProvider>
+            <View style={{ flex: 1 }}>
+                <GlobalSyncBanner />
+                <MainAppStack />
+                <CustomAlert ref={alertRef} />
+                <AchievementCelebration />
+            </View>
+        </BottomSheetProvider>
     );
 }
 

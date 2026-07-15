@@ -23,6 +23,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import PremiumFormModal from "../../components/ui/PremiumFormModal";
+import CelebrationOverlay from "../../components/ui/CelebrationOverlay";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Pill,
@@ -66,6 +67,7 @@ import * as Notifications from "expo-notifications";
 import AlertManager from "../../utils/AlertManager";
 import GuidedTour from "../../components/ui/GuidedTour";
 import { TourService } from "../../lib/TourService";
+import BottomSheetWrapper from "../../components/ui/BottomSheetWrapper";
 
 const { width: SW } = Dimensions.get("window");
 const AnimatedSvgCircle = Animated.createAnimatedComponent(SvgCircle);
@@ -377,9 +379,8 @@ const SlotHeader = ({ slot, callTime }) => {
 };
 
 // ── Medication Card ───────────────────────────────────────────────────────────
-const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
+const MedCard = ({ med, onToggle, onSnooze, onRefill, onPressDetails }) => {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(false);
   const swRef = useRef(null);
   const checkScale = useRef(new Animated.Value(med.taken ? 1 : 0)).current;
   const cfg = SLOT_CONFIG[med.type] || SLOT_CONFIG.as_needed;
@@ -497,12 +498,7 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
         rightThreshold={40}
       >
         <Pressable
-          onPress={() => {
-            LayoutAnimation.configureNext(
-              LayoutAnimation.Presets.easeInEaseOut,
-            );
-            setExpanded((e) => !e);
-          }}
+          onPress={() => onPressDetails && onPressDetails(med)}
           style={[styles.medCard, med.taken && styles.medCardTaken]}
         >
           {/* Top accent bar */}
@@ -616,68 +612,11 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
               </View>
             </View>
 
-            {/* Expand chevron */}
+            {/* Click detail indicator */}
             <View style={{ padding: 4, opacity: 0.5 }}>
-              {expanded ? (
-                <ChevronUp size={18} color="#64748B" />
-              ) : (
-                <ChevronDown size={18} color="#64748B" />
-              )}
+              <Info size={18} color="#64748B" />
             </View>
           </View>
-
-          {/* Expanded instructions */}
-          {expanded && (
-            <View style={styles.expandSection}>
-              <View
-                style={[
-                  styles.instructionBox,
-                  { backgroundColor: cfg.light, borderColor: cfg.border },
-                ]}
-              >
-                <Info
-                  size={15}
-                  color={cfg.color}
-                  style={{ marginTop: 1, flexShrink: 0 }}
-                />
-                <Text style={[styles.instructionTxt, { color: cfg.color }]}>
-                  {med.instructions ||
-                    t("medications.no_instructions", {
-                      defaultValue: "No special instructions provided.",
-                    })}
-                </Text>
-              </View>
-              {hasRefillInfo && (
-                <Pressable
-                  onPress={() => onRefill && onRefill(med)}
-                  style={{
-                    marginTop: 8,
-                    alignSelf: "flex-start",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                    paddingVertical: 6,
-                    paddingHorizontal: 12,
-                    backgroundColor: "#EEF2FF",
-                    borderRadius: radius.sm,
-                    borderWidth: 1,
-                    borderColor: "#C7D2FE",
-                  }}
-                >
-                  <Zap size={14} color="#6366F1" />
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "700",
-                      color: "#6366F1",
-                    }}
-                  >
-                    Mark as Refilled
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          )}
         </Pressable>
       </Swipeable>
     </View>
@@ -982,6 +921,7 @@ export default function MedicationsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showPrefModal, setShowPrefModal] = useState(false);
+  const [selectedDetailMed, setSelectedDetailMed] = useState(null);
   const [tempPrefs, setTempPrefs] = useState({
     morning: "09:00",
     afternoon: "14:00",
@@ -999,6 +939,7 @@ export default function MedicationsScreen({ navigation }) {
   });
   const [confirmingMed, setConfirmingMed] = useState(null);
   const [isConfirmVisible, setIsConfirmVisible] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const [requestingMod, setRequestingMod] = useState(false);
   const [modRequested, setModRequested] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -1279,8 +1220,17 @@ export default function MedicationsScreen({ navigation }) {
     const med = confirmingMed;
     setIsConfirmVisible(false);
     setConfirmingMed(null);
+
+    const allMeds = usePatientStore.getState().dashboardMeds || [];
+    const totalCount = allMeds.length;
+    const remainingCount = allMeds.filter((m) => !m.taken && m._id !== med._id).length;
+    const isNowComplete = remainingCount === 0 && totalCount > 0;
+
     try {
       await storeOptimisticToggle(med, true);
+      if (isNowComplete) {
+        setShowCelebration(true);
+      }
     } catch (err) {
       console.warn("[Toggle] Failed:", err.message);
       showToast(
@@ -2177,6 +2127,7 @@ export default function MedicationsScreen({ navigation }) {
                               onToggle={handleMedIconPress}
                               onSnooze={handleSnooze}
                               onRefill={handleRefill}
+                              onPressDetails={setSelectedDetailMed}
                             />
                           </View>
                         ))}
@@ -3611,6 +3562,137 @@ export default function MedicationsScreen({ navigation }) {
           tourKey="medications_log"
           onClose={() => setShowMedsTour(false)}
         />
+
+        {/* Medication Detail Bottom Sheet */}
+        <BottomSheetWrapper
+          isOpen={selectedDetailMed !== null}
+          onClose={() => setSelectedDetailMed(null)}
+          snapPoints={['50%', '85%']}
+          title={selectedDetailMed ? selectedDetailMed.name : ""}
+        >
+          {selectedDetailMed && (() => {
+            const med = selectedDetailMed;
+            const cfg = SLOT_CONFIG[med.type] || SLOT_CONFIG.as_needed;
+            const hasRefillInfo = med.refillInfo && (typeof med.refillInfo.remainingDoses === "number" || typeof med.refillInfo.totalDoses === "number");
+            const displayDoses = med.refillInfo?.remainingDoses ?? med.refillInfo?.totalDoses ?? 0;
+            const isLowSupply = hasRefillInfo && displayDoses <= (med.refillInfo.alertThreshold || 5);
+
+            return (
+              <View style={{ gap: 20 }}>
+                {/* Header overview */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>Dosage & Shift</Text>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A' }}>{med.dosage}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: cfg.color }}>
+                      {t(`time_slots.${med.type}`, { defaultValue: cfg.label })} {med.preferred_time ? `at ${med.preferred_time}` : ""}
+                    </Text>
+                  </View>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: cfg.light, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: cfg.border }}>
+                    <Pill size={24} color={cfg.color} strokeWidth={2.5} />
+                  </View>
+                </View>
+
+                {/* Adherence / Status card */}
+                <View style={{ gap: 8 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>Adherence Status</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: med.taken ? '#ECFDF5' : '#FEF2F2', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: med.taken ? '#A7F3D0' : '#FECACA' }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: med.taken ? '#D1FAE5' : '#FEE2E2', alignItems: 'center', justifyContent: 'center' }}>
+                      {med.taken ? <CheckCircle2 size={20} color="#10B981" /> : <Clock size={20} color="#EF4444" />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: med.taken ? '#065F46' : '#991B1B' }}>
+                        {med.taken ? t("medications.taken", { defaultValue: "Taken today" }) : t("medications.not_taken", { defaultValue: "Not taken today yet" })}
+                      </Text>
+                      {med.taken && med.marked_by === "caller" && (
+                        <Text style={{ fontSize: 13, color: '#047857' }}>Marked by caller</Text>
+                      )}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Instructions */}
+                <View style={{ gap: 8 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>Instructions</Text>
+                  <View style={{ backgroundColor: cfg.light, borderColor: cfg.border, borderWidth: 1, borderRadius: 16, padding: 16, flexDirection: 'row', gap: 12 }}>
+                    <Info size={20} color={cfg.color} style={{ marginTop: 2, flexShrink: 0 }} />
+                    <Text style={{ fontSize: 15, lineHeight: 22, color: cfg.color, fontWeight: '600', flex: 1 }}>
+                      {med.instructions || t("medications.no_instructions", { defaultValue: "No special instructions provided. Take as prescribed by your care team." })}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Supply & Refills */}
+                {hasRefillInfo && (
+                  <View style={{ gap: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>Supply & Refills</Text>
+                    <View style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', gap: 12 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 14, color: '#475569', fontWeight: '600' }}>Current Stock:</Text>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: isLowSupply ? '#EF4444' : '#0F172A' }}>
+                          {displayDoses} doses left
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          setSelectedDetailMed(null);
+                          handleRefill(med);
+                        }}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          paddingVertical: 12,
+                          backgroundColor: '#EEF2FF',
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: '#C7D2FE',
+                        }}
+                      >
+                        <Zap size={16} color="#6366F1" />
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#6366F1' }}>
+                          Refill Supply
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
+                {/* Intake action button if not taken */}
+                {!med.taken && (
+                  <Pressable
+                    onPress={() => {
+                      setSelectedDetailMed(null);
+                      handleMedIconPress(med);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      backgroundColor: '#10B981',
+                      paddingVertical: 16,
+                      borderRadius: 16,
+                      marginTop: 10,
+                      shadowColor: '#10B981',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 8,
+                      elevation: 4,
+                    }}
+                  >
+                    <CheckCircle2 size={20} color="#FFFFFF" strokeWidth={2.5} />
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF' }}>
+                      Mark as Taken
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            );
+          })()}
+        </BottomSheetWrapper>
+        <CelebrationOverlay active={showCelebration} onComplete={() => setShowCelebration(false)} />
       </View>
     </TabScreenTransition>
   );

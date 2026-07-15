@@ -4,13 +4,30 @@ import { apiService } from '../../lib/api';
 import { HeartPulse, Activity, Bell, Phone, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp, TriangleAlert, Package2, BotMessageSquare, ClipboardCheck, Clock3, BrainCircuit, ChartColumnIncreasing, X } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
+import { useMotion } from '../../theme/MotionProvider';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Circle as SvgCircle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Canvas, Circle as SkiaCircle, Blur, RadialGradient, vec } from '@shopify/react-native-skia';
+import ReanimatedAnimated, {
+    useSharedValue as useReanimatedShared,
+    useAnimatedStyle as useReanimatedStyle,
+    withSpring as reanimatedWithSpring,
+    withDelay as reanimatedWithDelay,
+    withTiming as reanimatedWithTiming,
+    interpolate as reanimatedInterpolate,
+    runOnJS,
+} from 'react-native-reanimated';
+import { reanimatedMotion } from '../../theme/reanimatedMotion';
 import CompanionHeader from '../../components/ui/CompanionHeader';
 import TabScreenTransition from '../../components/ui/TabScreenTransition';
 import StreakCalendar from '../../components/health/StreakCalendar';
+import ScalePressable from '../../components/ui/ScalePressable';
+import AnimatedNumber from '../../components/ui/AnimatedNumber';
+import AnimatedProgressRing from '../../components/ui/AnimatedProgressRing';
+import BreathingOrb from '../../components/ui/BreathingOrb';
+import SkeletonCard from '../../components/ui/SkeletonCard';
 
 const { width } = Dimensions.get('window');
 
@@ -121,60 +138,130 @@ export default function CompanionDashboardScreen() {
     }, [data]);
 
     // ── Staggered Entrance Animations ──
-    const staggerAnims = useRef([...Array(15)].map(() => new Animated.Value(0))).current;
+    const alertsShared = useReanimatedShared(0);
+    const refillShared = useReanimatedShared(0);
+    const adherenceShared = useReanimatedShared(0);
+    const vitalsShared = useReanimatedShared(0);
+    const intelligenceShared = useReanimatedShared(0);
+    const briefingShared = useReanimatedShared(0);
+    const summaryShared = useReanimatedShared(0);
+    const interventionShared = useReanimatedShared(0);
+    const timelineShared = useReanimatedShared(0);
+    const refreshShared = useReanimatedShared(0);
+
+    const anims = useMemo(() => ({
+        alerts: alertsShared,
+        refill: refillShared,
+        adherence: adherenceShared,
+        vitals: vitalsShared,
+        intelligence_center: intelligenceShared,
+        briefing: briefingShared,
+        summary: summaryShared,
+        intervention_center: interventionShared,
+        timeline: timelineShared,
+        refresh: refreshShared,
+    }), [alertsShared, refillShared, adherenceShared, vitalsShared, intelligenceShared, briefingShared, summaryShared, interventionShared, timelineShared, refreshShared]);
+
+    const styleBriefing = useReanimatedStyle(() => ({
+        opacity: briefingShared.value,
+        transform: [{ translateY: reanimatedInterpolate(briefingShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleSummary = useReanimatedStyle(() => ({
+        opacity: summaryShared.value,
+        transform: [{ translateY: reanimatedInterpolate(summaryShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleAlerts = useReanimatedStyle(() => ({
+        opacity: alertsShared.value,
+        transform: [{ translateY: reanimatedInterpolate(alertsShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleRefill = useReanimatedStyle(() => ({
+        opacity: refillShared.value,
+        transform: [{ translateY: reanimatedInterpolate(refillShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleAdherence = useReanimatedStyle(() => ({
+        opacity: adherenceShared.value,
+        transform: [{ translateY: reanimatedInterpolate(adherenceShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleVitals = useReanimatedStyle(() => ({
+        opacity: vitalsShared.value,
+        transform: [{ translateY: reanimatedInterpolate(vitalsShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleIntelligence = useReanimatedStyle(() => ({
+        opacity: intelligenceShared.value,
+        transform: [{ translateY: reanimatedInterpolate(intelligenceShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleIntervention = useReanimatedStyle(() => ({
+        opacity: interventionShared.value,
+        transform: [{ translateY: reanimatedInterpolate(interventionShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleTimeline = useReanimatedStyle(() => ({
+        opacity: timelineShared.value,
+        transform: [{ translateY: reanimatedInterpolate(timelineShared.value, [0, 1], [15, 0]) }]
+    }));
+    const styleRefresh = useReanimatedStyle(() => ({
+        opacity: refreshShared.value,
+        transform: [{ translateY: reanimatedInterpolate(refreshShared.value, [0, 1], [15, 0]) }]
+    }));
+
+    const animatedStyles = {
+        briefing: styleBriefing,
+        summary: styleSummary,
+        alerts: styleAlerts,
+        refill: styleRefill,
+        adherence: styleAdherence,
+        vitals: styleVitals,
+        intelligence_center: styleIntelligence,
+        intervention_center: styleIntervention,
+        timeline: styleTimeline,
+        refresh: styleRefresh,
+    };
+
     const hasAnimated = useRef(false);
-    const activeAnimation = useRef(null);
 
     const runEntranceAnimations = useCallback(() => {
-        if (activeAnimation.current) {
-            activeAnimation.current.stop();
-        }
-        staggerAnims.forEach(a => a.setValue(0));
         if (reduceMotion) {
-            staggerAnims.forEach(a => a.setValue(1));
+            Object.keys(anims).forEach(key => {
+                anims[key].value = 1;
+            });
             setEntranceAnimationFinished(true);
             return;
         }
 
-        const animations = visibleSections.map((sectionKey, idx) => {
-            const val = staggerAnims[idx];
-            if (!val) return null;
-            
-            let duration = motion.normal;
-            if (sectionKey === 'summary' || sectionKey === 'briefing' || sectionKey === 'needs_attention') {
-                duration = motion.fast;
-            } else if (sectionKey === 'forecasts' || sectionKey === 'recommendations') {
-                duration = motion.normal;
-            } else if (sectionKey === 'journey' || sectionKey === 'health_status') {
-                duration = motion.slow;
-            }
-            
-            return Animated.timing(val, {
-                toValue: 1,
-                duration: duration,
-                useNativeDriver: true,
-            });
-        }).filter(Boolean);
-
-        activeAnimation.current = Animated.stagger(70, animations);
-        activeAnimation.current.start(() => {
-            activeAnimation.current = null;
-            setEntranceAnimationFinished(true);
+        // Reset to 0 first
+        Object.keys(anims).forEach(key => {
+            anims[key].value = 0;
         });
-    }, [staggerAnims, reduceMotion, visibleSections]);
+
+        const config = reanimatedMotion.springs.default;
+
+        // Orchestrated entrance sequence matching Puneeth's design story:
+        // 1. Briefing wakes up immediately (starts the AI Orb pulse)
+        anims.briefing.value = reanimatedWithDelay(0, reanimatedWithSpring(1, config));
+        anims.summary.value = reanimatedWithDelay(100, reanimatedWithSpring(1, config));
+
+        // 2. Critical alerts & stocks cascade next
+        anims.alerts.value = reanimatedWithDelay(180, reanimatedWithSpring(1, config));
+        anims.refill.value = reanimatedWithDelay(240, reanimatedWithSpring(1, config));
+
+        // 3. Adherence card counts up
+        anims.adherence.value = reanimatedWithDelay(360, reanimatedWithSpring(1, config));
+
+        // 4. Vitals synced statuses slide in
+        anims.vitals.value = reanimatedWithDelay(480, reanimatedWithSpring(1, config));
+
+        // 5. Advanced intelligence & intervention CTAs settle
+        anims.intelligence_center.value = reanimatedWithDelay(600, reanimatedWithSpring(1, config));
+        anims.intervention_center.value = reanimatedWithDelay(700, reanimatedWithSpring(1, config));
+
+        // 6. Timeline list and footer settling
+        anims.timeline.value = reanimatedWithDelay(800, reanimatedWithSpring(1, config));
+        anims.refresh.value = reanimatedWithDelay(900, reanimatedWithSpring(1, config, () => {
+            runOnJS(setEntranceAnimationFinished)(true);
+        }));
+    }, [reduceMotion, anims]);
 
     const sectionAnimForKey = (sectionKey) => {
-        if (entranceAnimationFinished || reduceMotion) {
-            return { opacity: 1 };
-        }
-        const idx = visibleSections.indexOf(sectionKey);
-        if (idx === -1 || idx >= staggerAnims.length) {
-            return { opacity: 1 };
-        }
-        return {
-            opacity: staggerAnims[idx],
-            transform: [{ translateY: staggerAnims[idx].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
-        };
+        return animatedStyles[sectionKey] || {};
     };
 
     // Mock weekly data to render a stunning micro-chart (since backend is real-time only)
@@ -290,27 +377,28 @@ export default function CompanionDashboardScreen() {
     if (!data || !data.patient) {
         return (
             <View style={styles.container}>
-                {/* Ambient Background Decorations */}
-                <View style={StyleSheet.absoluteFill}>
-                    <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
-                        <Defs>
-                            <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <Stop offset="0%" stopColor="#EDE9FE" stopOpacity="0.75" />
-                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-                            </SvgGradient>
-                            <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <Stop offset="0%" stopColor="#FAF5FF" stopOpacity="0.75" />
-                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-                            </SvgGradient>
-                        </Defs>
-                        
-                        <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
-                        <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
-                        <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.4" />
-                        <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.25" />
-                        <Circle cx="320" cy="480" r="130" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.2" />
-                        <Circle cx="320" cy="480" r="90" stroke={colors.borderLight} strokeWidth="1.2" fill="none" opacity="0.1" />
-                    </Svg>
+                {/* Skia Ambient Background Glows */}
+                <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                    <Canvas style={{ flex: 1 }}>
+                        {/* Top-left indigo glow */}
+                        <SkiaCircle cx={width * 0.15} cy={120} r={180} opacity={0.12}>
+                            <RadialGradient
+                                c={vec(width * 0.15, 120)}
+                                r={180}
+                                colors={['#818CF8', 'transparent']}
+                            />
+                            <Blur blur={80} />
+                        </SkiaCircle>
+                        {/* Bottom-right purple glow */}
+                        <SkiaCircle cx={width * 0.85} cy={600} r={200} opacity={0.08}>
+                            <RadialGradient
+                                c={vec(width * 0.85, 600)}
+                                r={200}
+                                colors={['#C084FC', 'transparent']}
+                            />
+                            <Blur blur={100} />
+                        </SkiaCircle>
+                    </Canvas>
                 </View>
 
                 <CompanionHeader
@@ -326,92 +414,15 @@ export default function CompanionDashboardScreen() {
                 />
 
                 <ScrollView contentContainerStyle={styles.content}>
-                    {/* Summary Card Skeleton */}
-                    <View style={styles.summaryCard}>
-                        <View style={styles.summaryColLeft}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <SkeletonItem width={20} height={20} borderRadius={10} />
-                                <View style={{ gap: 4 }}>
-                                    <SkeletonItem width={70} height={12} />
-                                    <SkeletonItem width={100} height={10} />
-                                </View>
-                            </View>
-                        </View>
-                        <View style={styles.summaryDivider} />
-                        <View style={[styles.summaryColCenter, { gap: 4 }]}>
-                            <SkeletonItem width={50} height={10} />
-                            <SkeletonItem width={40} height={24} />
-                            <SkeletonItem width={30} height={10} />
-                        </View>
-                        <View style={styles.summaryDivider} />
-                        <View style={[styles.summaryColRight, { gap: 4 }]}>
-                            <SkeletonItem width={50} height={10} />
-                            <SkeletonItem width={55} height={16} />
-                        </View>
-                    </View>
-
                     {/* Briefing Skeleton */}
-                    <View style={styles.briefingContainerStandalone}>
-                        <SkeletonItem style={styles.mascotOverlappingImage} />
-                        <View style={[styles.speechBubbleOverlapping, { gap: 10 }]}>
-                            <SkeletonItem width={120} height={16} />
-                            <SkeletonItem width="100%" height={12} />
-                            <SkeletonItem width="90%" height={12} />
-                            <SkeletonItem width="60%" height={12} />
-                        </View>
-                    </View>
+                    <SkeletonCard variant="briefing" />
 
-                    {/* CTA Cards Skeletons */}
-                    <View style={[styles.card, { height: 86, justifyContent: 'center', paddingHorizontal: 20 }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <SkeletonItem width={24} height={24} borderRadius={12} />
-                            <View style={{ flex: 1, gap: 6 }}>
-                                <SkeletonItem width={160} height={14} />
-                                <SkeletonItem width={100} height={10} />
-                            </View>
-                            <SkeletonItem width={14} height={14} borderRadius={7} />
-                        </View>
-                    </View>
-
-                    <View style={[styles.card, { height: 86, justifyContent: 'center', paddingHorizontal: 20 }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <SkeletonItem width={24} height={24} borderRadius={12} />
-                            <View style={{ flex: 1, gap: 6 }}>
-                                <SkeletonItem width={180} height={14} />
-                                <SkeletonItem width={120} height={10} />
-                            </View>
-                            <SkeletonItem width={14} height={14} borderRadius={7} />
-                        </View>
-                    </View>
+                    {/* CTA Card Skeletons */}
+                    <SkeletonCard lines={2} hasCircle />
+                    <SkeletonCard lines={2} hasCircle />
 
                     {/* Adherence Card Skeleton */}
-                    <View style={styles.card}>
-                        <View style={styles.cardHeader}>
-                            <SkeletonItem width={18} height={18} borderRadius={4} style={{ marginRight: 8 }} />
-                            <View style={{ gap: 4 }}>
-                                <SkeletonItem width={140} height={14} />
-                                <SkeletonItem width={100} height={10} />
-                            </View>
-                        </View>
-                        <View style={[styles.meterRow, { marginVertical: 12 }]}>
-                            <View style={{ flex: 1, gap: 8 }}>
-                                <SkeletonItem width={60} height={28} />
-                                <SkeletonItem width={90} height={16} borderRadius={8} />
-                            </View>
-                            <SkeletonItem width={80} height={80} borderRadius={40} />
-                        </View>
-                        <View style={styles.chartContainer}>
-                            <SkeletonItem width={120} height={12} style={{ marginBottom: 12 }} />
-                            <View style={[styles.barChart, { height: 80, alignItems: 'flex-end' }]}>
-                                {[60, 90, 40, 80, 100, 30, 70].map((h, i) => (
-                                    <View key={i} style={{ alignItems: 'center', gap: 6 }}>
-                                        <SkeletonItem width={14} height={h * 0.6} borderRadius={4} />
-                                        <SkeletonItem width={12} height={10} />
-                                    </View>
-                                ))}
-                            </View>
-                        </View>
-                    </View>
+                    <SkeletonCard variant="adherence" hasChart />
                 </ScrollView>
             </View>
         );
@@ -449,11 +460,27 @@ export default function CompanionDashboardScreen() {
     return (
         <TabScreenTransition>
             <View style={styles.container}>
-            {/* Clean Ambient Gradient Glow Backdrop */}
-            <LinearGradient 
-                colors={['#EEF2FF', '#F8FAFC']} 
-                style={StyleSheet.absoluteFill} 
-            />
+            {/* Skia Ambient Background Glows */}
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <Canvas style={{ flex: 1 }}>
+                    <SkiaCircle cx={width * 0.15} cy={120} r={180} opacity={0.12}>
+                        <RadialGradient
+                            c={vec(width * 0.15, 120)}
+                            r={180}
+                            colors={['#818CF8', 'transparent']}
+                        />
+                        <Blur blur={80} />
+                    </SkiaCircle>
+                    <SkiaCircle cx={width * 0.85} cy={600} r={200} opacity={0.08}>
+                        <RadialGradient
+                            c={vec(width * 0.85, 600)}
+                            r={200}
+                            colors={['#C084FC', 'transparent']}
+                        />
+                        <Blur blur={100} />
+                    </SkiaCircle>
+                </Canvas>
+            </View>
 
             <CompanionHeader
                 style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
@@ -461,10 +488,10 @@ export default function CompanionDashboardScreen() {
                 title={`${data.patient.name}'s Health`}
                 onBack={() => navigation.goBack()}
                 right={(
-                    <Pressable style={({ pressed }) => [styles.bellButton, pressed && { opacity: 0.7 }]} onPress={() => navigation.navigate('CompanionAlerts')}>
+                    <ScalePressable style={styles.bellButton} onPress={() => navigation.navigate('CompanionAlerts')}>
                         <Bell color={colors.textPrimary} size={20} />
                         {data.recent_alerts?.length > 0 && <View style={styles.bellDot} />}
-                    </Pressable>
+                    </ScalePressable>
                 )}
             />
 
@@ -487,61 +514,67 @@ export default function CompanionDashboardScreen() {
                 {/* 1. Alerts Card */}
                 {visibleSections.includes('alerts') && (
                     data.recent_alerts?.length > 0 ? (
-                        <Animated.View style={[styles.card, sectionAnimForKey('alerts')]}>
-                            <View style={styles.cardHeader}>
-                                <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
-                                    <TriangleAlert color={colors.danger} size={20} />
-                                </View>
-                                <View>
-                                    <Text style={styles.cardTitle}>Critical Alerts</Text>
-                                    <Text style={styles.cardSub}>Attention required immediately</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.alertsList}>
-                                {data.recent_alerts.map(a => (
-                                    <View key={a._id} style={styles.alertItem}>
-                                        <View style={styles.alertDot} />
-                                        <Text style={styles.alertDescription}>{a.description}</Text>
+                        <ReanimatedAnimated.View style={[styles.outerCard, sectionAnimForKey('alerts')]}>
+                            <View style={styles.innerCard}>
+                                <View style={styles.cardHeader}>
+                                    <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
+                                        <TriangleAlert color={colors.danger} size={20} />
                                     </View>
-                                ))}
+                                    <View>
+                                        <Text style={styles.cardTitle}>Critical Alerts</Text>
+                                        <Text style={styles.cardSub}>Attention required immediately</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.alertsList}>
+                                    {data.recent_alerts.map(a => (
+                                        <View key={a._id} style={styles.alertItem}>
+                                            <View style={styles.alertDot} />
+                                            <Text style={styles.alertDescription}>{a.description}</Text>
+                                        </View>
+                                    ))}
+                                </View>
                             </View>
-                        </Animated.View>
+                        </ReanimatedAnimated.View>
                     ) : (
-                        <Animated.View style={[styles.noAlertsCard, sectionAnimForKey('alerts')]}>
-                            <ShieldCheck color={colors.success} size={24} />
-                            <Text style={styles.noAlertsText}>All systems normal. No active alerts.</Text>
-                        </Animated.View>
+                        <ReanimatedAnimated.View style={[styles.outerCard, sectionAnimForKey('alerts')]}>
+                            <View style={[styles.innerCard, styles.noAlertsCard]}>
+                                <ShieldCheck color={colors.success} size={24} />
+                                <Text style={styles.noAlertsText}>All systems normal. No active alerts.</Text>
+                            </View>
+                        </ReanimatedAnimated.View>
                     )
                 )}
 
                 {/* 2. Low Pill Stock Refill Warning Banner */}
                 {visibleSections.includes('refill') && (
-                    <Animated.View style={[styles.refillBanner, sectionAnimForKey('refill')]}>
-                        <View style={styles.refillBannerHeader}>
-                            <Package2 color={colors.warning} size={20} />
-                            <Text style={styles.refillBannerTitle}>Low Medication Stock Alert</Text>
+                    <ReanimatedAnimated.View style={[styles.outerCard, sectionAnimForKey('refill')]}>
+                        <View style={[styles.innerCard, { gap: 10 }]}>
+                            <View style={styles.refillBannerHeader}>
+                                <Package2 color={colors.warning} size={20} />
+                                <Text style={styles.refillBannerTitle}>Low Medication Stock Alert</Text>
+                            </View>
+                            <ScrollView style={styles.refillList} nestedScrollEnabled={true}>
+                                {data.refill_alerts.map((alert) => (
+                                    <View key={alert.medication_id} style={styles.refillItem}>
+                                        <Text style={styles.refillMedName}>{alert.name}</Text>
+                                        <Text style={styles.refillMedStock}>
+                                            Only <Text style={{ color: colors.danger, ...FONT.bold }}>{alert.remaining_doses}</Text> doses left!
+                                        </Text>
+                                        {alert.pharmacy_phone ? (
+                                            <ScalePressable 
+                                                style={styles.refillCallBtn}
+                                                onPress={() => Linking.openURL(`tel:${alert.pharmacy_phone}`)}
+                                            >
+                                                <Phone size={12} color={colors.primary} />
+                                                <Text style={styles.refillCallText}>Order</Text>
+                                            </ScalePressable>
+                                        ) : null}
+                                    </View>
+                                ))}
+                            </ScrollView>
                         </View>
-                        <ScrollView style={styles.refillList} nestedScrollEnabled={true}>
-                            {data.refill_alerts.map((alert) => (
-                                <View key={alert.medication_id} style={styles.refillItem}>
-                                    <Text style={styles.refillMedName}>{alert.name}</Text>
-                                    <Text style={styles.refillMedStock}>
-                                        Only <Text style={{ color: colors.danger, ...FONT.bold }}>{alert.remaining_doses}</Text> doses left!
-                                    </Text>
-                                    {alert.pharmacy_phone ? (
-                                        <Pressable 
-                                            style={styles.refillCallBtn}
-                                            onPress={() => Linking.openURL(`tel:${alert.pharmacy_phone}`)}
-                                        >
-                                            <Phone size={12} color={colors.primary} />
-                                            <Text style={styles.refillCallText}>Order</Text>
-                                        </Pressable>
-                                    ) : null}
-                                </View>
-                            ))}
-                        </ScrollView>
-                    </Animated.View>
+                    </ReanimatedAnimated.View>
                 )}
 
 
@@ -549,225 +582,247 @@ export default function CompanionDashboardScreen() {
 
                 {/* 9. Adherence Meter Card */}
                 {visibleSections.includes('adherence') && (
-                    <Animated.View style={[styles.card, sectionAnimForKey('adherence')]}>
-                        <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: '#ECFEFF' }]}>
-                                <ChartColumnIncreasing color="#0891B2" size={20} />
-                            </View>
-                            <View>
-                                <Text style={styles.cardTitle}>Medication Adherence</Text>
-                                <Text style={styles.cardSub}>Today's completed schedule</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.meterRow}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.largeValue} numberOfLines={1} adjustsFontSizeToFit>
-                                    {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
-                                </Text>
-                                <View style={styles.streakBadge}>
-                                    <Text style={styles.streakText}>🔥 {data.patient.current_streak} Day Streak</Text>
+                    <ReanimatedAnimated.View style={[styles.outerCard, sectionAnimForKey('adherence')]}>
+                        <View style={styles.innerCard}>
+                            <View style={styles.cardHeader}>
+                                <View style={[styles.iconBox, { backgroundColor: '#ECFEFF' }]}>
+                                    <ChartColumnIncreasing color="#0891B2" size={20} />
+                                </View>
+                                <View>
+                                    <Text style={styles.cardTitle}>Medication Adherence</Text>
+                                    <Text style={styles.cardSub}>Today's completed schedule</Text>
                                 </View>
                             </View>
 
-                            {/* Custom Pure-CSS Circular Progress Approximation */}
-                            <View style={styles.circularProgressPlaceholder}>
-                                <View style={[
-                                    styles.circleSegment, 
-                                    { borderColor: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
-                                ]}>
+                            <View style={styles.meterRow}>
+                                <View style={{ flex: 1 }}>
+                                    {data.patient.adherence_rate !== null ? (
+                                        <AnimatedNumber 
+                                            value={data.patient.adherence_rate} 
+                                            suffix="%" 
+                                            style={styles.largeValue} 
+                                        />
+                                    ) : (
+                                        <Text style={styles.largeValue}>N/A</Text>
+                                    )}
+                                    <View style={styles.streakBadge}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Text style={styles.streakText}>🔥 </Text>
+                                            <AnimatedNumber 
+                                                value={data.patient.current_streak} 
+                                                suffix=" Day Streak"
+                                                style={styles.streakText} 
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* Modern Reanimated Progress Ring */}
+                                <AnimatedProgressRing
+                                    progress={adherence}
+                                    size={78}
+                                    strokeWidth={6}
+                                    colors={[adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger]}
+                                    trackColor="#F1F5F9"
+                                >
                                     <Text style={styles.circleInsideText}>
                                         {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
                                     </Text>
+                                </AnimatedProgressRing>
+                            </View>
+
+                            {/* Dynamic Status Banner */}
+                            <View style={[
+                                styles.statusBanner,
+                                { backgroundColor: adherence > 75 ? colors.successLight : adherence > 50 ? colors.warningLight : colors.dangerLight }
+                            ]}>
+                                <Text style={[
+                                    styles.statusBannerText,
+                                    { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
+                                ]}>
+                                    {adherence > 75 ? 'Adherence is stable. Keep it up!' : 'Some medicines were missed today.'}
+                                </Text>
+                            </View>
+
+                            {/* Custom Weekly Progress Micro-Chart */}
+                            <View style={styles.chartContainer}>
+                                <Text style={styles.chartTitle}>Weekly Adherence Trend</Text>
+                                <View style={styles.barChart}>
+                                    {(data?.weekly_adherence || mockWeeklyAdherence).map((item, idx) => (
+                                        <View key={idx} style={styles.barWrapper}>
+                                            <View style={styles.barTrack}>
+                                                <View style={[
+                                                    styles.barFill, 
+                                                    { 
+                                                        height: `${item.rate}%`,
+                                                        backgroundColor: item.rate > 75 ? colors.success : item.rate > 50 ? colors.warning : colors.danger 
+                                                    }
+                                                ]} />
+                                            </View>
+                                            <Text style={styles.barLabel}>{item.day}</Text>
+                                        </View>
+                                    ))}
                                 </View>
                             </View>
                         </View>
-
-                        {/* Dynamic Status Banner */}
-                        <View style={[
-                            styles.statusBanner,
-                            { backgroundColor: adherence > 75 ? colors.successLight : adherence > 50 ? colors.warningLight : colors.dangerLight }
-                        ]}>
-                            <Text style={[
-                                styles.statusBannerText,
-                                { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
-                            ]}>
-                                {adherence > 75 ? 'Adherence is stable. Keep it up!' : 'Some medicines were missed today.'}
-                            </Text>
-                        </View>
-
-                        {/* Custom Weekly Progress Micro-Chart */}
-                        <View style={styles.chartContainer}>
-                            <Text style={styles.chartTitle}>Weekly Adherence Trend</Text>
-                            <View style={styles.barChart}>
-                                {(data?.weekly_adherence || mockWeeklyAdherence).map((item, idx) => (
-                                    <View key={idx} style={styles.barWrapper}>
-                                        <View style={styles.barTrack}>
-                                            <View style={[
-                                                styles.barFill, 
-                                                { 
-                                                    height: `${item.rate}%`,
-                                                    backgroundColor: item.rate > 75 ? colors.success : item.rate > 50 ? colors.warning : colors.danger 
-                                                }
-                                            ]} />
-                                        </View>
-                                        <Text style={styles.barLabel}>{item.day}</Text>
-                                    </View>
-                                ))}
-                            </View>
-                        </View>
-                    </Animated.View>
+                    </ReanimatedAnimated.View>
                 )}
 
                 {/* 7. Vitals Card (with beautiful elegant empty states) */}
                 {visibleSections.includes('vitals') && (
-                    <Animated.View style={[styles.card, sectionAnimForKey('vitals')]}>
-                        <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: '#FFF1F2' }]}>
-                                <HeartPulse color="#F43F5E" size={20} />
-                            </View>
-                            <View>
-                                <Text style={styles.cardTitle}>Vitals Status</Text>
-                                <Text style={styles.cardSub}>Latest biometric sync</Text>
-                            </View>
-                        </View>
-
-                        {hasVitals ? (
-                            <View style={styles.vitalsRow}>
-                                <View style={styles.vitalMetricsBox}>
-                                    <Text style={styles.vitalLabel}>Blood Pressure</Text>
-                                    <Text style={styles.vitalBigValue} numberOfLines={1} adjustsFontSizeToFit>
-                                        {data.latest_vital.bp_systolic}/{data.latest_vital.bp_diastolic}
-                                    </Text>
-                                    <Text style={styles.vitalUnit}>mmHg</Text>
+                    <ReanimatedAnimated.View style={[styles.outerCard, sectionAnimForKey('vitals')]}>
+                        <View style={styles.innerCard}>
+                            <View style={styles.cardHeader}>
+                                <View style={[styles.iconBox, { backgroundColor: '#FFF1F2' }]}>
+                                    <HeartPulse color="#F43F5E" size={20} />
                                 </View>
-                                
-                                <View style={styles.vitalDivider} />
-
-                                <View style={styles.vitalMetricsBox}>
-                                    <Text style={styles.vitalLabel}>Status</Text>
-                                    <View style={[styles.vitalBadge, { backgroundColor: colors.successLight }]}>
-                                        <Text style={[styles.vitalBadgeText, { color: colors.success }]}>Normal</Text>
-                                    </View>
-                                    <Text style={styles.vitalTime}>Synced 2h ago</Text>
+                                <View>
+                                    <Text style={styles.cardTitle}>Vitals Status</Text>
+                                    <Text style={styles.cardSub}>Latest biometric sync</Text>
                                 </View>
                             </View>
-                        ) : (
-                            <View style={styles.vitalsEmptyContainer}>
-                                {/* Left Side: Illustrative Blood Pressure Monitor */}
-                                <View style={styles.vitalsEmptyLeft}>
-                                    <Image 
-                                        source={require('../../../assets/bp_monitor_illus.jpg')} 
-                                        style={styles.bpMonitorImage}
-                                        resizeMode="cover"
-                                    />
-                                    <View style={styles.bluetoothBadgeOverlay}>
-                                        <Bluetooth size={14} color="#FFF" />
-                                    </View>
-                                </View>
 
-                                {/* Right Side: Status, Description, and Sync Actions */}
-                                <View style={styles.vitalsEmptyRight}>
-                                    <View style={styles.vitalsStatusBadgeRow}>
-                                        <Bluetooth size={14} color={colors.success} />
-                                        <Text style={styles.vitalsStatusBadgeText}>All vitals normal</Text>
+                            {hasVitals ? (
+                                <View style={styles.vitalsRow}>
+                                    <View style={styles.vitalMetricsBox}>
+                                        <Text style={styles.vitalLabel}>Blood Pressure</Text>
+                                        <Text style={styles.vitalBigValue} numberOfLines={1} adjustsFontSizeToFit>
+                                            {data.latest_vital.bp_systolic}/{data.latest_vital.bp_diastolic}
+                                        </Text>
+                                        <Text style={styles.vitalUnit}>mmHg</Text>
                                     </View>
                                     
-                                    <Text style={styles.vitalsEmptyDesc}>
-                                        No BP logs recorded today. Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor.
-                                    </Text>
+                                    <View style={styles.vitalDivider} />
 
-                                    <Pressable style={styles.vitalsSyncBtnContainer} onPress={() => loadData()}>
-                                        <LinearGradient
-                                            colors={['#2563EB', '#1D4ED8']}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 0 }}
-                                            style={styles.vitalsSyncBtnGradient}
-                                        >
-                                            <Text style={styles.vitalsSyncBtnText}>Sync Now</Text>
-                                        </LinearGradient>
-                                    </Pressable>
-
-                                    <Pressable style={styles.vitalsConnectBtn} onPress={() => {
-                                        AlertManager.alert('Connect Device', 'Searching for nearby Bluetooth blood pressure monitors...');
-                                    }}>
-                                        <Text style={styles.vitalsConnectBtnText}>Connect Device</Text>
-                                    </Pressable>
+                                    <View style={styles.vitalMetricsBox}>
+                                        <Text style={styles.vitalLabel}>Status</Text>
+                                        <View style={[styles.vitalBadge, { backgroundColor: colors.successLight }]}>
+                                            <Text style={[styles.vitalBadgeText, { color: colors.success }]}>Normal</Text>
+                                        </View>
+                                        <Text style={styles.vitalTime}>Synced 2h ago</Text>
+                                    </View>
                                 </View>
-                            </View>
-                        )}
-                    </Animated.View>
+                            ) : (
+                                <View style={styles.vitalsEmptyContainer}>
+                                    {/* Left Side: Illustrative Blood Pressure Monitor */}
+                                    <View style={styles.vitalsEmptyLeft}>
+                                        <Image 
+                                            source={require('../../../assets/bp_monitor_illus.jpg')} 
+                                            style={styles.bpMonitorImage}
+                                            resizeMode="cover"
+                                        />
+                                        <View style={styles.bluetoothBadgeOverlay}>
+                                            <Bluetooth size={14} color="#FFF" />
+                                        </View>
+                                    </View>
+
+                                    {/* Right Side: Status, Description, and Sync Actions */}
+                                    <View style={styles.vitalsEmptyRight}>
+                                        <View style={styles.vitalsStatusBadgeRow}>
+                                            <Bluetooth size={14} color={colors.success} />
+                                            <Text style={styles.vitalsStatusBadgeText}>All vitals normal</Text>
+                                        </View>
+                                        
+                                        <Text style={styles.vitalsEmptyDesc}>
+                                            No BP logs recorded today. Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor.
+                                        </Text>
+
+                                        <ScalePressable style={styles.vitalsSyncBtnContainer} onPress={() => loadData()}>
+                                            <LinearGradient
+                                                colors={['#2563EB', '#1D4ED8']}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 0 }}
+                                                style={styles.vitalsSyncBtnGradient}
+                                            >
+                                                <Text style={styles.vitalsSyncBtnText}>Sync Now</Text>
+                                            </LinearGradient>
+                                        </ScalePressable>
+
+                                        <ScalePressable style={styles.vitalsConnectBtn} onPress={() => {
+                                            AlertManager.alert('Connect Device', 'Searching for nearby Bluetooth blood pressure monitors...');
+                                        }}>
+                                            <Text style={styles.vitalsConnectBtnText}>Connect Device</Text>
+                                        </ScalePressable>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    </ReanimatedAnimated.View>
                 )}
 
                 {/* 8. 🧠 Health Intelligence Center CTA Card */}
                 {visibleSections.includes('intelligence_center') && (
-                    <Animated.View style={[styles.ctaCard, sectionAnimForKey('intelligence_center')]}>
-                        <Pressable 
-                            style={({ pressed }) => [styles.ctaCardPressable, pressed && { opacity: 0.95 }]}
-                            onPress={() => navigation.navigate('CompanionAnalytics')}
-                        >
-                            <View style={styles.ctaCardHeader}>
-                                <View style={[styles.iconBox, { backgroundColor: '#F5F3FF' }]}>
-                                    <BrainCircuit color="#7C3AED" size={20} />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.ctaTitle}>Health Intelligence Center</Text>
-                                    <Text style={styles.ctaSubtitle}>Forecasts • Trends • AI Insights</Text>
-                                </View>
-                                <ChevronRight color={colors.primary} size={20} />
+                    <AnimatedCard 
+                        onPress={() => navigation.navigate('CompanionAnalytics')}
+                        style={sectionAnimForKey('intelligence_center')}
+                    >
+                        <View style={styles.ctaCardHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: '#F5F3FF' }]}>
+                                <BrainCircuit color="#7C3AED" size={20} />
                             </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.ctaTitle}>Health Intelligence Center</Text>
+                                <Text style={styles.ctaSubtitle}>Forecasts • Trends • AI Insights</Text>
+                            </View>
+                            <ChevronRight color={colors.primary} size={20} />
+                        </View>
 
-                            {/* Preview Chips */}
-                            <View style={styles.ctaChipsRow}>
-                                <View style={[
-                                    styles.ctaChip,
-                                    riskLevel === 'high' ? styles.chipHigh :
-                                    riskLevel === 'medium' ? styles.chipMedium :
-                                    riskLevel === 'low' ? styles.chipLow : styles.chipUnknown
+                        {/* Preview Chips */}
+                        <View style={styles.ctaChipsRow}>
+                            <View style={[
+                                styles.ctaChip,
+                                riskLevel === 'high' ? styles.chipHigh :
+                                riskLevel === 'medium' ? styles.chipMedium :
+                                riskLevel === 'low' ? styles.chipLow : styles.chipUnknown
+                            ]}>
+                                <Text style={[
+                                    styles.ctaChipText,
+                                    { color: riskLevel === 'high' ? colors.danger :
+                                             riskLevel === 'medium' ? colors.warning :
+                                             riskLevel === 'low' ? colors.success : '#64748B' }
                                 ]}>
-                                    <Text style={[
-                                        styles.ctaChipText,
-                                        { color: riskLevel === 'high' ? colors.danger :
-                                                 riskLevel === 'medium' ? colors.warning :
-                                                 riskLevel === 'low' ? colors.success : '#64748B' }
-                                    ]}>
-                                        Risk: {riskLevel === 'high' ? 'High' : riskLevel === 'medium' ? 'Medium' : riskLevel === 'low' ? 'Low' : 'Unknown'}
-                                    </Text>
-                                </View>
-
-                                <View style={[styles.ctaChip, { backgroundColor: '#E0F2FE' }]}>
-                                    <Text style={[styles.ctaChipText, { color: colors.primary }]}>
-                                        Forecast: {trendDirection === 'improving' ? 'Improving' : trendDirection === 'worsening' ? 'Declining' : 'Stable'}
-                                    </Text>
-                                </View>
-
-                                <View style={[styles.ctaChip, { backgroundColor: '#F1F5F9' }]}>
-                                    <Text style={[styles.ctaChipText, { color: '#475569' }]}>
-                                        Confidence: {confidenceScore}%
-                                    </Text>
-                                </View>
+                                    Risk: {riskLevel === 'high' ? 'High' : riskLevel === 'medium' ? 'Medium' : riskLevel === 'low' ? 'Low' : 'Unknown'}
+                                </Text>
                             </View>
+
+                            <View style={[styles.ctaChip, { backgroundColor: '#E0F2FE' }]}>
+                                <Text style={[styles.ctaChipText, { color: colors.primary }]}>
+                                    Forecast: {trendDirection === 'improving' ? 'Improving' : trendDirection === 'worsening' ? 'Declining' : 'Stable'}
+                                </Text>
+                            </View>
+
+                            <View style={[styles.ctaChip, { backgroundColor: '#F1F5F9', flexDirection: 'row', alignItems: 'center' }]}>
+                                <Text style={[styles.ctaChipText, { color: '#475569' }]}>Confidence: </Text>
+                                <AnimatedNumber 
+                                    value={confidenceScore} 
+                                    suffix="%" 
+                                    style={{ fontSize: 11, ...FONT.bold, color: '#475569' }} 
+                                />
+                            </View>
+                        </View>
 
                             <View style={styles.ctaViewDetailsRow}>
                                 <Text style={styles.ctaViewDetailsText}>View Details</Text>
                                 <ChevronRight size={14} color={colors.primary} />
                             </View>
-                        </Pressable>
-                    </Animated.View>
+                    </AnimatedCard>
                 )}
-
                 {/* 3. AI Companion Briefing (Mascot Overlapping Speech Bubble) */}
                 {visibleSections.includes('briefing') && (
-                     <Animated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
+                     <ReanimatedAnimated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
                          <Image 
                              source={require('../../../assets/doctor_mascot_insights.jpg')} 
                              style={styles.mascotOverlappingImage}
                              resizeMode="cover"
                          />
                          <View style={styles.speechBubbleOverlapping}>
-                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                 <BotMessageSquare color="#4F46E5" size={20} />
-                                 <Text style={[styles.briefingTitleOverlapping, { marginBottom: 0 }]}>AI Companion Briefing</Text>
+                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                     <BotMessageSquare color="#4F46E5" size={20} />
+                                     <Text style={[styles.briefingTitleOverlapping, { marginBottom: 0 }]}>AI Companion Briefing</Text>
+                                 </View>
+                                 {/* Glowing Breathing AI Orb */}
+                                 <BreathingOrb size={28} />
                              </View>
                              <Text style={styles.briefingText}>{shortSummary}</Text>
 
@@ -779,8 +834,8 @@ export default function CompanionDashboardScreen() {
                              ) : null}
 
                              {briefDetails ? (
-                                 <Pressable 
-                                     style={({ pressed }) => [styles.briefingToggleBtn, pressed && { opacity: 0.7 }]}
+                                 <ScalePressable 
+                                     style={styles.briefingToggleBtn}
                                      onPress={() => setExpandedBriefing(!expandedBriefing)}
                                  >
                                      <Text style={styles.briefingToggleText}>
@@ -791,15 +846,15 @@ export default function CompanionDashboardScreen() {
                                      ) : (
                                          <ChevronDown size={14} color={colors.primary} style={{ marginLeft: 2 }} />
                                      )}
-                                 </Pressable>
+                                 </ScalePressable>
                              ) : null}
                          </View>
-                     </Animated.View>
-                 )}
+                     </ReanimatedAnimated.View>
+                  )}
 
                 {/* 4. Top Summary Card (Status Bar) */}
                 {visibleSections.includes('summary') && (
-                    <Animated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
+                    <ReanimatedAnimated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
                     <View style={styles.summaryColLeft}>
                         <View style={styles.summaryColRow}>
                             <Activity color={(data.recent_alerts && data.recent_alerts.length > 0) ? colors.danger : '#2563EB'} size={20} />
@@ -818,16 +873,18 @@ export default function CompanionDashboardScreen() {
                     
                     <View style={styles.summaryColCenter}>
                         <Text style={styles.summaryColLabel}>Adherence</Text>
-                        <Text 
-                            style={[
-                                styles.summaryColValue, 
-                                { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
-                            ]}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                        >
-                            {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
-                        </Text>
+                        {data.patient.adherence_rate !== null ? (
+                            <AnimatedNumber 
+                                value={data.patient.adherence_rate} 
+                                suffix="%" 
+                                style={[
+                                    styles.summaryColValue, 
+                                    { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
+                                ]} 
+                            />
+                        ) : (
+                            <Text style={styles.summaryColValue}>N/A</Text>
+                        )}
                         <Text style={styles.summaryColLabelSub}>
                             {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
                         </Text>
@@ -841,178 +898,176 @@ export default function CompanionDashboardScreen() {
                             <Text style={styles.summaryColValueSmall}>
                                 {hasVitals ? '2h ago' : '8m ago'}
                             </Text>
-                            <Pressable onPress={() => loadData()}>
+                            <ScalePressable onPress={() => loadData()}>
                                 <RefreshCw size={12} color={colors.primary} />
-                            </Pressable>
+                            </ScalePressable>
                         </View>
                     </View>
-                    </Animated.View>
+                    </ReanimatedAnimated.View>
                 )}
 
                 {/* 5. ⚡ Proactive Intervention Center CTA Card */}
                 {visibleSections.includes('intervention_center') && (
-                    <Animated.View style={[styles.ctaCard, { marginTop: 12 }, sectionAnimForKey('intervention_center')]}>
-                        <Pressable 
-                            style={({ pressed }) => [styles.ctaCardPressable, pressed && { opacity: 0.95 }]}
-                            onPress={() => navigation.navigate('InterventionCenter')}
-                        >
-                            <View style={styles.ctaCardHeader}>
-                                <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
-                                    <ClipboardCheck color="#059669" size={20} />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.ctaTitle}>Proactive Intervention Center</Text>
-                                    <Text style={styles.ctaSubtitle}>
-                                        {pendingInterventionsCount > 0 
-                                            ? `${pendingInterventionsCount} care intervention${pendingInterventionsCount > 1 ? 's' : ''} recommended`
-                                            : 'No immediate actions needed today'}
-                                    </Text>
-                                </View>
-                                {pendingInterventionsCount > 0 && (
-                                    <View style={styles.activeBadgeContainer}>
-                                        <Text style={styles.activeBadgeText}>{pendingInterventionsCount}</Text>
-                                    </View>
-                                )}
-                                <ChevronRight color={colors.primary} size={20} />
+                    <AnimatedCard 
+                        onPress={() => navigation.navigate('InterventionCenter')}
+                        style={[{ marginTop: 12 }, sectionAnimForKey('intervention_center')]}
+                    >
+                        <View style={styles.ctaCardHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
+                                <ClipboardCheck color="#059669" size={20} />
                             </View>
-                            <View style={styles.ctaViewDetailsRow}>
-                                <Text style={styles.ctaViewDetailsText}>Open Action Center</Text>
-                                <ChevronRight size={14} color={colors.primary} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.ctaTitle}>Proactive Intervention Center</Text>
+                                <Text style={styles.ctaSubtitle}>
+                                    {pendingInterventionsCount > 0 
+                                        ? `${pendingInterventionsCount} care intervention${pendingInterventionsCount > 1 ? 's' : ''} recommended`
+                                        : 'No immediate actions needed today'}
+                                </Text>
                             </View>
-                        </Pressable>
-                    </Animated.View>
+                            {pendingInterventionsCount > 0 && (
+                                <View style={styles.activeBadgeContainer}>
+                                    <Text style={styles.activeBadgeText}>{pendingInterventionsCount}</Text>
+                                </View>
+                            )}
+                            <ChevronRight color={colors.primary} size={20} />
+                        </View>
+                        <View style={styles.ctaViewDetailsRow}>
+                            <Text style={styles.ctaViewDetailsText}>Open Action Center</Text>
+                            <ChevronRight size={14} color={colors.primary} />
+                        </View>
+                    </AnimatedCard>
                 )}
 
                 {/* 6. Daily Medication Timeline Checklist */}
                 {visibleSections.includes('timeline') && (
-                    <Animated.View style={[styles.card, sectionAnimForKey('timeline')]}>
-                        <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: '#F1F5F9' }]}>
-                                <Clock3 color="#475569" size={20} />
-                            </View>
-                            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <View>
-                                    <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
-                                    <Text style={styles.cardSub}>Track hourly adherence status</Text>
+                    <ReanimatedAnimated.View style={[styles.outerCard, sectionAnimForKey('timeline')]}>
+                        <View style={styles.innerCard}>
+                            <View style={styles.cardHeader}>
+                                <View style={[styles.iconBox, { backgroundColor: '#F1F5F9' }]}>
+                                    <Clock3 color="#475569" size={20} />
                                 </View>
-                                <Pressable 
-                                    style={styles.timelineCalendarBtn} 
-                                    onPress={handleViewCalendar}
-                                >
-                                    <Calendar size={14} color="#7C3AED" />
-                                    <Text style={styles.timelineCalendarBtnText}>View Calendar</Text>
-                                </Pressable>
+                                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <View>
+                                        <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
+                                        <Text style={styles.cardSub}>Track hourly adherence status</Text>
+                                    </View>
+                                    <ScalePressable 
+                                        style={styles.timelineCalendarBtn} 
+                                        onPress={handleViewCalendar}
+                                    >
+                                        <Calendar size={14} color="#7C3AED" />
+                                        <Text style={styles.timelineCalendarBtnText}>View Calendar</Text>
+                                    </ScalePressable>
+                                </View>
                             </View>
-                        </View>
 
-                        <View style={styles.timelineContainer}>
-                            {(() => {
-                                const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
-                                const sortedSchedule = [...data.medication_schedule].sort((a, b) => {
-                                    const aOrder = SLOT_ORDER[a.scheduled_time] || 99;
-                                    const bOrder = SLOT_ORDER[b.scheduled_time] || 99;
-                                    if (aOrder !== bOrder) return aOrder - bOrder;
-                                    return a.name.localeCompare(b.name);
-                                });
-                                
-                                const TIME_MAPPING = {
-                                    morning: { time: '08:00', label: 'MORNING' },
-                                    afternoon: { time: '13:00', label: 'AFTERNOON' },
-                                    evening: { time: '17:00', label: 'AFTERNOON' },
-                                    night: { time: '21:00', label: 'NIGHT' },
-                                    as_needed: { time: 'AS NEEDED', label: 'PRN' }
-                                };
-                                
-                                return (
-                                    <>
-                                        {sortedSchedule.map((item, idx) => {
-                                            const isLast = idx === sortedSchedule.length - 1;
-                                            return (
-                                                <View key={idx} style={styles.timelineRow}>
-                                                    {/* Left part: Time & Period */}
-                                                    <View style={styles.timelineTimeCol}>
-                                                        <Text style={styles.timelineTimeHour}>
-                                                            {TIME_MAPPING[item.scheduled_time]?.time || '08:00'}
-                                                        </Text>
-                                                        <Text style={styles.timelineTimePeriod}>
-                                                            {TIME_MAPPING[item.scheduled_time]?.label || 'MORNING'}
-                                                        </Text>
-                                                    </View>
-
-                                                    {/* Middle part: Dotted Line and Node */}
-                                                    <View style={styles.timelineLineCol}>
-                                                        <View style={styles.timelineLineContainer}>
-                                                            {!isLast && <View style={[styles.timelineLine, { 
-                                                                borderColor: item.taken ? '#10B981' : '#CBD5E1' 
-                                                            }]} />}
-                                                            
-                                                            {item.taken ? (
-                                                                <View style={styles.timelineCheckNode}>
-                                                                    <Text style={styles.timelineCheckText}>✓</Text>
-                                                                </View>
-                                                            ) : (
-                                                                <View style={styles.timelinePendingNode} />
-                                                            )}
-                                                        </View>
-                                                    </View>
-
-                                                    {/* Right part: clean card */}
-                                                    <Pressable style={({ pressed }) => [styles.timelineCard, item.taken ? styles.timelineCardTaken : null, pressed && { opacity: 0.7 }]}>
-                                                        {/* Pill/Capsule Icon in rounded square */}
-                                                        <View style={[styles.timelineIconBox, { backgroundColor: item.taken ? '#ECFDF5' : '#F1F5F9' }]}>
-                                                            <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={item.taken ? '#10B981' : '#64748B'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                <Path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
-                                                                <Path d="m8.5 8.5 7 7" />
-                                                            </Svg>
-                                                        </View>
-
-                                                        <View style={{ flex: 1, paddingRight: 8 }}>
-                                                            <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
-                                                            <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
-                                                        </View>
-
-                                                        <View style={[
-                                                            styles.timelineStatusBadge, 
-                                                            { backgroundColor: item.taken ? '#ECFDF5' : '#FEF3C7' }
-                                                        ]}>
-                                                            <Text style={[
-                                                                styles.timelineStatusText, 
-                                                                { color: item.taken ? '#10B981' : '#D97706' }
-                                                            ]}>
-                                                                {item.taken ? 'Taken' : 'Pending'}
+                            <View style={styles.timelineContainer}>
+                                {(() => {
+                                    const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
+                                    const sortedSchedule = [...data.medication_schedule].sort((a, b) => {
+                                        const aOrder = SLOT_ORDER[a.scheduled_time] || 99;
+                                        const bOrder = SLOT_ORDER[b.scheduled_time] || 99;
+                                        if (aOrder !== bOrder) return aOrder - bOrder;
+                                        return a.name.localeCompare(b.name);
+                                    });
+                                    
+                                    const TIME_MAPPING = {
+                                        morning: { time: '08:00', label: 'MORNING' },
+                                        afternoon: { time: '13:00', label: 'AFTERNOON' },
+                                        evening: { time: '17:00', label: 'AFTERNOON' },
+                                        night: { time: '21:00', label: 'NIGHT' },
+                                        as_needed: { time: 'AS NEEDED', label: 'PRN' }
+                                    };
+                                    
+                                    return (
+                                        <>
+                                            {sortedSchedule.map((item, idx) => {
+                                                const isLast = idx === sortedSchedule.length - 1;
+                                                return (
+                                                    <View key={idx} style={styles.timelineRow}>
+                                                        {/* Left part: Time & Period */}
+                                                        <View style={styles.timelineTimeCol}>
+                                                            <Text style={styles.timelineTimeHour}>
+                                                                {TIME_MAPPING[item.scheduled_time]?.time || '08:00'}
+                                                            </Text>
+                                                            <Text style={styles.timelineTimePeriod}>
+                                                                {TIME_MAPPING[item.scheduled_time]?.label || 'MORNING'}
                                                             </Text>
                                                         </View>
 
-                                                        <ChevronRight size={16} color="#94A3B8" style={{ marginLeft: 6 }} />
-                                                    </Pressable>
-                                                </View>
-                                            );
-                                        })}
-                                        
-                                        <Pressable 
-                                            style={({ pressed }) => [styles.timelineViewAllBtn, pressed && { opacity: 0.85 }]}
-                                            onPress={() => setShowMedicationListModal(true)}
-                                        >
-                                            <Text style={styles.timelineViewAllText}>View Full Medication List</Text>
-                                            <ChevronRight size={14} color="#7C3AED" />
-                                        </Pressable>
-                                    </>
-                                );
-                            })()}
+                                                        {/* Middle part: Dotted Line and Node */}
+                                                        <View style={styles.timelineLineCol}>
+                                                            <View style={styles.timelineLineContainer}>
+                                                                {!isLast && <View style={[styles.timelineLine, { 
+                                                                    borderColor: item.taken ? '#10B981' : '#CBD5E1' 
+                                                                }]} />}
+                                                                
+                                                                {item.taken ? (
+                                                                    <View style={styles.timelineCheckNode}>
+                                                                        <Text style={styles.timelineCheckText}>✓</Text>
+                                                                    </View>
+                                                                ) : (
+                                                                    <View style={styles.timelinePendingNode} />
+                                                                )}
+                                                            </View>
+                                                        </View>
+
+                                                        {/* Right part: clean card with ScalePressable for premium feedback */}
+                                                        <ScalePressable 
+                                                            style={[styles.timelineCard, item.taken ? styles.timelineCardTaken : null]}
+                                                            onPress={() => setShowMedicationListModal(true)}
+                                                        >
+                                                            {/* Pill/Capsule Icon in rounded square */}
+                                                            <View style={[styles.timelineIconBox, { backgroundColor: item.taken ? '#ECFDF5' : '#F1F5F9' }]}>
+                                                                <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={item.taken ? '#10B981' : '#64748B'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                    <Path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+                                                                    <Path d="m8.5 8.5 7 7" />
+                                                                </Svg>
+                                                            </View>
+
+                                                            <View style={{ flex: 1, paddingRight: 8 }}>
+                                                                <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
+                                                                <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
+                                                            </View>
+
+                                                            <View style={[
+                                                                styles.timelineStatusBadge, 
+                                                                { backgroundColor: item.taken ? '#ECFDF5' : '#FEF3C7' }
+                                                            ]}>
+                                                                <Text style={[
+                                                                    styles.timelineStatusText, 
+                                                                    { color: item.taken ? '#10B981' : '#D97706' }
+                                                                ]}>
+                                                                    {item.taken ? 'Taken' : 'Pending'}
+                                                                </Text>
+                                                            </View>
+
+                                                            <ChevronRight size={16} color="#94A3B8" style={{ marginLeft: 6 }} />
+                                                        </ScalePressable>
+                                                    </View>
+                                                );
+                                            })}
+                                            
+                                            <ScalePressable 
+                                                style={styles.timelineViewAllBtn}
+                                                onPress={() => setShowMedicationListModal(true)}
+                                            >
+                                                <Text style={styles.timelineViewAllText}>View Full Medication List</Text>
+                                                <ChevronRight size={14} color="#7C3AED" />
+                                            </ScalePressable>
+                                        </>
+                                    );
+                                })()}
+                            </View>
                         </View>
-                    </Animated.View>
+                    </ReanimatedAnimated.View>
                 )}
-
-
-
-
-
 
                 {/* 10. Refresh AI Insights Button */}
                 {visibleSections.includes('refresh') && (
-                    <Animated.View style={[sectionAnimForKey('refresh')]}>
-                        <Pressable 
-                            style={({ pressed }) => [styles.refreshInsightsBtn, pressed && { opacity: 0.8 }]}
+                    <ReanimatedAnimated.View style={[sectionAnimForKey('refresh')]}>
+                        <ScalePressable 
+                            style={styles.refreshInsightsBtn}
                             onPress={handleManualRefresh}
                             disabled={refreshing}
                         >
@@ -1024,8 +1079,8 @@ export default function CompanionDashboardScreen() {
                                     <Text style={styles.refreshInsightsBtnText}>Refresh Insights</Text>
                                 </View>
                             )}
-                        </Pressable>
-                    </Animated.View>
+                        </ScalePressable>
+                    </ReanimatedAnimated.View>
                 )}
             </ScrollView>
 
@@ -1183,6 +1238,18 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 2,
         padding: spacing.md,
+    },
+    outerCard: {
+        borderRadius: 20,
+        backgroundColor: 'transparent',
+        ...shadows.cardAmbient,
+    },
+    innerCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 16,
+        width: '100%',
+        ...shadows.cardSharp,
     },
     cardHeader: {
         flexDirection: 'row',

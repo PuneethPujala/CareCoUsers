@@ -3,9 +3,15 @@ import {
     View, Text, StyleSheet, FlatList, TextInput, Pressable, KeyboardAvoidingView,
     Platform, Animated, ActivityIndicator, StatusBar, Image, PanResponder, Vibration, AppState
 } from 'react-native';
+import Reanimated, { 
+    FadeIn, FadeInDown, FadeOut, 
+    useSharedValue, useAnimatedStyle, 
+    withRepeat, withSequence, withTiming, withDelay, Easing,
+    Layout
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2, Pill, Flame, TrendingUp, CheckCircle2, Activity, Heart, Wind, Calendar, Shield, Plus } from 'lucide-react-native';
+import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2, Pill, Flame, TrendingUp, CheckCircle2, Activity, Heart, Wind, Calendar, Shield, Plus, Square } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -340,30 +346,137 @@ function ChatBubbleSkeleton({ isUser, width }) {
     );
 }
 
+// ── ScalePressable helper for tactile suggestions ──────────────────────────
+const ScalePressable = ({ children, onPress, style }) => {
+    const scale = useSharedValue(1);
+    const pressedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+    return (
+        <Pressable
+            onPressIn={() => { scale.value = withSpring(0.96, { damping: 12, stiffness: 220 }); }}
+            onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 220 }); }}
+            onPress={onPress}
+            style={style}
+        >
+            <Reanimated.View style={pressedStyle}>
+                {children}
+            </Reanimated.View>
+        </Pressable>
+    );
+};
+
 // ── Single chat bubble ─────────────────────────────────────────────────────
 function ChatBubble({ message, isUser }) {
-    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scale = useSharedValue(0.97);
+    const borderScale = useSharedValue(1);
+    const borderOpacity = useSharedValue(0.2);
+
     useEffect(() => {
-        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-    }, []);
+        if (isUser) {
+            scale.value = withSpring(1, { damping: 15, stiffness: 180 });
+        }
+    }, [isUser]);
+
+    useEffect(() => {
+        if (message.isWarning) {
+            borderScale.value = withSequence(
+                withTiming(1.06, { duration: 600 }),
+                withTiming(1.0, { duration: 600 }),
+                withTiming(1.06, { duration: 600 }),
+                withTiming(1.0, { duration: 600 })
+            );
+            borderOpacity.value = withSequence(
+                withTiming(0.8, { duration: 600 }),
+                withTiming(0.2, { duration: 600 }),
+                withTiming(0.8, { duration: 600 }),
+                withTiming(0.2, { duration: 0 })
+            );
+        }
+    }, [message.isWarning]);
+
+    const userAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const warningPulseStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: borderScale.value }],
+        borderColor: '#EF4444',
+        borderWidth: 2,
+        opacity: borderOpacity.value,
+        position: 'absolute',
+        borderRadius: 20,
+        width: '100%',
+        height: '100%',
+    }));
 
     if (!message.text && !message.image && !message.audio && (!message.cards || message.cards.length === 0)) {
         return null;
     }
 
+    if (isUser) {
+        return (
+            <Reanimated.View 
+                entering={FadeIn.duration(200)}
+                style={[styles.bubbleRow, styles.bubbleRowUser, userAnimatedStyle]}
+            >
+                <Reanimated.View 
+                    layout={Layout.springify().damping(20).stiffness(150)}
+                    style={[styles.bubble, styles.bubbleUser, message.image && styles.bubbleImageContainer, message.audio && styles.bubbleAudioContainer]}
+                >
+                    {!message.image && !message.audio ? (
+                        <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                    ) : null}
+                    
+                    {message.image ? (
+                        <Image source={{ uri: message.image }} style={styles.chatImage} resizeMode="cover" />
+                    ) : null}
+
+                    {message.audio ? (
+                        <View style={styles.audioBubble}>
+                            <Mic size={16} color="#6366F1" />
+                            <Text style={styles.audioBubbleText}>Voice Message • 0:02</Text>
+                        </View>
+                    ) : null}
+
+                    {message.text ? (
+                        <Text style={[styles.bubbleText, styles.bubbleTextUser]}>{message.text}</Text>
+                    ) : null}
+                    
+                    <Text style={[styles.bubbleTime, styles.bubbleTimeUser]}>
+                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                </Reanimated.View>
+                <View style={styles.avatarCircleUser}>
+                    <User size={16} color="#FFFFFF" strokeWidth={2.5} />
+                </View>
+            </Reanimated.View>
+        );
+    }
+
     return (
-        <Animated.View style={[styles.bubbleRow, isUser && styles.bubbleRowUser, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
-            {!isUser && (
-                <Image 
-                    source={getMascotForMessage(message.text)} 
-                    style={styles.botAvatarCircle} 
-                />
-            )}
-            <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleBot, message.image && styles.bubbleImageContainer, message.audio && styles.bubbleAudioContainer]}>
-                {isUser && !message.image && !message.audio ? (
-                    <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-                ) : null}
-                
+        <Reanimated.View 
+            entering={FadeInDown.springify().damping(15).stiffness(140)}
+            style={[styles.bubbleRow]}
+        >
+            <Image 
+                source={getMascotForMessage(message.text)} 
+                style={styles.botAvatarCircle} 
+            />
+            <Reanimated.View 
+                layout={Layout.springify().damping(20).stiffness(150)}
+                style={[
+                    styles.bubble, 
+                    styles.bubbleBot, 
+                    message.image && styles.bubbleImageContainer, 
+                    message.audio && styles.bubbleAudioContainer,
+                    message.isWarning && { borderColor: '#EF4444', borderWidth: 1.5 }
+                ]}
+            >
+                {message.isWarning && (
+                    <Reanimated.View style={warningPulseStyle} pointerEvents="none" />
+                )}
+
                 {message.image ? (
                     <Image source={{ uri: message.image }} style={styles.chatImage} resizeMode="cover" />
                 ) : null}
@@ -376,72 +489,108 @@ function ChatBubble({ message, isUser }) {
                 ) : null}
 
                 {message.text ? (
-                    <Text style={[styles.bubbleText, isUser && !message.image && !message.audio && styles.bubbleTextUser]}>{message.text}</Text>
+                    <Text style={[styles.bubbleText]}>{message.text}</Text>
                 ) : null}
                 
-                {!isUser && message.cards && message.cards.length > 0 ? (
+                {message.cards && message.cards.length > 0 ? (
                     <RenderMessageCards cards={message.cards} />
                 ) : null}
                 
-                <Text style={[styles.bubbleTime, isUser && !message.image && !message.audio && styles.bubbleTimeUser]}>
+                <Text style={[styles.bubbleTime]}>
                     {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
-            </View>
-            {isUser && (
-                <View style={styles.avatarCircleUser}>
-                    <User size={16} color="#FFFFFF" strokeWidth={2.5} />
-                </View>
-            )}
-        </Animated.View>
+            </Reanimated.View>
+        </Reanimated.View>
     );
 }
 
 // ── Follow-up suggestion chips ──────────────────────────────────────────────
 function FollowUpChips({ suggestions, onPress }) {
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    useEffect(() => {
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, delay: 200, useNativeDriver: true }).start();
-    }, []);
-
     if (!suggestions || suggestions.length === 0) return null;
 
     return (
-        <Animated.View style={[styles.followUpContainer, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }]}>
+        <View style={styles.followUpContainer}>
             {suggestions.map((s, i) => (
-                <Pressable key={i} style={styles.followUpChip} onPress={() => onPress(s)}>
-                    <Text style={styles.followUpText}>{s}</Text>
-                </Pressable>
+                <Reanimated.View 
+                    key={i} 
+                    entering={FadeInDown.springify().damping(14).stiffness(150).delay(i * 50)}
+                    exiting={FadeOut.duration(150)}
+                >
+                    <ScalePressable style={styles.followUpChip} onPress={() => onPress(s)}>
+                        <Text style={styles.followUpText}>{s}</Text>
+                    </ScalePressable>
+                </Reanimated.View>
             ))}
-        </Animated.View>
+        </View>
     );
 }
 
-// ── Typing indicator ────────────────────────────────────────────────────────
-function TypingIndicator({ stage }) {
-    const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+// ── Thinking Mascot & Coordinated Typing dots ──────────────────────────────
+const ThinkingMascot = () => {
+    const float = useSharedValue(0);
     useEffect(() => {
-        const anims = dots.map((dot, i) =>
-            Animated.loop(Animated.sequence([
-                Animated.delay(i * 200),
-                Animated.timing(dot, { toValue: 1, duration: 400, useNativeDriver: true }),
-                Animated.timing(dot, { toValue: 0, duration: 400, useNativeDriver: true }),
-            ]))
+        float.value = withRepeat(
+            withSequence(
+                withTiming(-2, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+                withTiming(2, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+            ),
+            -1,
+            true
         );
-        anims.forEach(a => a.start());
-        return () => anims.forEach(a => a.stop());
-    }, []);
+    }, [float]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: float.value }],
+    }));
 
     return (
-        <View style={[styles.bubbleRow]}>
+        <Reanimated.View style={animatedStyle}>
             <Image 
                 source={require('../../../assets/doctor_mascot_thinking.jpg')} 
                 style={styles.botAvatarCircle} 
             />
+        </Reanimated.View>
+    );
+};
+
+const TypingDot = ({ delay }) => {
+    const scale = useSharedValue(0.8);
+    const opacity = useSharedValue(0.3);
+
+    useEffect(() => {
+        scale.value = withRepeat(
+            withSequence(
+                withDelay(delay, withTiming(1.3, { duration: 400 })),
+                withTiming(0.8, { duration: 400 })
+            ),
+            -1
+        );
+        opacity.value = withRepeat(
+            withSequence(
+                withDelay(delay, withTiming(1, { duration: 400 })),
+                withTiming(0.3, { duration: 400 })
+            ),
+            -1
+        );
+    }, [scale, opacity, delay]);
+
+    const style = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+        opacity: opacity.value,
+    }));
+
+    return <Reanimated.View style={[styles.typingDot, style]} />;
+};
+
+function TypingIndicator({ stage }) {
+    return (
+        <View style={[styles.bubbleRow]}>
+            <ThinkingMascot />
             <View style={[styles.bubble, styles.bubbleBot, styles.typingBubble, { flexDirection: 'row', alignItems: 'center' }]}>
                 {stage && <Text style={{ color: '#6B7280', marginRight: 8, fontSize: 13, fontWeight: '500' }}>{stage}</Text>}
-                {dots.map((dot, i) => (
-                    <Animated.View key={i} style={[styles.typingDot, { opacity: dot.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }), transform: [{ scale: dot.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.2] }) }] }]} />
-                ))}
+                <TypingDot delay={0} />
+                <TypingDot delay={200} />
+                <TypingDot delay={400} />
             </View>
         </View>
     );
@@ -735,6 +884,8 @@ export default function ChatbotScreen({ navigation, route }) {
     // UI Loading States
     const [isTyping, setIsTyping] = useState(false);
     const [typingStage, setTypingStage] = useState(''); // 'Listening...', 'Transcribing...', 'Thinking...'
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [typingStages, setTypingStages] = useState(['🧠 Understanding...', '💬 Preparing response...']);
     
     // Follow-up suggestions from the last bot response
     const [followUpSuggestions, setFollowUpSuggestions] = useState([]);
@@ -759,6 +910,7 @@ export default function ChatbotScreen({ navigation, route }) {
     }, []);
 
     const firstName = displayName?.split(' ')[0] || 'there';
+    const isGenerating = isTyping || isStreaming;
 
     const getInitialMessages = () => {
         if (!routeSessionId) {
@@ -937,20 +1089,14 @@ export default function ChatbotScreen({ navigation, route }) {
     useEffect(() => {
         let interval;
         if (isTyping) {
-            // Seed the stages based on initial state
-            const isAudio = typingStage.includes('🎤') || typingStage.includes('📝');
-            const stages = isAudio 
-                ? ['🎤 Listening...', '🧠 Understanding...', '💬 Preparing response...']
-                : ['🧠 Understanding...', '💬 Preparing response...'];
-            
             let idx = 0;
             interval = setInterval(() => {
-                idx = Math.min(idx + 1, stages.length - 1);
-                setTypingStage(stages[idx]);
+                idx = Math.min(idx + 1, typingStages.length - 1);
+                setTypingStage(typingStages[idx]);
             }, 1500);
         }
         return () => clearInterval(interval);
-    }, [isTyping]); // Don't include typingStage as a dependency to avoid resetting the interval
+    }, [isTyping, typingStages]);
 
     // ── SSE Streaming API Integration ────────────
     const streamFromBackend = (userMsg, botMessageId, isAudio = false, recordingUri = null, currentSessionId) => {
@@ -961,6 +1107,7 @@ export default function ChatbotScreen({ navigation, route }) {
                     xhrRef.current.abort();
                     xhrRef.current = null;
                 }
+                setIsStreaming(true);
 
                 const tokens = await getApiTokens();
                 if (!tokens?.access_token) {
@@ -1080,6 +1227,7 @@ export default function ChatbotScreen({ navigation, route }) {
                     // readyState 4 = DONE
                     if (xhr.readyState === 4) {
                         xhrRef.current = null;
+                        setIsStreaming(false);
                         if (xhr.status >= 200 && xhr.status < 300) {
                             resolve();
                         } else if (xhr.status === 0) {
@@ -1102,11 +1250,13 @@ export default function ChatbotScreen({ navigation, route }) {
 
                 xhr.onerror = () => {
                     xhrRef.current = null;
+                    setIsStreaming(false);
                     reject(new Error('Network request failed. Please try again.'));
                 };
 
                 xhr.ontimeout = () => {
                     xhrRef.current = null;
+                    setIsStreaming(false);
                     reject(new Error('Request timed out. Please try again.'));
                 };
 
@@ -1114,6 +1264,7 @@ export default function ChatbotScreen({ navigation, route }) {
                 xhr.send(formData);
 
             } catch (error) {
+                setIsStreaming(false);
                 reject(error);
             }
         });
@@ -1188,11 +1339,28 @@ export default function ChatbotScreen({ navigation, route }) {
         setMessages(prev => [...prev, userMessage, botPlaceholder]);
         setInputText('');
         setIsTyping(true);
+        let initialStage = '🧠 Understanding...';
+        let customStages = ['🧠 Understanding...', '💬 Preparing response...'];
+
         if (isAudioMsg) {
-            setTypingStage('🎤 Listening...');
+            initialStage = '🎤 Listening...';
+            customStages = ['🎤 Listening...', '📝 Transcribing...', '🧠 Understanding...', '💬 Preparing response...'];
         } else {
-            setTypingStage('🧠 Understanding...');
+            const queryLower = msg.toLowerCase();
+            if (queryLower.includes('medication') || queryLower.includes('pill') || queryLower.includes('dose') || queryLower.includes('prescribe')) {
+                initialStage = '📋 Checking medications...';
+                customStages = ['📋 Checking medications...', '🧠 Analyzing dose history...', '💬 Preparing response...'];
+            } else if (queryLower.includes('vital') || queryLower.includes('blood pressure') || queryLower.includes('heart rate') || queryLower.includes('symptom') || queryLower.includes('spo2') || queryLower.includes('bp') || queryLower.includes('hr')) {
+                initialStage = '🩺 Reviewing vitals...';
+                customStages = ['🩺 Reviewing vitals...', '🧠 Analyzing clinical levels...', '💬 Preparing response...'];
+            } else if (queryLower.includes('summary') || queryLower.includes('report') || queryLower.includes('streak') || queryLower.includes('week') || queryLower.includes('progress')) {
+                initialStage = '🧠 Preparing summary...';
+                customStages = ['🧠 Preparing summary...', '📋 Checking daily compliance...', '💬 Drafting report...'];
+            }
         }
+
+        setTypingStage(initialStage);
+        setTypingStages(customStages);
         setFollowUpSuggestions([]);
 
         let currentSessionId = activeSessionId;
@@ -1256,6 +1424,16 @@ export default function ChatbotScreen({ navigation, route }) {
             }
         }
     }, [inputText, recording, user, patient, isCompanion, companionData, targetPatientId, activeSessionId, route.params]);
+
+    const handleStopGeneration = useCallback(() => {
+        if (xhrRef.current) {
+            xhrRef.current.abort();
+            xhrRef.current = null;
+        }
+        setIsTyping(false);
+        setIsStreaming(false);
+        setTypingStage('');
+    }, []);
 
     const [isCreating, setIsCreating] = useState(false);
 
@@ -1607,8 +1785,14 @@ export default function ChatbotScreen({ navigation, route }) {
                         </View>
                     )}
 
-                    {/* Primary Button: Send or Hold-to-Speak */}
-                    {inputText.trim().length > 0 ? (
+                    {/* Primary Button: Stop, Send or Hold-to-Speak */}
+                    {isGenerating ? (
+                        <Pressable style={styles.sendBtn} onPress={handleStopGeneration}>
+                            <LinearGradient colors={['#EF4444', '#DC2626']} style={styles.sendGradient}>
+                                <Square size={14} color="#FFF" fill="#FFF" />
+                            </LinearGradient>
+                        </Pressable>
+                    ) : inputText.trim().length > 0 ? (
                         <Pressable style={styles.sendBtn} onPress={() => handleSend()}>
                             <LinearGradient colors={['#818CF8', '#4F46E5']} style={styles.sendGradient}>
                                 <Send size={18} color="#FFF" strokeWidth={2.5} />

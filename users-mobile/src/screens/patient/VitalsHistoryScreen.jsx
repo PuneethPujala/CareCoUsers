@@ -28,6 +28,116 @@ import AnimatedCounter from '../../components/ui/AnimatedCounter';
 import OfflineSyncService from '../../lib/OfflineSyncService';
 import HealthSyncService from '../../services/HealthSyncService';
 import usePatientStore from '../../store/usePatientStore';
+import BottomSheetWrapper from '../../components/ui/BottomSheetWrapper';
+import Reanimated, { 
+    FadeIn, FadeInDown, FadeOut, 
+    useSharedValue, useAnimatedStyle, 
+    withRepeat, withSequence, withTiming, Easing 
+} from 'react-native-reanimated';
+
+// ─── Pulsing Indicator for Latest Point ──────────────────────
+const PulsingDot = ({ latestX, latestY, hasLatestPoint, color }) => {
+    const scale = useSharedValue(1);
+    const opacity = useSharedValue(0.8);
+
+    useEffect(() => {
+        scale.value = withRepeat(
+            withSequence(
+                withTiming(2.2, { duration: 1800, easing: Easing.out(Easing.ease) }),
+                withTiming(1, { duration: 0 })
+            ),
+            -1,
+            false
+        );
+        opacity.value = withRepeat(
+            withSequence(
+                withTiming(0, { duration: 1800, easing: Easing.out(Easing.ease) }),
+                withTiming(0.8, { duration: 0 })
+            ),
+            -1,
+            false
+        );
+    }, [scale, opacity]);
+
+    const pulseStyle = useAnimatedStyle(() => {
+        if (!hasLatestPoint.value) {
+            return { opacity: 0 };
+        }
+        return {
+            transform: [
+                { translateX: latestX.value - 10 },
+                { translateY: latestY.value - 10 },
+                { scale: scale.value }
+            ],
+            opacity: opacity.value,
+        };
+    });
+
+    const centerStyle = useAnimatedStyle(() => {
+        if (!hasLatestPoint.value) {
+            return { opacity: 0 };
+        }
+        return {
+            transform: [
+                { translateX: latestX.value - 3 },
+                { translateY: latestY.value - 3 }
+            ],
+        };
+    });
+
+    const glowStyle = useAnimatedStyle(() => {
+        if (!hasLatestPoint.value) {
+            return { opacity: 0 };
+        }
+        return {
+            transform: [
+                { translateX: latestX.value - 15 },
+                { translateY: latestY.value - 15 }
+            ],
+        };
+    });
+
+    return (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {/* Glow Layer */}
+            <Reanimated.View style={[{
+                position: 'absolute',
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: color,
+                opacity: 0.15,
+            }, glowStyle]} />
+
+            {/* Pulsing Ring Layer */}
+            <Reanimated.View style={[{
+                position: 'absolute',
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: color,
+                backgroundColor: 'transparent',
+            }, pulseStyle]} />
+
+            {/* Core Center Dot */}
+            <Reanimated.View style={[{
+                position: 'absolute',
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: color,
+                borderWidth: 1,
+                borderColor: '#FFFFFF',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 1,
+                elevation: 2,
+            }, centerStyle]} />
+        </View>
+    );
+};
 
 // ─── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -246,6 +356,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
     const [dataRefreshing, setDataRefreshing] = useState(false);
+    const [selectedDetailLog, setSelectedDetailLog] = useState(null);
     const [error, setError] = useState(null);
     const [isOffline, setIsOffline] = useState(false);
 
@@ -275,6 +386,15 @@ export default function VitalsHistoryScreen({ navigation, route }) {
     const [formError, setFormError] = useState(null);
     const [activeMetricId, setActiveMetricId] = useState(route?.params?.activeMetricId || 'heart_rate');
 
+    // Reanimated Shared Values for Pulsing Indicator coordinates
+    const latestX = useSharedValue(0);
+    const latestY = useSharedValue(0);
+    const hasLatestPoint = useSharedValue(false);
+
+    useEffect(() => {
+        hasLatestPoint.value = false;
+    }, [activeMetricId, timeRange]);
+
     useEffect(() => {
         if (route?.params?.activeMetricId) {
             setActiveMetricId(route.params.activeMetricId);
@@ -292,6 +412,10 @@ export default function VitalsHistoryScreen({ navigation, route }) {
     });
 
     const patient = usePatientStore((state) => state.patient);
+
+    const getCombinedOpacity = (staggerAnim) => {
+        return Animated.multiply(staggerAnim, Animated.multiply(dataFadeAnim, fadeAnim));
+    };
 
     const fetchSyncStatus = useCallback(async () => {
         try {
@@ -596,10 +720,11 @@ export default function VitalsHistoryScreen({ navigation, route }) {
         const dateStr = new Date(latest.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
         return (
-            <Animated.View style={[{ opacity: staggerAnims[0] }]}>
+            <Animated.View style={[{ opacity: getCombinedOpacity(staggerAnims[0]) }]}>
                 <AnimatedCard 
                     pressScale={0.98} 
                     hapticType="selection"
+                    sharedTransitionTag={`vitals_card_${def.id}`}
                     style={[styles.heroCard, { minHeight: 130, borderWidth: 0 }]}
                 >
                     <View style={styles.heroTop}>
@@ -616,12 +741,14 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                                                 value={latestVal} 
                                                 decimals={0} 
                                                 style={styles.heroValue}
+                                                fromValue={def.id === 'blood_pressure' ? 80 : 50}
                                             />
                                             <Text style={styles.heroValue}>/</Text>
                                             <AnimatedCounter 
                                                 value={altVal} 
                                                 decimals={0} 
                                                 style={styles.heroValue}
+                                                fromValue={50}
                                             />
                                         </View>
                                     ) : (
@@ -629,6 +756,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                                             value={latestVal} 
                                             decimals={def.id === 'heart_rate' ? 0 : 1} 
                                             style={styles.heroValue}
+                                            fromValue={def.id === 'heart_rate' ? 50 : def.id === 'oxygen_saturation' ? 80 : 40}
                                         />
                                     )}
                                     <Text style={styles.heroUnit}> {def.unit}</Text>
@@ -739,8 +867,37 @@ export default function VitalsHistoryScreen({ navigation, route }) {
             return 22; // default e.g. "72", "98"
         };
 
+        const renderStatValue = (val) => {
+            const str = String(val || '');
+            if (str.includes('/')) {
+                const parts = str.split('/');
+                const val1 = Number(parts[0]) || 0;
+                const val2 = Number(parts[1]) || 0;
+                const fontSize = getFontSize(str);
+                return (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <AnimatedCounter value={val1} decimals={0} style={[styles.statValue, { fontSize, minWidth: 28, textAlign: 'right' }]} />
+                        <Text style={[styles.statValue, { fontSize, marginTop: -2 }]}>/</Text>
+                        <AnimatedCounter value={val2} decimals={0} style={[styles.statValue, { fontSize, minWidth: 28, textAlign: 'left' }]} />
+                    </View>
+                );
+            }
+            const num = Number(str);
+            if (isNaN(num)) {
+                return <Text style={[styles.statValue, { fontSize: getFontSize(str) }]}>{str}</Text>;
+            }
+            const decimals = str.includes('.') ? 1 : 0;
+            return (
+                <AnimatedCounter 
+                    value={num} 
+                    decimals={decimals} 
+                    style={[styles.statValue, { fontSize: getFontSize(str), minWidth: 36, textAlign: 'center' }]} 
+                />
+            );
+        };
+
         return (
-            <Animated.View style={[{ opacity: fadeAnim }, styles.statsCardContainer]}>
+            <Animated.View style={[{ opacity: getCombinedOpacity(staggerAnims[1]) }, styles.statsCardContainer]}>
                 <View style={styles.statsUnifiedCard}>
                     <View style={styles.statColumn}>
                         <View style={styles.statHeader}>
@@ -748,7 +905,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                             <BarChart3 size={12} color="#64748B" />
                         </View>
                         <View style={styles.statValueRow}>
-                            <Text style={[styles.statValue, { fontSize: getFontSize(stats.avg) }]}>{stats.avg}</Text>
+                            {renderStatValue(stats.avg)}
                             <Text style={styles.statUnit}>{stats.unit}</Text>
                         </View>
                     </View>
@@ -761,7 +918,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                             <TrendingDown size={12} color="#10B981" />
                         </View>
                         <View style={styles.statValueRow}>
-                            <Text style={[styles.statValue, { fontSize: getFontSize(stats.min) }]}>{stats.min}</Text>
+                            {renderStatValue(stats.min)}
                             <Text style={styles.statUnit}>{stats.unit}</Text>
                         </View>
                     </View>
@@ -774,7 +931,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                             <TrendingUp size={12} color="#EF4444" />
                         </View>
                         <View style={styles.statValueRow}>
-                            <Text style={[styles.statValue, { fontSize: getFontSize(stats.max) }]}>{stats.max}</Text>
+                            {renderStatValue(stats.max)}
                             <Text style={styles.statUnit}>{stats.unit}</Text>
                         </View>
                     </View>
@@ -844,7 +1001,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
         return (
             <Animated.View style={[
                 styles.chartCard,
-                { borderTopColor: def.accent, opacity: Animated.multiply(staggerAnims[2], dataFadeAnim) }
+                { borderTopColor: def.accent, opacity: getCombinedOpacity(staggerAnims[2]) }
             ]}>
                 <View style={styles.chartTitleRow}>
                     <View style={{ flex: 1 }}>
@@ -875,7 +1032,20 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                                     bezier={rangeData.length > 1} style={styles.chart}
                                     withVerticalLines={false} fromZero={false}
                                     onDataPointClick={({ x, y, value, index }) => showTooltip(x, y, value, rangeData[index].x)}
-                                    decorator={() => renderChartInteraction(def)}
+                                    decorator={() => (
+                                        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                                            {renderChartInteraction(def)}
+                                            <PulsingDot latestX={latestX} latestY={latestY} hasLatestPoint={hasLatestPoint} color={def.accent} tooltipVisible={tooltipPos.visible} />
+                                        </View>
+                                    )}
+                                    renderDotContent={({ x, y, index }) => {
+                                        if (index === rangeData.length - 1) {
+                                            latestX.value = x;
+                                            latestY.value = y;
+                                            hasLatestPoint.value = true;
+                                        }
+                                        return null;
+                                    }}
                                 />
                                 {tooltipPos.visible && <Pressable style={StyleSheet.absoluteFill} onPress={hideTooltip} />}
                             </View>
@@ -898,7 +1068,20 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                                 bezier={mainData.length > 1} style={styles.chart}
                                 withVerticalLines={false} fromZero={false}
                                 onDataPointClick={({ x, y, value, index }) => showTooltip(x, y, value, labels[index])}
-                                decorator={() => renderChartInteraction(def)}
+                                decorator={() => (
+                                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                                        {renderChartInteraction(def)}
+                                        <PulsingDot latestX={latestX} latestY={latestY} hasLatestPoint={hasLatestPoint} color={def.accent} tooltipVisible={tooltipPos.visible} />
+                                    </View>
+                                )}
+                                renderDotContent={({ x, y, index }) => {
+                                    if (index === mainData.length - 1) {
+                                        latestX.value = x;
+                                        latestY.value = y;
+                                        hasLatestPoint.value = true;
+                                    }
+                                    return null;
+                                }}
                             />
                             {tooltipPos.visible && <Pressable style={StyleSheet.absoluteFill} onPress={hideTooltip} />}
                         </View>
@@ -909,10 +1092,15 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                     </View>
                 )}
 
-                <View style={styles.trendSummaryRow}>
+                <Reanimated.View 
+                    key={`trend_${def.id}_${timeRange}`}
+                    entering={FadeInDown.springify().damping(15).stiffness(120)}
+                    exiting={FadeOut.duration(150)}
+                    style={styles.trendSummaryRow}
+                >
                     <TrendIcon size={14} color={trendColor} style={{ marginRight: 6 }} />
                     <Text style={[styles.trendSummaryText, { color: trendColor }]}>{trendSummary}</Text>
-                </View>
+                </Reanimated.View>
             </Animated.View>
         );
     };
@@ -1024,7 +1212,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
         const isAdherenceHigh = adherenceDetails?.rate >= 80 || adherenceDetails?.streak >= 3;
 
         return (
-            <Animated.View style={[{ opacity: fadeAnim }, styles.coachCard]}>
+            <Animated.View style={[{ opacity: getCombinedOpacity(staggerAnims[3]) }, styles.coachCard]}>
                 <View style={styles.coachHeader}>
                     <View style={styles.coachTitleGroup}>
                         <View style={styles.coachIconBubble}>
@@ -1056,7 +1244,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
     const renderTimeline = (def) => {
         if (!vitals.length) return null;
         return (
-            <Animated.View style={[{ opacity: staggerAnims[3] }, { marginTop: 12 }]}>
+            <Animated.View style={[{ opacity: getCombinedOpacity(staggerAnims[4]) }, { marginTop: 12 }]}>
                 <Text style={styles.historyTitle}>History Logs</Text>
                 <View style={styles.timelineContainer}>
                     <View style={styles.timelineLine} />
@@ -1076,7 +1264,13 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                                     <View style={[styles.timelineDotInner, { backgroundColor: status.dot }]} />
                                 </View>
                                 
-                                <View style={styles.timelineContent}>
+                                <Pressable 
+                                    onPress={() => setSelectedDetailLog(log)}
+                                    style={({ pressed }) => [
+                                        styles.timelineContent,
+                                        pressed && { opacity: 0.7, backgroundColor: '#F8FAFC' }
+                                    ]}
+                                >
                                     <View style={styles.timelineHeader}>
                                         <View style={styles.timelineTimeRow}>
                                             <Text style={styles.timelineValue}>{formattedValue} {def.unit}</Text>
@@ -1089,7 +1283,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                                             <Text style={styles.timelineSource}>Manual</Text>
                                         )}
                                     </View>
-                                </View>
+                                </Pressable>
                             </View>
                         );
                     })}
@@ -1191,7 +1385,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
 
     // ─── Main Render ─────────────────────────────────────────────
     const def = CHART_DEFS.find(c => c.id === activeMetricId);
-    const isChartLoadingState = loading || dataRefreshing;
+
 
     return (
         <TabScreenTransition>
@@ -1215,7 +1409,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                             {renderMetricSelector()}
 
                             {/* 2. Latest Reading Hero Card */}
-                            {isChartLoadingState ? renderHeroCardSkeleton() : renderHeroCard(def)}
+                            {initialLoading ? renderHeroCardSkeleton() : renderHeroCard(def)}
 
                             {/* 3. Time Range chips */}
                             {renderTimeRangeSelector()}
@@ -1225,22 +1419,24 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                             {renderErrorBanner()}
 
                             {/* 4. Quick Stats & Chart Analytics */}
-                            {isChartLoadingState ? (
+                            {initialLoading ? (
                                 <>
                                     {renderSummaryStatsSkeleton()}
                                     {renderChartCardSkeleton()}
                                     {renderAIHealthCoachSkeleton()}
                                 </>
                             ) : vitals.length === 0 ? (
-                                <View style={styles.emptyState}>
-                                    <View style={styles.emptyIconCircle}>
-                                        <Heart size={34} color="#6366F1" />
+                                <Animated.View style={{ opacity: Animated.multiply(dataFadeAnim, fadeAnim) }}>
+                                    <View style={styles.emptyState}>
+                                        <View style={styles.emptyIconCircle}>
+                                            <Heart size={34} color="#6366F1" />
+                                        </View>
+                                        <Text style={styles.emptyTitle}>Start tracking your vitals</Text>
+                                        <Text style={styles.emptySub}>
+                                            Log your first reading to unlock trends, AI insights, and personalized health summaries.
+                                        </Text>
                                     </View>
-                                    <Text style={styles.emptyTitle}>Start tracking your vitals</Text>
-                                    <Text style={styles.emptySub}>
-                                        Log your first reading to unlock trends, AI insights, and personalized health summaries.
-                                    </Text>
-                                </View>
+                                </Animated.View>
                             ) : (
                                 <>
                                     {renderQuickStats(def)}
@@ -1313,6 +1509,73 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                             </Animated.View>
                         </>
                     </Animated.ScrollView>
+
+                    {/* Vitals Log Detail Bottom Sheet */}
+                    <BottomSheetWrapper
+                        isOpen={selectedDetailLog !== null}
+                        onClose={() => setSelectedDetailLog(null)}
+                        snapPoints={['40%', '65%']}
+                        title={def ? `${def.title} Log Details` : "Log Details"}
+                    >
+                        {selectedDetailLog && (() => {
+                            const log = selectedDetailLog;
+                            const value = def.extract(log);
+                            const altValue = def.extractAlt ? def.extractAlt(log) : null;
+                            const status = getClinicalStatus(def.id, value, altValue);
+                            const formattedValue = altValue ? `${value}/${altValue}` : value;
+                            
+                            const timeStr = new Date(log.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                            const dateStr = new Date(log.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                            const sourceLabel = log.source && log.source !== 'manual' ? "Device / Wearable Sync" : "Manual Log Entry";
+                            
+                            return (
+                                <View style={{ gap: 20 }}>
+                                    {/* Prominent display */}
+                                    <View style={{ alignItems: 'center', backgroundColor: '#F8FAFC', padding: 24, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9', gap: 6 }}>
+                                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recorded Value</Text>
+                                        <Text style={{ fontSize: 36, fontWeight: '900', color: '#0F172A' }}>
+                                            {formattedValue} <Text style={{ fontSize: 18, color: '#64748B', fontWeight: '600' }}>{def.unit}</Text>
+                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: status.dot + '15', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, marginTop: 4 }}>
+                                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: status.dot }} />
+                                            <Text style={{ fontSize: 12, fontWeight: '800', color: status.dot, textTransform: 'uppercase', letterSpacing: 0.5 }}>{status.label}</Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Log Meta Details */}
+                                    <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                                            <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '600' }}>Log Date</Text>
+                                            <Text style={{ fontSize: 14, color: '#0F172A', fontWeight: '700' }}>{dateStr}</Text>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                                            <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '600' }}>Log Time</Text>
+                                            <Text style={{ fontSize: 14, color: '#0F172A', fontWeight: '700' }}>{timeStr}</Text>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 16 }}>
+                                            <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '600' }}>Source</Text>
+                                            <Text style={{ fontSize: 14, color: '#0F172A', fontWeight: '700' }}>{sourceLabel}</Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Dismiss button */}
+                                    <Pressable
+                                        onPress={() => setSelectedDetailLog(null)}
+                                        style={{
+                                            backgroundColor: '#F1F5F9',
+                                            paddingVertical: 14,
+                                            borderRadius: 16,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            marginTop: 10
+                                        }}
+                                    >
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: '#475569' }}>Close Details</Text>
+                                    </Pressable>
+                                </View>
+                            );
+                        })()}
+                    </BottomSheetWrapper>
                 </View>
             </KeyboardAvoidingView>
         </TabScreenTransition>

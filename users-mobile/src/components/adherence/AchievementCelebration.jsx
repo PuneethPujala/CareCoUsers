@@ -8,6 +8,7 @@ import { Sparkles, Trophy, Check, Crown } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import usePatientStore from '../../store/usePatientStore';
 import { ACHIEVEMENTS, TIER_CONFIG } from '../../constants/achievements';
+import CelebrationOverlay from '../ui/CelebrationOverlay';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -109,6 +110,7 @@ export default function AchievementCelebration() {
             <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
                 {/* Backdrop press dismisses modal */}
                 <Pressable style={styles.backdrop} onPress={handleDismiss} />
+                <CelebrationOverlay active={!!newlyUnlockedAchievement} />
 
                 <Animated.View style={[
                     styles.card,

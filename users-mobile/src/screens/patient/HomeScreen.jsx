@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import { getStreakState } from "../../utils/streakHelper";
 import StreakCompanion from "../../components/ui/StreakCompanion";
+import CelebrationOverlay from "../../components/ui/CelebrationOverlay";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Pill,
@@ -81,6 +82,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { HapticPatterns } from "../../utils/haptics";
 import GuidedTour from "../../components/ui/GuidedTour";
 import { TourService } from "../../lib/TourService";
+import BottomSheetWrapper from "../../components/ui/BottomSheetWrapper";
 import Svg, {
   Path,
   Defs,
@@ -204,6 +206,7 @@ const Sparkline = ({ values, color, width = 120, height = 32 }) => {
 
 // ── Apple Health Style Vitals Card ──────────────────────────────────────────
 const VitalsCard = ({
+  id,
   label,
   value,
   unit,
@@ -267,6 +270,7 @@ const VitalsCard = ({
       pressScale={0.98}
       hapticType="selection"
       onPress={onPress}
+      sharedTransitionTag={id ? `vitals_card_${id}` : undefined}
       style={[styles.vitalsCard, { minHeight: 155, borderWidth: 0 }]}
     >
       <View style={styles.vitalsCardTop}>
@@ -397,6 +401,7 @@ export default function PatientHomeScreen({ navigation }) {
   const vitalsCardRef = useRef(null);
 
   const [showVitalsTour, setShowVitalsTour] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const vitalsTourTriggeredRef = useRef(false);
 
   const getVitalsTourSteps = () => {
@@ -580,6 +585,7 @@ export default function PatientHomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLogging, setIsLogging] = useState(false);
+  const [showTipSheet, setShowTipSheet] = useState(false);
   const [formValues, setFormValues] = useState({
     heart_rate: "",
     systolic: "",
@@ -1369,6 +1375,7 @@ export default function PatientHomeScreen({ navigation }) {
       !prevMedsCompletedRef.current
     ) {
       HapticPatterns.allDone();
+      setShowCelebration(true);
       if (reduceMotion) return;
       Animated.sequence([
         Animated.spring(medsCardScaleAnim, {
@@ -2998,6 +3005,7 @@ export default function PatientHomeScreen({ navigation }) {
                     contentContainerStyle={styles.vitalsScrollContainer}
                   >
                     <VitalsCard
+                      id="heart_rate"
                       label={t("home.heart_rate", {
                         defaultValue: "Heart Rate",
                       })}
@@ -3010,6 +3018,7 @@ export default function PatientHomeScreen({ navigation }) {
                       onPress={() => navigation.navigate("VitalsHistory", { activeMetricId: "heart_rate" })}
                     />
                     <VitalsCard
+                      id="blood_pressure"
                       label={t("home.blood_pressure", {
                         defaultValue: "Blood Pressure",
                       })}
@@ -3030,6 +3039,7 @@ export default function PatientHomeScreen({ navigation }) {
                       onPress={() => navigation.navigate("VitalsHistory", { activeMetricId: "blood_pressure" })}
                     />
                     <VitalsCard
+                      id="oxygen_saturation"
                       label={t("home.oxygen_saturation", {
                         defaultValue: "Oxygen Saturation",
                       })}
@@ -3050,6 +3060,7 @@ export default function PatientHomeScreen({ navigation }) {
                       onPress={() => navigation.navigate("VitalsHistory", { activeMetricId: "oxygen_saturation" })}
                     />
                     <VitalsCard
+                      id="hydration"
                       label={t("home.hydration", { defaultValue: "Hydration" })}
                       value={
                         vitals?.hydration != null ? `${vitals.hydration}` : "—"
@@ -3338,7 +3349,7 @@ export default function PatientHomeScreen({ navigation }) {
 
             {/* ── 10. DAILY HEALTH TIP ── */}
             <Animated.View style={entranceStyle(9)}>
-              <View>
+              <Pressable onPress={() => setShowTipSheet(true)}>
                 <LinearGradient
                   colors={["#FAF5FF", "#F3E8FF"]}
                   style={styles.tipCard}
@@ -3362,7 +3373,7 @@ export default function PatientHomeScreen({ navigation }) {
                     })}
                   </Text>
                 </LinearGradient>
-              </View>
+              </Pressable>
             </Animated.View>
           </ScrollView>
 
@@ -3373,7 +3384,81 @@ export default function PatientHomeScreen({ navigation }) {
             tourKey="vitals_log"
             onClose={() => setShowVitalsTour(false)}
           />
+
+          {/* Daily Health Tip Bottom Sheet */}
+          <BottomSheetWrapper
+            isOpen={showTipSheet}
+            onClose={() => setShowTipSheet(false)}
+            snapPoints={['50%', '75%']}
+            title="Daily Health Tip"
+          >
+            {(() => {
+              const tipIndex = getDailyTipIndex();
+              const fullTip = HEALTH_TIPS[tipIndex] || "";
+              
+              // Extract emoji and clean text
+              const emojiMatch = fullTip.match(/^[\u{1F300}-\u{1F9FF}\u{2700}-\u{27BF}]/u);
+              const emoji = emojiMatch ? emojiMatch[0] : "💡";
+              const cleanText = fullTip.replace(/^[\u{1F300}-\u{1F9FF}\u{2700}-\u{27BF}]\s*/u, "");
+
+              return (
+                <View style={{ gap: 20, paddingBottom: 20 }}>
+                  {/* Huge visual tip display */}
+                  <View style={{ alignItems: 'center', gap: 12, backgroundColor: '#FAF5FF', padding: 24, borderRadius: 20, borderWidth: 1, borderColor: '#F3E8FF' }}>
+                    <Text style={{ fontSize: 44 }}>{emoji}</Text>
+                    <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B21A8', textAlign: 'center', lineHeight: 24 }}>
+                      {cleanText}
+                    </Text>
+                  </View>
+
+                  {/* Context sections */}
+                  <View style={{ gap: 12 }}>
+                    <View style={{ gap: 4 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>Why This Matters</Text>
+                      <Text style={{ fontSize: 15, color: '#334155', lineHeight: 22 }}>
+                        Consistent micro-habits have a compounding effect on your cardiovascular health, cognitive resilience, and blood glucose stability. Integrating this simple practice into your daily schedule makes wellness second-nature.
+                      </Text>
+                    </View>
+
+                    <View style={{ gap: 4, marginTop: 8 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>Today's Small Win Action</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                        <CheckCircle2 size={16} color="#8B5CF6" />
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: '#475569', flex: 1 }}>
+                          Set a timer or prompt to complete this action within the next 4 hours.
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Got it button */}
+                  <Pressable
+                    onPress={() => setShowTipSheet(false)}
+                    style={{
+                      marginTop: 10,
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <LinearGradient
+                      colors={["#8B5CF6", "#7C3AED"]}
+                      style={{
+                        paddingVertical: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF' }}>
+                        Got It, Thanks!
+                      </Text>
+                    </LinearGradient>
+                  </Pressable>
+                </View>
+              );
+            })()}
+          </BottomSheetWrapper>
         </View>
+        <CelebrationOverlay active={showCelebration} onComplete={() => setShowCelebration(false)} />
       </KeyboardAvoidingView>
     </TabScreenTransition>
   );

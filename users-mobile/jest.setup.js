@@ -1,4 +1,5 @@
 // jest.setup.js — Global test configuration and native module mocks
+import 'react-native-gesture-handler/jestSetup';
 
 // Mock Supabase environment variables for testing
 process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://mock-supabase-url.com';
@@ -86,4 +87,27 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
+// @shopify/react-native-skia
+jest.mock('@shopify/react-native-skia', () => ({
+  Canvas: ({ children }) => children,
+  Circle: () => null,
+  Blur: () => null,
+  RadialGradient: () => null,
+  vec: (x, y) => ({ x, y }),
+}));
+
+// @gorhom/bottom-sheet
+jest.mock('@gorhom/bottom-sheet', () => {
+  const react = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: react.forwardRef(({ children, ...props }, ref) => {
+      return react.createElement(View, { ref, ...props }, children);
+    }),
+    BottomSheetScrollView: View,
+    BottomSheetBackdrop: () => null,
+    BottomSheetModalProvider: ({ children }) => children,
+  };
+});
 

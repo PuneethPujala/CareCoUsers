@@ -142,6 +142,24 @@ export const shadows = {
         shadowRadius: 30,
         elevation: 12,
     },
+
+    // ── Dual-Shadow System ──────────────────────
+    // Use cardSharp on inner View + cardAmbient on outer View
+    // for realistic two-layer depth (definition + ambient glow).
+    cardSharp: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 3,
+        elevation: 2,
+    },
+    cardAmbient: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.04,
+        shadowRadius: 24,
+        elevation: 3,
+    },
 };
 
 // App-specific helpers
@@ -163,4 +181,7 @@ export const layout = {
 import { motion, anim, useReduceMotion } from './motion';
 export { motion, anim, useReduceMotion };
 
-export default { colors, typography, radius, spacing, shadows, layout, motion, anim, useReduceMotion };
+import { MotionProvider, useMotion } from './MotionProvider';
+export { MotionProvider, useMotion };
+
+export default { colors, typography, radius, spacing, shadows, layout, motion, anim, useReduceMotion, MotionProvider, useMotion };

@@ -37,6 +37,7 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import analytics from './src/utils/analytics';
 import * as Linking from 'expo-linking';
 import { navigationRef } from './src/lib/navigationRef';
+import { MotionProvider } from './src/theme/MotionProvider';
 
 
 
@@ -112,30 +113,32 @@ export default function App() {
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
-            <SafeAreaProvider>
-                <ErrorBoundary>
-                    <SecurityProvider>
-                        <NetworkProvider>
-                            <AuthProvider>
-                                <NavigationContainer linking={linking} ref={navigationRef}>
-                                    <AppNavigator fontsLoaded={fontsLoaded} />
-                                    <StatusBar style="light" />
-                                </NavigationContainer>
-                            </AuthProvider>
-                        </NetworkProvider>
-                    </SecurityProvider>
+            <MotionProvider>
+                <SafeAreaProvider>
+                    <ErrorBoundary>
+                        <SecurityProvider>
+                            <NetworkProvider>
+                                <AuthProvider>
+                                    <NavigationContainer linking={linking} ref={navigationRef}>
+                                        <AppNavigator fontsLoaded={fontsLoaded} />
+                                        <StatusBar style="light" />
+                                    </NavigationContainer>
+                                </AuthProvider>
+                            </NetworkProvider>
+                        </SecurityProvider>
 
-                    {showPrivacyOverlay && (
-                        <View style={StyleSheet.absoluteFill}>
-                            <View style={styles.privacyOverlay}>
-                                <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
-                                <Text style={styles.privacyTitle}>CareMyMed Secure View</Text>
-                                <Text style={styles.privacySubtitle}>Protecting your health data</Text>
+                        {showPrivacyOverlay && (
+                            <View style={StyleSheet.absoluteFill}>
+                                <View style={styles.privacyOverlay}>
+                                    <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
+                                    <Text style={styles.privacyTitle}>CareMyMed Secure View</Text>
+                                    <Text style={styles.privacySubtitle}>Protecting your health data</Text>
+                                </View>
                             </View>
-                        </View>
-                    )}
-                </ErrorBoundary>
-            </SafeAreaProvider>
+                        )}
+                    </ErrorBoundary>
+                </SafeAreaProvider>
+            </MotionProvider>
         </GestureHandlerRootView>
     );
 }

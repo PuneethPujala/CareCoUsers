@@ -16,14 +16,18 @@ export default function AnimatedCounter({
     prefix = '',
     suffix = '',
     useGrouping = true,
+    fromValue,
     style,
     ...props
 }) {
-    const animatedValue = useSharedValue(value);
+    const animatedValue = useSharedValue(fromValue !== undefined ? fromValue : value);
 
     useEffect(() => {
+        if (fromValue !== undefined) {
+            animatedValue.value = fromValue;
+        }
         animatedValue.value = withSpring(value, reanimatedMotion.springs.default);
-    }, [value, animatedValue]);
+    }, [value, fromValue, animatedValue]);
 
     const formatNumber = (num) => {
         'worklet';
@@ -43,7 +47,8 @@ export default function AnimatedCounter({
         };
     });
 
-    const initialFormatted = `${prefix}${value.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, useGrouping ? ',' : '')}${suffix}`;
+    const startValue = fromValue !== undefined ? fromValue : value;
+    const initialFormatted = `${prefix}${startValue.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, useGrouping ? ',' : '')}${suffix}`;
 
     return (
         <AnimatedTextInput

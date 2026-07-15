@@ -7,17 +7,18 @@
  *
  * This component is mounted ONCE at the app root and controlled via AlertManager.
  */
-import React, { useState, useCallback, useImperativeHandle, forwardRef, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import {
   View,
   Text,
   Modal,
   Pressable,
   StyleSheet,
-  Animated,
   Dimensions,
   Platform,
 } from 'react-native';
+import Reanimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
+import { useMotion } from '../../theme/MotionProvider';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -37,8 +38,10 @@ const CustomAlert = forwardRef((_, ref) => {
   const [buttons, setButtons] = useState([]);
   const [type, setType] = useState('info');
 
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const { getSpring, getDuration } = useMotion();
+
+  const scale = useSharedValue(0.85);
+  const opacity = useSharedValue(0);
 
   const show = useCallback((t, msg, btns, options) => {
     setTitle(t || '');
@@ -52,41 +55,24 @@ const CustomAlert = forwardRef((_, ref) => {
 
   useEffect(() => {
     if (visible) {
-      scaleAnim.setValue(0.85);
-      opacityAnim.setValue(0);
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      scale.value = 0.85;
+      opacity.value = 0;
+      scale.value = withSpring(1, getSpring('default'));
+      opacity.value = withTiming(1, { duration: getDuration('fast') });
     }
-  }, [visible]);
+  }, [visible, getSpring, getDuration]);
 
   const dismiss = useCallback((callback) => {
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 0.85,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setVisible(false);
-      if (typeof callback === 'function') callback();
+    scale.value = withSpring(0.85, getSpring('default'));
+    opacity.value = withTiming(0, { duration: getDuration('fast') }, (finished) => {
+      if (finished) {
+        runOnJS(setVisible)(false);
+        if (callback) {
+          runOnJS(callback)();
+        }
+      }
     });
-  }, [scaleAnim, opacityAnim]);
+  }, [scale, opacity, getSpring, getDuration]);
 
   const handleButtonPress = useCallback((btn) => {
     dismiss(btn.onPress);
@@ -94,6 +80,14 @@ const CustomAlert = forwardRef((_, ref) => {
 
   const theme = THEME[type] || THEME.info;
   const shouldStack = buttons.length > 2 || buttons.some(b => (b.text || '').length > 12);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
     <Modal
@@ -104,15 +98,15 @@ const CustomAlert = forwardRef((_, ref) => {
       onRequestClose={() => dismiss()}
     >
       {visible ? (
-        <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
+        <Reanimated.View style={[styles.overlay, overlayStyle]}>
           <Pressable 
             style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]} 
             onPress={() => dismiss()} 
           />
-          <Animated.View
+          <Reanimated.View
             style={[
               styles.container,
-              { transform: [{ scale: scaleAnim }] },
+              containerStyle,
             ]}
           >
             {/* Icon badge */}
@@ -176,8 +170,8 @@ const CustomAlert = forwardRef((_, ref) => {
                 );
               })}
             </View>
-          </Animated.View>
-        </Animated.View>
+          </Reanimated.View>
+        </Reanimated.View>
       ) : null}
     </Modal>
   );
