@@ -108,6 +108,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
         exercise: false,
         weight: false,
         glucose: false,
+        usageStats: false,
     });
     const [permissionsChecklistVisible, setPermissionsChecklistVisible] = useState(false);
     // Bento card configuration and customize states
@@ -454,6 +455,12 @@ export default function HealthConnectSetupScreen({ navigation }) {
             setStatus(perm);
             
             const detailed = await getDetailedPermissionStatus();
+            if (Platform.OS === 'android') {
+                const hasUsage = await sleepEstimation.hasUsageStatsPermission();
+                detailed.usageStats = hasUsage;
+            } else {
+                detailed.usageStats = true;
+            }
             setPermissionsMap(detailed);
 
             // Fetch sync stats
@@ -506,6 +513,12 @@ export default function HealthConnectSetupScreen({ navigation }) {
             const granted = await requestHealthPermissions();
             if (granted) {
                 const detailed = await getDetailedPermissionStatus();
+                if (Platform.OS === 'android') {
+                    const hasUsage = await sleepEstimation.hasUsageStatsPermission();
+                    detailed.usageStats = hasUsage;
+                } else {
+                    detailed.usageStats = true;
+                }
                 setPermissionsMap(detailed);
                 
                 const allowedCount = Object.keys(detailed).filter(k => detailed[k]).length;
@@ -654,7 +667,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
         let hasPerm = false;
         switch (card.id) {
             case 'hr': hasPerm = permissionsMap.heartRate; break;
-            case 'sleep': hasPerm = permissionsMap.sleep; break;
+            case 'sleep': hasPerm = permissionsMap.sleep || permissionsMap.usageStats; break;
             case 'bp': hasPerm = permissionsMap.bloodPressure; break;
             case 'spo2': hasPerm = permissionsMap.oxygen; break;
             case 'steps': hasPerm = permissionsMap.steps; break;
@@ -767,14 +780,15 @@ export default function HealthConnectSetupScreen({ navigation }) {
     return (
         <TabScreenTransition>
         <View style={styles.container}>
-            {loadingSkeleton && (
+            {loadingSkeleton ? (
                 <View style={styles.skeletonContainer}>
                     <ActivityIndicator size="large" color="#8B5CF6" />
                     <Text style={{ marginTop: 12, ...FONT.medium, color: colors.textSecondary }}>
                         Refreshing Connection Health...
                     </Text>
                 </View>
-            )}
+            ) : (
+                <>
             {/* ── Header ──────────────────────────────────────── */}
             <View style={styles.header}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.headerBtn}>
@@ -1044,7 +1058,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                 {[
                                     { key: 'heartRate', label: 'Heart Rate', icon: <Heart size={14} color="#EF4444" /> },
                                     { key: 'bloodPressure', label: 'Blood Pressure', icon: <Activity size={14} color="#3B82F6" /> },
-                                    { key: 'sleep', label: 'Sleep', icon: <Moon size={14} color="#8B5CF6" /> },
+                                    { key: 'sleep', label: 'Sleep (Wearable)', icon: <Moon size={14} color="#8B5CF6" /> },
+                                    { key: 'usageStats', label: 'Phone Inactivity (Sleep fallback)', icon: <Smartphone size={14} color="#6366F1" /> },
                                     { key: 'oxygen', label: 'Oxygen Level', icon: <Wind size={14} color="#06B6D4" /> },
                                     { key: 'steps', label: 'Steps', icon: <Activity size={14} color="#10B981" /> },
                                     { key: 'exercise', label: 'Exercise', icon: <Flame size={14} color="#F59E0B" /> },
@@ -1053,7 +1068,32 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                     { key: 'hydration', label: 'Hydration', icon: <Droplet size={14} color="#06B6D4" /> },
                                     { key: 'temperature', label: 'Body Temperature', icon: <Activity size={14} color="#F97316" /> },
                                 ].map(item => (
-                                    <View key={item.key} style={styles.permRow}>
+                                    <Pressable 
+                                        key={item.key} 
+                                        style={({ pressed }) => [styles.permRow, pressed && { opacity: 0.7 }]}
+                                        onPress={async () => {
+                                            if (item.key === 'usageStats') {
+                                                if (!permissionsMap.usageStats) {
+                                                    AlertManager.alert(
+                                                        "Enable Activity Access",
+                                                        "We will open your settings. Find 'CareMyMed' in the list and turn on 'Allow usage tracking'.\n\nThis lets us estimate your sleep duration without a smartwatch.",
+                                                        [
+                                                            { text: "Cancel", style: "cancel" },
+                                                            { 
+                                                                text: "Open Settings", 
+                                                                onPress: async () => {
+                                                                    await sleepEstimation.requestUsageStatsPermission();
+                                                                    setTimeout(checkCurrentStatus, 1500);
+                                                                } 
+                                                            }
+                                                        ]
+                                                    );
+                                                }
+                                            } else {
+                                                openHealthSettings();
+                                            }
+                                        }}
+                                    >
                                         {item.icon}
                                         <Text style={styles.permRowLabel}>{item.label}</Text>
                                         {permissionsMap[item.key] ? (
@@ -1067,7 +1107,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                                 <Text style={styles.permBadgeDeniedTxt}>Not Allowed</Text>
                                             </View>
                                         )}
-                                    </View>
+                                    </Pressable>
                                 ))}
                                 
                                 {Object.values(permissionsMap).some(v => !v) && (
@@ -1485,6 +1525,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                     </Pressable>
                 </Pressable>
             </Modal>
+            </>
+            )}
         </View>
         </TabScreenTransition>
     );
@@ -2389,7 +2431,7 @@ const styles = StyleSheet.create({
     },
     skeletonContainer: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        backgroundColor: '#FFFFFF',
         zIndex: 9999,
         alignItems: 'center',
         justifyContent: 'center',
