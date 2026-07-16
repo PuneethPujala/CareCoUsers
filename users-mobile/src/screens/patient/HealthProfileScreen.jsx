@@ -3510,7 +3510,7 @@ export default function HealthProfileScreen({ navigation }) {
         {/* ── Dynamic Form Modal ── */}
         <PremiumFormModal
           visible={modalVisible}
-          title={`${formState._id ? t("common.edit", { defaultValue: "Edit" }) : t("common.update", { defaultValue: "Update" })} ${["vitals", "habits", "activity"].includes(editingType) ? t("health_profile.lifestyle", { defaultValue: "Lifestyle" }) : t(`health_profile.${editingType}`, { defaultValue: editingType })}`}
+          title={`${formState._id ? t("common.edit", { defaultValue: "Edit" }) : t("common.update", { defaultValue: "Update" })} ${editingType === "gp" ? t("health_profile.primary_physician", { defaultValue: "Doctor Details" }) : ["vitals", "habits", "activity"].includes(editingType) ? t("health_profile.lifestyle", { defaultValue: "Lifestyle" }) : t(`health_profile.${editingType}`, { defaultValue: editingType })}`}
           onClose={closeModal}
           onSave={handleSave}
           saveText={t("health_profile.save_profile_data", {

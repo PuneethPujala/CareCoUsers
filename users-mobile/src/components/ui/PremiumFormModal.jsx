@@ -16,6 +16,14 @@ import {
     Dimensions,
 } from 'react-native';
 import { X } from 'lucide-react-native';
+import { colors, radius } from '../../theme';
+
+const FONT = {
+    regular: { fontFamily: 'Inter', fontWeight: '400' },
+    medium: { fontFamily: 'Inter', fontWeight: '500' },
+    semibold: { fontFamily: 'Inter', fontWeight: '600' },
+    bold: { fontFamily: 'Inter', fontWeight: '700' },
+};
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -147,8 +155,11 @@ const PremiumFormModal = ({
                     centered && styles.sheetContainerCentered,
                     androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 80 }
                 ]}>
+                    {/* Top drag handle indicator for bottom sheets */}
+                    {!centered && <View style={styles.sheetHandle} />}
+
                     {/* Header */}
-                    <View style={[styles.header, centered && styles.headerCentered]}>
+                    <View style={[styles.header, centered && styles.headerCentered, !centered && { paddingTop: 12 }]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
                             {icon && (
                                 <View style={styles.iconCircle}>
@@ -251,17 +262,29 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     sheetContainer: {
-        minHeight: SCREEN_HEIGHT * 0.50,
-        maxHeight: SCREEN_HEIGHT * 0.88,
+        minHeight: SCREEN_HEIGHT * 0.62,
+        maxHeight: SCREEN_HEIGHT * 0.92,
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.15,
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: -12 },
+        shadowOpacity: 0.1,
         shadowRadius: 24,
         elevation: 24,
         overflow: 'hidden',
-        marginBottom: 20,
+        marginBottom: 0,
+    },
+    sheetHandle: {
+        width: 46,
+        height: 5,
+        borderRadius: 2.5,
+        backgroundColor: '#E2E8F0',
+        alignSelf: 'center',
+        marginTop: 10,
+        marginBottom: 2,
     },
     header: {
         flexDirection: 'row',
@@ -271,14 +294,14 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        borderBottomColor: '#F8FAFC',
     },
     title: {
         fontSize: 20,
-        fontWeight: '700',
-        color: '#0F172A',
+        ...FONT.bold,
+        color: colors.textPrimary || '#0F172A',
         flex: 1,
-        letterSpacing: -0.3,
+        letterSpacing: -0.4,
     },
     headerActions: {
         flexDirection: 'row',
@@ -295,28 +318,28 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: 24,
-        paddingTop: 20,
+        paddingTop: 16,
         paddingBottom: 40,
         flexGrow: 1,
         gap: 16,
     },
     stickyFooter: {
         paddingHorizontal: 24,
-        paddingTop: 12,
+        paddingTop: 14,
         paddingBottom: Platform.OS === 'ios' ? 34 : 20,
         borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
+        borderTopColor: '#F8FAFC',
         backgroundColor: '#FFFFFF',
     },
     saveBtn: {
         height: 56,
-        borderRadius: 16,
-        backgroundColor: '#2563EB',
+        borderRadius: radius.lg || 16,
+        backgroundColor: colors.primary || '#2563EB',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#2563EB',
+        shadowColor: colors.primary || '#2563EB',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
+        shadowOpacity: 0.2,
         shadowRadius: 12,
         elevation: 8,
     },
@@ -329,7 +352,7 @@ const styles = StyleSheet.create({
     },
     saveBtnText: {
         fontSize: 17,
-        fontWeight: '700',
+        ...FONT.bold,
         color: '#FFFFFF',
         letterSpacing: 0.2,
     },
