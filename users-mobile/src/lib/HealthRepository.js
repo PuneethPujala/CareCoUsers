@@ -296,27 +296,34 @@ class AndroidHealthAdapter {
                 }));
             }
 
-            // Fallback to native hardware Pedometer if Health Connect steps are 0
+            // Fallback to native hardware Pedometer if Health Connect steps are 0.
+            // Reads real data from the device's built-in step-counter sensor (TYPE_STEP_COUNTER).
+            // ACTIVITY_RECOGNITION permission is requested during the HealthConnectSetupScreen
+            // onboarding flow (user-triggered context), so it should already be granted here.
             if (activity.steps === 0) {
                 try {
                     const { Pedometer } = require('expo-sensors');
                     const isPedometerAvailable = await Pedometer.isAvailableAsync();
                     if (isPedometerAvailable) {
                         const { status } = await Pedometer.getPermissionsAsync();
-                        let finalStatus = status;
-                        if (status !== 'granted') {
-                            const requestResult = await Pedometer.requestPermissionsAsync();
-                            finalStatus = requestResult.status;
-                        }
-                        if (finalStatus === 'granted') {
+                        if (status === 'granted') {
                             const pedometerResult = await Pedometer.getStepCountAsync(startOfToday, endTime);
-                            if (pedometerResult && typeof pedometerResult.steps === 'number') {
+                            if (pedometerResult && typeof pedometerResult.steps === 'number' && pedometerResult.steps > 0) {
                                 activity.steps = pedometerResult.steps;
+                                // Estimate distance and calories from step count when Health Connect has no data
                                 if (activity.distance_meters === 0) {
                                     activity.distance_meters = Math.round(activity.steps * 0.762);
                                 }
                                 if (activity.active_calories === 0) {
                                     activity.active_calories = Math.round(activity.steps * 0.04);
+                                }
+                                // Tag metadata to indicate source is device sensor, not Health Connect
+                                if (!primaryMeta) {
+                                    primaryMeta = {
+                                        device: 'Device Pedometer Sensor',
+                                        id: 'pedometer-fallback',
+                                        lastModifiedTime: endTime.toISOString(),
+                                    };
                                 }
                             }
                         }

@@ -578,6 +578,25 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 const allowedCount = Object.keys(detailed).filter(k => detailed[k]).length;
                 await trackSetupEvent('permissions_granted', { allowedCount });
 
+                // Request Pedometer (ACTIVITY_RECOGNITION) permission for hardware step sensor fallback.
+                // This must happen in a user-triggered context (button press) so the OS shows the prompt.
+                // When Health Connect has no step records, the sync pipeline falls back to the device's
+                // built-in step counter sensor — real data from a real sensor, not synthetic values.
+                if (Platform.OS === 'android') {
+                    try {
+                        const { Pedometer } = require('expo-sensors');
+                        const isAvailable = await Pedometer.isAvailableAsync();
+                        if (isAvailable) {
+                            const { status: pedStatus } = await Pedometer.getPermissionsAsync();
+                            if (pedStatus !== 'granted') {
+                                await Pedometer.requestPermissionsAsync();
+                            }
+                        }
+                    } catch (pedErr) {
+                        console.warn('Pedometer permission request failed (non-blocking):', pedErr);
+                    }
+                }
+
                 // Attempt first data read to show real results on confirmation screen
                 try {
                     const data = await HealthRepository.fetchAll();
