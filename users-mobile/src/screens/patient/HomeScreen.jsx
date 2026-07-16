@@ -659,12 +659,14 @@ export default function PatientHomeScreen({ navigation }) {
         setMoodLogged(true);
         setSelectedMood(loggedToday.value || loggedToday.mood);
         thanksFadeAnim.setValue(1);
+        moodFadeAnim.setValue(0);
       } else {
         // Don't reset optimistic mood state while a save is in-flight or settling
         if (!moodSaveSettlingRef.current) {
           setMoodLogged(false);
           setSelectedMood(null);
           moodFadeAnim.setValue(1);
+          thanksFadeAnim.setValue(0);
         }
       }
     } catch (e) {
@@ -2514,91 +2516,108 @@ export default function PatientHomeScreen({ navigation }) {
 
             {/* ── 2. DAILY CHECK-IN (Directly under the Orb) ── */}
             <Animated.View style={[entranceStyle(2), styles.section]}>
-              <View style={styles.checkinCard}>
-                {!moodLogged ? (
-                  <Animated.View style={{ opacity: moodFadeAnim }}>
-                    <Text style={styles.checkinTitle}>
-                      {t("home.how_are_feeling", {
-                        defaultValue: "How are you feeling today?",
-                      })}
-                    </Text>
-                    <View style={styles.moodEmojiRow}>
-                      <Pressable
-                        style={styles.moodEmojiPill}
-                        onPress={() => saveDailyMood("sad")}
-                      >
-                        <LottieView
-                          source={require("../../assets/lottie/sad.json")}
-                          autoPlay
-                          loop
-                          style={styles.moodLottie}
-                        />
-                        <Text style={styles.moodLabel}>Low</Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.moodEmojiPill}
-                        onPress={() => saveDailyMood("okay")}
-                      >
-                        <LottieView
-                          source={require("../../assets/lottie/okay.json")}
-                          autoPlay
-                          loop
-                          style={styles.moodLottie}
-                        />
-                        <Text style={styles.moodLabel}>Okay</Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.moodEmojiPill}
-                        onPress={() => saveDailyMood("good")}
-                      >
-                        <LottieView
-                          source={require("../../assets/lottie/good.json")}
-                          autoPlay
-                          loop
-                          style={styles.moodLottie}
-                        />
-                        <Text style={styles.moodLabel}>Good</Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.moodEmojiPill}
-                        onPress={() => saveDailyMood("great")}
-                      >
-                        <LottieView
-                          source={require("../../assets/lottie/great.json")}
-                          autoPlay
-                          loop
-                          style={styles.moodLottie}
-                        />
-                        <Text style={styles.moodLabel}>Great</Text>
-                      </Pressable>
-                    </View>
-                  </Animated.View>
-                ) : (
-                  <Animated.View
-                    style={{ opacity: thanksFadeAnim, width: "100%" }}
-                  >
-                    <View style={styles.checkinCompleteView}>
-                      <Sparkles
-                        size={16}
-                        color="#8B5CF6"
-                        style={{ marginRight: 8 }}
+              <View style={[styles.checkinCard, { minHeight: moodLogged ? 70 : 130, justifyContent: 'center' }]}>
+                {/* 1. Mood Picker (fades out) */}
+                <Animated.View
+                  style={{
+                    opacity: moodFadeAnim,
+                    position: moodLogged ? "absolute" : "relative",
+                    left: moodLogged ? 24 : 0,
+                    right: moodLogged ? 24 : 0,
+                    top: moodLogged ? 24 : 0,
+                  }}
+                  pointerEvents={moodLogged ? "none" : "auto"}
+                >
+                  <Text style={styles.checkinTitle}>
+                    {t("home.how_are_feeling", {
+                      defaultValue: "How are you feeling today?",
+                    })}
+                  </Text>
+                  <View style={styles.moodEmojiRow}>
+                    <Pressable
+                      style={styles.moodEmojiPill}
+                      onPress={() => saveDailyMood("sad")}
+                    >
+                      <LottieView
+                        source={require("../../assets/lottie/sad.json")}
+                        autoPlay
+                        loop
+                        style={styles.moodLottie}
                       />
-                      <Text style={styles.checkinCompleteText}>
-                        ✨ Thanks for checking in. Today's insight has been
-                        updated.
-                      </Text>
-                      <Text style={styles.selectedMoodBadge}>
-                        {selectedMood === "sad"
-                          ? "😞 Low"
-                          : selectedMood === "okay"
-                            ? "😐 Okay"
-                            : selectedMood === "good"
-                              ? "🙂 Good"
-                              : "😄 Great"}
-                      </Text>
-                    </View>
-                  </Animated.View>
-                )}
+                      <Text style={styles.moodLabel}>Low</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.moodEmojiPill}
+                      onPress={() => saveDailyMood("okay")}
+                    >
+                      <LottieView
+                        source={require("../../assets/lottie/okay.json")}
+                        autoPlay
+                        loop
+                        style={styles.moodLottie}
+                      />
+                      <Text style={styles.moodLabel}>Okay</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.moodEmojiPill}
+                      onPress={() => saveDailyMood("good")}
+                    >
+                      <LottieView
+                        source={require("../../assets/lottie/good.json")}
+                        autoPlay
+                        loop
+                        style={styles.moodLottie}
+                      />
+                      <Text style={styles.moodLabel}>Good</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.moodEmojiPill}
+                      onPress={() => saveDailyMood("great")}
+                    >
+                      <LottieView
+                        source={require("../../assets/lottie/great.json")}
+                        autoPlay
+                        loop
+                        style={styles.moodLottie}
+                      />
+                      <Text style={styles.moodLabel}>Great</Text>
+                    </Pressable>
+                  </View>
+                </Animated.View>
+
+                {/* 2. Thanks View (fades in) */}
+                <Animated.View
+                  style={{
+                    opacity: thanksFadeAnim,
+                    position: moodLogged ? "relative" : "absolute",
+                    left: moodLogged ? 0 : 24,
+                    right: moodLogged ? 0 : 24,
+                    top: moodLogged ? 0 : 24,
+                    width: "100%",
+                  }}
+                  pointerEvents={moodLogged ? "auto" : "none"}
+                >
+                  <View style={styles.checkinCompleteView}>
+                    <Sparkles
+                      size={16}
+                      color="#8B5CF6"
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.checkinCompleteText}>
+                      ✨ Thanks for checking in. Today's insight has been
+                      updated.
+                    </Text>
+                    <Text style={styles.selectedMoodBadge}>
+                      {selectedMood === "sad"
+                        ? "😞 Low"
+                        : selectedMood === "okay"
+                          ? "😐 Okay"
+                          : selectedMood === "good"
+                            ? "🙂 Good"
+                            : "😄 Great"}
+                    </Text>
+                  </View>
+                </Animated.View>
               </View>
             </Animated.View>
 
