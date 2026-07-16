@@ -2228,55 +2228,6 @@ router.post('/me/flag-issue', authenticateSession, async (req, res) => {
       extracted_medicines: extracted_medicines,
     });
     await alert.save();
-
-    // In development mode, automatically add simulated medications to the patient's schedule
-    if (process.env.NODE_ENV === 'development' && type === 'medication_modification' && Array.isArray(extracted_medicines)) {
-      const Medication = require('../../models/Medication');
-      for (const med of extracted_medicines) {
-        if (!med.name) continue;
-        const exists = await Medication.findOne({
-          patientId: patient._id,
-          name: { $regex: new RegExp(`^${med.name.trim()}$`, 'i') },
-          isActive: true
-        });
-        if (!exists) {
-          // Parse frequency to determine times and scheduledTimes
-          let legacyTimes = ['morning'];
-          let timesList = ['09:00 AM'];
-          const freq = (med.frequency || '').toLowerCase();
-          if (freq.includes('twice') || freq.includes('2x') || freq.includes('bd') || freq.includes('b.d.')) {
-            legacyTimes = ['morning', 'night'];
-            timesList = ['09:00 AM', '09:00 PM'];
-          } else if (freq.includes('three') || freq.includes('thrice') || freq.includes('3x') || freq.includes('tds') || freq.includes('t.d.s.')) {
-            legacyTimes = ['morning', 'afternoon', 'night'];
-            timesList = ['09:00 AM', '02:00 PM', '09:00 PM'];
-          } else if (freq.includes('four') || freq.includes('4x') || freq.includes('qd') || freq.includes('q.d.')) {
-            legacyTimes = ['morning', 'afternoon', 'evening', 'night'];
-            timesList = ['09:00 AM', '01:00 PM', '05:00 PM', '09:00 PM'];
-          }
-
-          const newMed = new Medication({
-            patientId: patient._id,
-            organizationId: patient.organization_id || patient.organizationId || new mongoose.Types.ObjectId(),
-            name: med.name.trim(),
-            dosage: med.dosage || '1 tablet',
-            frequency: med.frequency || 'Daily',
-            times: legacyTimes,
-            scheduledTimes: timesList,
-            startDate: new Date(),
-            isActive: true,
-            status: 'active'
-          });
-          await newMed.save();
-          logger.info(`Simulated auto-adding medication in development: ${med.name}`);
-        }
-      }
-
-      // Recompute and cache health state in background so that the dashboard updates immediately
-      const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
-      recomputeAndCacheHealthState(patient._id).catch(() => {});
-    }
-
     res.status(201).json({ message: 'Issue flagged successfully', alert });
   } catch (error) {
     logger.error('Flag issue error', {
