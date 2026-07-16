@@ -1423,19 +1423,45 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
     }
 
     // Backfill: If caller exists but manager is still null, resolve from caller.manager_id
-    if (caller && !manager && caller.manager_id) {
-      manager = await Profile.findById(caller.manager_id).select(
-        'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
-      );
-      if (manager) {
-        await Patient.updateOne(
-          { _id: patient._id },
-          { $set: { assigned_manager_id: caller.manager_id, care_manager_id: caller.manager_id } }
+    if (caller && !manager) {
+      if (caller.manager_id) {
+        manager = await Profile.findById(caller.manager_id).select(
+          'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
         );
-        logger.info('Backfilled assigned_manager_id from caller', {
-          patientId: patient._id,
-          managerId: caller.manager_id,
-        });
+        if (manager) {
+          await Patient.updateOne(
+            { _id: patient._id },
+            { $set: { assigned_manager_id: caller.manager_id, care_manager_id: caller.manager_id } }
+          );
+          logger.info('Backfilled assigned_manager_id from caller', {
+            patientId: patient._id,
+            managerId: caller.manager_id,
+          });
+        }
+      }
+
+      // Fallback: If still no manager resolved (e.g. caller.manager_id is null/invalid),
+      // dynamically assign a manager based on workload in the patient's organization
+      if (!manager) {
+        try {
+          const orgId = patient.organization_id || caller.organization_id || new mongoose.Types.ObjectId('674f07e1525049b7348908f9');
+          const AssignmentService = require('../../services/AssignmentService');
+          const assignedManagerProfile = await AssignmentService.assignManager(patient._id, orgId);
+          if (assignedManagerProfile) {
+            manager = await Profile.findById(assignedManagerProfile._id).select(
+              'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
+            );
+            logger.info('Dynamically assigned care manager to patient', {
+              patientId: patient._id,
+              managerId: assignedManagerProfile._id,
+            });
+          }
+        } catch (assignErr) {
+          logger.warn('Failed to dynamically assign care manager to patient', {
+            error: assignErr.message,
+            patientId: patient._id,
+          });
+        }
       }
     }
 
