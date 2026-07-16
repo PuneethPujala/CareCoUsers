@@ -19,17 +19,27 @@ class HealthRepository {
         const since = sinceTimestamp || new Date(Date.now() - 24 * 60 * 60 * 1000);
         const source = Platform.OS === 'ios' ? 'healthkit' : 'health_connect';
 
+        let data = { vitals: [], activity: null, body: null };
         try {
             if (Platform.OS === 'android') {
-                return await AndroidHealthAdapter.fetchAll(since);
+                data = await AndroidHealthAdapter.fetchAll(since);
             } else if (Platform.OS === 'ios') {
-                return await IOSHealthAdapter.fetchAll(since);
+                data = await IOSHealthAdapter.fetchAll(since);
             }
         } catch (err) {
             console.error('HealthRepository fetchAll error:', err);
         }
 
-        return { vitals: [], activity: null, body: null };
+        const hasVitals = data && data.vitals && data.vitals.length > 0;
+        const hasActivity = data && data.activity !== null;
+        const hasBody = data && data.body !== null;
+
+        if (__DEV__ && !hasVitals && !hasActivity && !hasBody) {
+            console.log('🧪 HealthRepository: [DEV ONLY] No real wearable data found. Generating mock payload...');
+            return this.generateDevMockPayload(since, source);
+        }
+
+        return data;
     }
 
     /**

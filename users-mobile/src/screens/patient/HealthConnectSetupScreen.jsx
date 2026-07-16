@@ -141,13 +141,13 @@ export default function HealthConnectSetupScreen({ navigation }) {
         // 5. Steps
         if (permissionsMap.steps) {
             totalGranted++;
-            if (activity?.steps) syncedCount++;
+            if (activity?.steps !== undefined && activity?.steps !== null) syncedCount++;
         }
         // 6. Exercise
         if (permissionsMap.exercise) {
             totalGranted++;
             const exerciseMins = activity?.exercises?.reduce((sum, e) => sum + (e.duration_minutes || 0), 0) || 0;
-            if (exerciseMins > 0) syncedCount++;
+            if (activity?.exercises !== undefined && activity?.exercises !== null) syncedCount++;
         }
         // 7. Weight
         if (permissionsMap.weight) {
