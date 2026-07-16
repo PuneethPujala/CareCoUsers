@@ -90,7 +90,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const [loading, setLoading] = useState(false);
     const [lastSyncStr, setLastSyncStr] = useState('just now');
     const [lastCheckedStr, setLastCheckedStr] = useState('—');
-    const [syncQuality, setSyncQuality] = useState(96);
+    const [syncQuality, setSyncQuality] = useState(0);
     const [syncingNow, setSyncingNow] = useState(false);
     const [syncingBento, setSyncingBento] = useState(false);
     const [sleepStr, setSleepStr] = useState(null);
@@ -110,6 +110,60 @@ export default function HealthConnectSetupScreen({ navigation }) {
         glucose: false,
         usageStats: false,
     });
+
+    // Dynamically calculate actual sync quality based on granted channels with successful data syncs
+    useEffect(() => {
+        let totalGranted = 0;
+        let syncedCount = 0;
+
+        // 1. Heart Rate
+        if (permissionsMap.heartRate) {
+            totalGranted++;
+            if (vitals?.heart_rate) syncedCount++;
+        }
+        // 2. Sleep Quality
+        if (permissionsMap.sleep || permissionsMap.usageStats) {
+            totalGranted++;
+            if (sleepStr && !sleepStr.toLowerCase().includes('no activity') && !sleepStr.toLowerCase().includes('waiting')) {
+                syncedCount++;
+            }
+        }
+        // 3. Blood Pressure
+        if (permissionsMap.bloodPressure) {
+            totalGranted++;
+            if (vitals?.blood_pressure?.systolic) syncedCount++;
+        }
+        // 4. Oxygen Level
+        if (permissionsMap.oxygen) {
+            totalGranted++;
+            if (vitals?.oxygen_saturation) syncedCount++;
+        }
+        // 5. Steps
+        if (permissionsMap.steps) {
+            totalGranted++;
+            if (activity?.steps) syncedCount++;
+        }
+        // 6. Exercise
+        if (permissionsMap.exercise) {
+            totalGranted++;
+            const exerciseMins = activity?.exercises?.reduce((sum, e) => sum + (e.duration_minutes || 0), 0) || 0;
+            if (exerciseMins > 0) syncedCount++;
+        }
+        // 7. Weight
+        if (permissionsMap.weight) {
+            totalGranted++;
+            const profile = usePatientStore.getState().patient || {};
+            if (profile.weight_kg || activity?.weight) syncedCount++;
+        }
+        // 8. Blood Glucose
+        if (permissionsMap.glucose) {
+            totalGranted++;
+            if (vitals?.blood_glucose) syncedCount++;
+        }
+
+        const calculatedQuality = totalGranted === 0 ? 0 : Math.round((syncedCount / totalGranted) * 100);
+        setSyncQuality(calculatedQuality);
+    }, [permissionsMap, vitals, activity, sleepStr]);
     const [permissionsChecklistVisible, setPermissionsChecklistVisible] = useState(false);
     // Bento card configuration and customize states
     const [bentoCards, setBentoCards] = useState([
@@ -619,7 +673,6 @@ export default function HealthConnectSetupScreen({ navigation }) {
             
             setLastSyncStr('just now');
             setLastCheckedStr('just now');
-            setSyncQuality(Math.round(96 + Math.random() * 3));
             
             await loadSleepData();
             await usePatientStore.getState().fetchDashboard(true);
