@@ -28,6 +28,7 @@ const NotificationSchema = new mongoose.Schema(
                 'medication_alert',
                 'escalation_alert',
                 'shift_reminder',
+                'shift_nudge',
                 'report_ready',
                 'system_announcement',
                 'patient_update',
