@@ -1375,14 +1375,14 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
 
     if (patient.assigned_caller_id) {
       caller = await Caller.findById(patient.assigned_caller_id).select(
-        'name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id'
+        'name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id manager_id'
       );
     }
 
     // Populate manager data if assigned
     let manager = null;
+    const Profile = require('../../models/Profile');
     if (patient.assigned_manager_id) {
-      const Profile = require('../../models/Profile');
       manager = await Profile.findById(patient.assigned_manager_id).select(
         'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
       );
@@ -1393,17 +1393,48 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
         patient_ids: patient._id,
         is_active: true,
       }).select(
-        'name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id'
+        'name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id manager_id'
       );
       if (caller) {
+        // Sync both caller AND manager onto the patient record
+        const syncUpdate = { assigned_caller_id: caller._id };
+        if (caller.manager_id) {
+          syncUpdate.assigned_manager_id = caller.manager_id;
+          syncUpdate.care_manager_id = caller.manager_id;
+        }
         await Patient.updateOne(
           { _id: patient._id },
-          { $set: { assigned_caller_id: caller._id } }
+          { $set: syncUpdate }
         );
         req.patient = await Patient.findById(patient._id);
-        logger.info('Synced assigned_caller_id', {
+        logger.info('Synced assigned_caller_id and manager', {
           patientId: patient._id,
           callerId: caller._id,
+          managerId: caller.manager_id || null,
+        });
+
+        // Populate manager if we just synced it
+        if (!manager && caller.manager_id) {
+          manager = await Profile.findById(caller.manager_id).select(
+            'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
+          );
+        }
+      }
+    }
+
+    // Backfill: If caller exists but manager is still null, resolve from caller.manager_id
+    if (caller && !manager && caller.manager_id) {
+      manager = await Profile.findById(caller.manager_id).select(
+        'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
+      );
+      if (manager) {
+        await Patient.updateOne(
+          { _id: patient._id },
+          { $set: { assigned_manager_id: caller.manager_id, care_manager_id: caller.manager_id } }
+        );
+        logger.info('Backfilled assigned_manager_id from caller', {
+          patientId: patient._id,
+          managerId: caller.manager_id,
         });
       }
     }
