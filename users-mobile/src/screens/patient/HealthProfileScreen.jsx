@@ -66,6 +66,14 @@ import {
   Info,
   Clock,
   MapPin,
+  Shield,
+  Heart,
+  Scale,
+  Wine,
+  User,
+  Sprout,
+  MessageSquare,
+  MinusCircle,
 } from "lucide-react-native";
 import { StatusBar } from "react-native";
 import Svg, {
@@ -182,11 +190,13 @@ const ChipSelector = ({ options, selected, onSelect, vertical = false }) => (
           key={opt.value}
           style={[
             s.selectChip,
+            { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
             isSelected && s.selectChipActive,
             vertical && { width: "100%", marginBottom: 10 },
           ]}
           onPress={() => onSelect(opt.value)}
         >
+          {opt.icon && opt.icon(isSelected)}
           <Text style={[s.selectChipTxt, isSelected && s.selectChipTxtActive]}>
             {opt.label}
           </Text>
@@ -1028,6 +1038,94 @@ export default function HealthProfileScreen({ navigation }) {
       setShowDatePicker(false);
       setShowTimePicker(false);
     });
+  };
+
+  const inputLeftIcon = (IconComponent, color = "#8B5CF6", bg = "#FAF5FF") => (
+    <View style={{
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+    }}>
+      <IconComponent size={15} color={color} strokeWidth={2.5} />
+    </View>
+  );
+
+  const getModalTitle = (type) => {
+    const isEdit = !!formState._id;
+    const actionStr = isEdit ? "Update" : "Add";
+    
+    if (type === "gp") return t("health_profile.primary_physician", { defaultValue: "Doctor Details" });
+    if (type === "vitals") return "Height & Weight";
+    if (type === "habits") return "Lifestyle Habits";
+    if (type === "activity") return "Mobility & Exercise";
+    
+    const keyMap = {
+      condition: "Condition",
+      allergy: "Allergy",
+      medication: "Medication",
+      vaccination: "Vaccination",
+      history: "Medical History",
+      appointment: "Appointment",
+      contact: "Emergency Contact",
+      identity: "Medical Identity"
+    };
+    return `${actionStr} ${keyMap[type] || type}`;
+  };
+
+  const getModalSubtitle = (type) => {
+    const subtitleMap = {
+      condition: "Track your chronic conditions or illnesses",
+      allergy: "Keep your allergy information up to date",
+      medication: "Set your dosage and schedules",
+      vaccination: "Log immunizations and record dates",
+      history: "Track past surgeries and diagnoses",
+      appointment: "Plan doctor checkups and timings",
+      gp: "Doctor contact details for emergency reference",
+      vitals: "Track height and weight measurements",
+      habits: "Record alcohol or smoking details",
+      activity: "Update fitness levels and mobility aids",
+      identity: "Blood group and dietary restrictions",
+      contact: "Primary person for emergency notifications"
+    };
+    return subtitleMap[type] || "";
+  };
+
+  const getModalIcon = (type) => {
+    const iconSize = 20;
+    const iconColor = "#8B5CF6";
+    
+    switch (type) {
+      case "allergy":
+        return <Shield size={iconSize} color={iconColor} strokeWidth={2.5} />;
+      case "condition":
+        return <Activity size={iconSize} color="#EF4444" strokeWidth={2.5} />;
+      case "medication":
+        return <Pill size={iconSize} color="#3B82F6" strokeWidth={2.5} />;
+      case "vaccination":
+        return <Syringe size={iconSize} color="#10B981" strokeWidth={2.5} />;
+      case "history":
+        return <FileText size={iconSize} color="#F59E0B" strokeWidth={2.5} />;
+      case "appointment":
+        return <Calendar size={iconSize} color="#6366F1" strokeWidth={2.5} />;
+      case "gp":
+        return <Heart size={iconSize} color="#EC4899" strokeWidth={2.5} />;
+      case "vitals":
+        return <Scale size={iconSize} color="#06B6D4" strokeWidth={2.5} />;
+      case "habits":
+        return <Wine size={iconSize} color="#8B5CF6" strokeWidth={2.5} />;
+      case "activity":
+        return <TrendingUp size={iconSize} color="#10B981" strokeWidth={2.5} />;
+      case "identity":
+        return <User size={iconSize} color="#4F46E5" strokeWidth={2.5} />;
+      case "contact":
+        return <Phone size={iconSize} color="#10B981" strokeWidth={2.5} />;
+      default:
+        return null;
+    }
   };
 
   const getCollectionName = (type) => {
@@ -1873,12 +1971,21 @@ export default function HealthProfileScreen({ navigation }) {
   );
 
   const severityOptions = [
-    { label: t("health.mild", { defaultValue: "Mild" }), value: "mild" },
+    { 
+      label: t("health.mild", { defaultValue: "Mild" }), 
+      value: "mild",
+      icon: (selected) => <Sprout size={16} color={selected ? "#0F766E" : "#10B981"} strokeWidth={2.5} />
+    },
     {
       label: t("health.moderate", { defaultValue: "Moderate" }),
       value: "moderate",
+      icon: (selected) => <MinusCircle size={16} color={selected ? "#5B21B6" : "#8B5CF6"} strokeWidth={2.5} />
     },
-    { label: t("health.severe", { defaultValue: "Severe" }), value: "severe" },
+    { 
+      label: t("health.severe", { defaultValue: "Severe" }), 
+      value: "severe",
+      icon: (selected) => <AlertTriangle size={16} color={selected ? "#991B1B" : "#EF4444"} strokeWidth={2.5} />
+    },
   ];
   const statusOptions = [
     { label: t("health.active", { defaultValue: "Active" }), value: "active" },
@@ -3510,7 +3617,9 @@ export default function HealthProfileScreen({ navigation }) {
         {/* ── Dynamic Form Modal ── */}
         <PremiumFormModal
           visible={modalVisible}
-          title={`${formState._id ? t("common.edit", { defaultValue: "Edit" }) : t("common.update", { defaultValue: "Update" })} ${editingType === "gp" ? t("health_profile.primary_physician", { defaultValue: "Doctor Details" }) : ["vitals", "habits", "activity"].includes(editingType) ? t("health_profile.lifestyle", { defaultValue: "Lifestyle" }) : t(`health_profile.${editingType}`, { defaultValue: editingType })}`}
+          title={getModalTitle(editingType)}
+          subtitle={getModalSubtitle(editingType)}
+          icon={getModalIcon(editingType)}
           onClose={closeModal}
           onSave={handleSave}
           saveText={t("health_profile.save_profile_data", {
@@ -3550,6 +3659,7 @@ export default function HealthProfileScreen({ navigation }) {
                   placeholder={t("health_profile.condition_placeholder", {
                     defaultValue: "e.g. Type 2 Diabetes",
                   })}
+                  leftAccessory={inputLeftIcon(Activity, "#EF4444")}
                 />
               </View>
               <View style={s.formGroup}>
@@ -3582,7 +3692,36 @@ export default function HealthProfileScreen({ navigation }) {
                   placeholder={t("health_profile.notes_placeholder", {
                     defaultValue: "Write any personal notes here...",
                   })}
+                  leftAccessory={inputLeftIcon(MessageSquare, "#EF4444")}
                 />
+              </View>
+
+              {/* Tip Card */}
+              <View style={{
+                flexDirection: 'row',
+                backgroundColor: '#FAF5FF',
+                borderRadius: 20,
+                padding: 16,
+                alignItems: 'center',
+                gap: 12,
+                marginTop: 8,
+              }}>
+                <View style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: '#E8DFFA',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Sparkles size={16} color="#8B5CF6" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }}>Tip</Text>
+                  <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2, lineHeight: 16 }}>
+                    Be as specific as possible to help us keep you safe.
+                  </Text>
+                </View>
               </View>
             </>
           )}
@@ -3598,6 +3737,7 @@ export default function HealthProfileScreen({ navigation }) {
                   placeholder={t("health_profile.allergy_placeholder", {
                     defaultValue: "e.g. Peanuts, Penicillin",
                   })}
+                  leftAccessory={inputLeftIcon(Sprout)}
                 />
               </View>
               <View style={s.formGroup}>
@@ -3623,9 +3763,38 @@ export default function HealthProfileScreen({ navigation }) {
                   }
                   placeholder={t("health_profile.reaction_placeholder", {
                     defaultValue:
-                      "Describe the physical reaction (e.g., Hives, Anaphylaxis)",
+                      "Describe the physical reaction (e.g., Hives, Anaphylaxis, Breathing difficulty)",
                   })}
+                  leftAccessory={inputLeftIcon(MessageSquare)}
                 />
+              </View>
+
+              {/* Tip Card */}
+              <View style={{
+                flexDirection: 'row',
+                backgroundColor: '#FAF5FF',
+                borderRadius: 20,
+                padding: 16,
+                alignItems: 'center',
+                gap: 12,
+                marginTop: 8,
+              }}>
+                <View style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: '#E8DFFA',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Sparkles size={16} color="#8B5CF6" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }}>Tip</Text>
+                  <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2, lineHeight: 16 }}>
+                    Be as specific as possible to help us keep you safe.
+                  </Text>
+                </View>
               </View>
             </>
           )}

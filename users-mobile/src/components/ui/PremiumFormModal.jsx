@@ -16,7 +16,7 @@ import {
     Dimensions,
     PanResponder,
 } from 'react-native';
-import { X } from 'lucide-react-native';
+import { X, Save } from 'lucide-react-native';
 import { colors, radius, motion } from '../../theme';
 import ScalePressable from './ScalePressable';
 
@@ -46,6 +46,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PremiumFormModal = ({
     visible,
     title = 'Edit',
+    subtitle,
     onClose,
     onSave,
     saveText = 'Save',
@@ -223,16 +224,27 @@ const PremiumFormModal = ({
                     )}
 
                     {/* Header */}
-                    <View style={[styles.header, centered && styles.headerCentered, !centered && { paddingTop: 6 }]}>
+                    <View style={[
+                        styles.header,
+                        centered && styles.headerCentered,
+                        !centered && { paddingTop: 6, borderBottomWidth: 0 } // borderless flow as per design spec
+                    ]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
                             {icon && (
-                                <View style={styles.iconCircle}>
+                                <View style={[styles.iconCircle, { backgroundColor: '#FAF5FF', width: 44, height: 44, borderRadius: 22 }]}>
                                     {icon}
                                 </View>
                             )}
-                            <Text style={styles.title} numberOfLines={1}>
-                                {title}
-                            </Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.title} numberOfLines={1}>
+                                    {title}
+                                </Text>
+                                {subtitle && (
+                                    <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2, fontWeight: '500' }}>
+                                        {subtitle}
+                                    </Text>
+                                )}
+                            </View>
                         </View>
                         <View style={styles.headerActions}>
                             {headerRight}
@@ -241,7 +253,7 @@ const PremiumFormModal = ({
                                 style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
                                 hitSlop={12}
                             >
-                                <X size={22} color="#64748B" />
+                                <X size={20} color="#64748B" strokeWidth={2.5} />
                             </Pressable>
                         </View>
                     </View>
@@ -278,7 +290,10 @@ const PremiumFormModal = ({
                                 {saving ? (
                                     <ActivityIndicator color="#FFFFFF" size="small" />
                                 ) : (
-                                    <Text style={styles.saveBtnText}>{saveText}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                        <Save size={18} color="#FFFFFF" strokeWidth={2.5} />
+                                        <Text style={styles.saveBtnText}>{saveText}</Text>
+                                    </View>
                                 )}
                             </ScalePressable>
                         </View>
