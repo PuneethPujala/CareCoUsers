@@ -762,6 +762,45 @@ router.post('/me/prescriptions', authenticateSession, async (req, res) => {
       file_name: fileName,
     });
     await patient.save();
+
+    // In development mode, automatically simulate a caretaker review after 8 seconds
+    if (process.env.NODE_ENV === 'development') {
+      const savedRxId = patient.uploaded_prescriptions[patient.uploaded_prescriptions.length - 1]._id;
+      setTimeout(async () => {
+        try {
+          const freshPatient = await Patient.findById(patient._id);
+          if (freshPatient) {
+            const rx = freshPatient.uploaded_prescriptions.id(savedRxId);
+            if (rx && rx.status === 'pending') {
+              rx.status = 'reviewed';
+              rx.reviewed_by = 'Care AI Assistant';
+              rx.reviewed_at = new Date();
+              rx.reviewer_notes = 'Prescription verified. Added prescribed medications to care plan.';
+              await freshPatient.save();
+              logger.info('Simulated prescription auto-review completed in development', {
+                patientId: freshPatient._id,
+                prescriptionId: savedRxId,
+              });
+
+              // Send push notification if token is available
+              if (freshPatient.expo_push_token && freshPatient.push_notifications_enabled !== false) {
+                const PushNotificationService = require('../../utils/pushNotifications');
+                await PushNotificationService.sendPush(
+                  freshPatient.expo_push_token,
+                  'Prescription Reviewed! 📋',
+                  "Your doctor's slip has been successfully reviewed and verified by your care manager."
+                );
+              }
+            }
+          }
+        } catch (simErr) {
+          logger.error('Failed to run development simulated prescription auto-review', {
+            error: simErr.message,
+          });
+        }
+      }, 8000);
+    }
+
     res.status(201).json({
       message: 'Prescription uploaded successfully',
       uploaded_prescriptions: patient.uploaded_prescriptions,
