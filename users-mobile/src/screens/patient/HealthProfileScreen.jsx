@@ -3514,7 +3514,7 @@ export default function HealthProfileScreen({ navigation }) {
           onClose={closeModal}
           onSave={handleSave}
           saveText={t("health_profile.save_profile_data", {
-            defaultValue: "Save Profile Data",
+            defaultValue: "Save Changes",
           })}
           saving={isSaving}
           headerRight={
@@ -3646,6 +3646,9 @@ export default function HealthProfileScreen({ navigation }) {
                       placeholder={t("health_profile.select_height", {
                         defaultValue: "Select height",
                       })}
+                      rightAccessory={
+                        <ChevronDown size={18} color="#94A3B8" />
+                      }
                     />
                   </View>
                 </Pressable>
@@ -3665,6 +3668,9 @@ export default function HealthProfileScreen({ navigation }) {
                       placeholder={t("health_profile.select_weight", {
                         defaultValue: "Select weight",
                       })}
+                      rightAccessory={
+                        <ChevronDown size={18} color="#94A3B8" />
+                      }
                     />
                   </View>
                 </Pressable>

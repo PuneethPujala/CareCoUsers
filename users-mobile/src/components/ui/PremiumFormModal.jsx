@@ -14,9 +14,11 @@ import {
     Vibration,
     ActivityIndicator,
     Dimensions,
+    PanResponder,
 } from 'react-native';
 import { X } from 'lucide-react-native';
-import { colors, radius } from '../../theme';
+import { colors, radius, motion } from '../../theme';
+import ScalePressable from './ScalePressable';
 
 const FONT = {
     regular: { fontFamily: 'Inter', fontWeight: '400' },
@@ -57,14 +59,15 @@ const PremiumFormModal = ({
     const slideAnim = useRef(new Animated.Value(0)).current;
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const [keyboardHeight, setKeyboardHeight] = useState(0);
+    const panY = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         if (visible) {
+            panY.setValue(0);
             Animated.parallel([
                 Animated.spring(slideAnim, {
                     toValue: 1,
-                    friction: 8,
-                    tension: 65,
+                    ...motion.springSoft,
                     useNativeDriver: true,
                 }),
                 Animated.timing(backdropAnim, {
@@ -76,6 +79,7 @@ const PremiumFormModal = ({
         } else {
             slideAnim.setValue(0);
             backdropAnim.setValue(0);
+            panY.setValue(0);
         }
     }, [visible]);
 
@@ -109,6 +113,7 @@ const PremiumFormModal = ({
                 useNativeDriver: true,
             }),
         ]).start(() => {
+            panY.setValue(0);
             onClose?.();
         });
     };
@@ -117,6 +122,49 @@ const PremiumFormModal = ({
         Vibration.vibrate(40);
         onSave?.();
     };
+
+    // PanResponder to support interactive swipe down to dismiss
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                // Only trigger for vertical swipes down
+                return !centered && gestureState.dy > 5 && Math.abs(gestureState.dx) < 15;
+            },
+            onPanResponderMove: (_, gestureState) => {
+                if (gestureState.dy > 0) {
+                    panY.setValue(gestureState.dy);
+                }
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                if (gestureState.dy > 120 || gestureState.vy > 0.8) {
+                    Vibration.vibrate(30);
+                    Keyboard.dismiss();
+                    Animated.parallel([
+                        Animated.timing(slideAnim, {
+                            toValue: 0,
+                            duration: 180,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(backdropAnim, {
+                            toValue: 0,
+                            duration: 180,
+                            useNativeDriver: true,
+                        }),
+                    ]).start(() => {
+                        panY.setValue(0);
+                        onClose?.();
+                    });
+                } else {
+                    Animated.spring(panY, {
+                        toValue: 0,
+                        ...motion.springSoft,
+                        useNativeDriver: true,
+                    }).start();
+                }
+            },
+        })
+    ).current;
 
     // On Android, we manually handle keyboard offset via bottom padding
     const androidKeyboardPad = Platform.OS === 'android' ? keyboardHeight : 0;
@@ -138,14 +186,26 @@ const PremiumFormModal = ({
                     centered ? { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' } : { flex: 1, justifyContent: 'center' },
                     {
                         opacity: slideAnim,
-                        transform: [
-                            {
-                                scale: slideAnim.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [0.95, 1],
-                                }),
-                            },
-                        ],
+                        transform: centered
+                            ? [
+                                  {
+                                      scale: slideAnim.interpolate({
+                                          inputRange: [0, 1],
+                                          outputRange: [0.95, 1],
+                                      }),
+                                  },
+                              ]
+                            : [
+                                  {
+                                      translateY: Animated.add(
+                                          slideAnim.interpolate({
+                                              inputRange: [0, 1],
+                                              outputRange: [SCREEN_HEIGHT, 0],
+                                          }),
+                                          panY
+                                      ),
+                                  },
+                              ],
                     },
                 ]}
                 pointerEvents="box-none"
@@ -156,10 +216,14 @@ const PremiumFormModal = ({
                     androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 80 }
                 ]}>
                     {/* Top drag handle indicator for bottom sheets */}
-                    {!centered && <View style={styles.sheetHandle} />}
+                    {!centered && (
+                        <View {...panResponder.panHandlers} style={{ width: '100%', alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
+                            <View style={styles.sheetHandle} />
+                        </View>
+                    )}
 
                     {/* Header */}
-                    <View style={[styles.header, centered && styles.headerCentered, !centered && { paddingTop: 12 }]}>
+                    <View style={[styles.header, centered && styles.headerCentered, !centered && { paddingTop: 6 }]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
                             {icon && (
                                 <View style={styles.iconCircle}>
@@ -201,12 +265,13 @@ const PremiumFormModal = ({
                     {/* Sticky Save Button — always above keyboard */}
                     {onSave && (
                         <View style={[styles.stickyFooter, androidKeyboardPad > 0 && { paddingBottom: 12 }]}>
-                            <Pressable
+                            <ScalePressable
                                 onPress={handleSave}
                                 disabled={saving || saveDisabled}
-                                style={({ pressed }) => [
+                                pressScale={0.97}
+                                hapticType="selection"
+                                style={[
                                     styles.saveBtn,
-                                    pressed && styles.saveBtnPressed,
                                     (saving || saveDisabled) && styles.saveBtnDisabled,
                                 ]}
                             >
@@ -215,7 +280,7 @@ const PremiumFormModal = ({
                                 ) : (
                                     <Text style={styles.saveBtnText}>{saveText}</Text>
                                 )}
-                            </Pressable>
+                            </ScalePressable>
                         </View>
                     )}
                 </View>
