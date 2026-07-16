@@ -625,6 +625,9 @@ export default function PatientHomeScreen({ navigation }) {
   const [moodLogged, setMoodLogged] = useState(false);
   const [selectedMood, setSelectedMood] = useState(null);
   const [moodSaving, setMoodSaving] = useState(false);
+  // Ref guards optimistic mood state during save + settle window
+  // Prevents background fetches from resetting moodLogged before the mood propagates through the store
+  const moodSaveSettlingRef = useRef(false);
 
   // Sleep state
   const [estimatedSleep, setEstimatedSleep] = useState(null);
@@ -657,9 +660,12 @@ export default function PatientHomeScreen({ navigation }) {
         setSelectedMood(loggedToday.value || loggedToday.mood);
         thanksFadeAnim.setValue(1);
       } else {
-        setMoodLogged(false);
-        setSelectedMood(null);
-        moodFadeAnim.setValue(1);
+        // Don't reset optimistic mood state while a save is in-flight or settling
+        if (!moodSaveSettlingRef.current) {
+          setMoodLogged(false);
+          setSelectedMood(null);
+          moodFadeAnim.setValue(1);
+        }
       }
     } catch (e) {
       console.warn("Check daily mood error:", e.message);
@@ -670,6 +676,9 @@ export default function PatientHomeScreen({ navigation }) {
     if (moodSaving) return;
     setMoodSaving(true);
     HapticPatterns.log();
+
+    // Guard: protect optimistic state from background fetches until settled
+    moodSaveSettlingRef.current = true;
 
     // Optimistic state switch FIRST — React immediately renders the thanks view
     setMoodLogged(true);
@@ -700,12 +709,16 @@ export default function PatientHomeScreen({ navigation }) {
         // Delayed fetch to sync new live coach card data
         setTimeout(async () => {
           await fetchData(true);
+          // Mood has fully propagated through store + cache — safe to let checks run again
+          moodSaveSettlingRef.current = false;
         }, 1500);
       } else {
+        moodSaveSettlingRef.current = false;
         revertMoodCheckin();
       }
     } catch (err) {
       console.warn("Failed to log mood to backend:", err.message);
+      moodSaveSettlingRef.current = false;
       revertMoodCheckin();
     } finally {
       setMoodSaving(false);

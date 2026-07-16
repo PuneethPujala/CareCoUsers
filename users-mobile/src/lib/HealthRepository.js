@@ -17,102 +17,19 @@ class HealthRepository {
      */
     static async fetchAll(sinceTimestamp) {
         const since = sinceTimestamp || new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const source = Platform.OS === 'ios' ? 'healthkit' : 'health_connect';
 
+        let data = { vitals: [], activity: null, body: null };
         try {
             if (Platform.OS === 'android') {
-                return await AndroidHealthAdapter.fetchAll(since);
+                data = await AndroidHealthAdapter.fetchAll(since);
             } else if (Platform.OS === 'ios') {
-                return await IOSHealthAdapter.fetchAll(since);
+                data = await IOSHealthAdapter.fetchAll(since);
             }
         } catch (err) {
             console.error('HealthRepository fetchAll error:', err);
         }
 
-        return { vitals: [], activity: null, body: null };
-    }
-
-    /**
-     * Generates a realistic mock sync payload for development testing.
-     */
-    static generateDevMockPayload(since, source) {
-        const now = new Date();
-        const mockVitals = [];
-
-        for (let i = 0; i < 5; i++) {
-            const readingTime = new Date(now.getTime() - i * 12 * 60 * 1000);
-            mockVitals.push({
-                timestamp: readingTime.toISOString(),
-                heart_rate: Math.round(68 + Math.random() * 14),
-                oxygen_saturation: Math.round(97 + Math.random() * 3),
-                blood_pressure: {
-                    systolic: Math.round(112 + Math.random() * 12),
-                    diastolic: Math.round(72 + Math.random() * 10),
-                },
-                hydration: Math.round(50 + Math.random() * 20),
-                temperature: Math.round((97.8 + Math.random() * 1.2) * 10) / 10,
-                blood_glucose: Math.round(85 + Math.random() * 35),
-                respiratory_rate: Math.round(12 + Math.random() * 6),
-                metadata: {
-                    device_name: 'Mock Wearable',
-                    device_manufacturer: 'CareMyMed',
-                    device_model: 'Simulated v1',
-                    record_id: `mock-vital-${i}`,
-                    last_modified: now.toISOString(),
-                    timezone: 'Asia/Kolkata',
-                    recorded_at: readingTime.toISOString(),
-                },
-            });
-        }
-
-        const mockActivity = {
-            date: now.toISOString(),
-            steps: Math.round(4500 + Math.random() * 3000),
-            distance_meters: Math.round(3000 + Math.random() * 2000),
-            active_calories: Math.round(180 + Math.random() * 120),
-            total_calories: Math.round(1600 + Math.random() * 400),
-            floors_climbed: Math.round(3 + Math.random() * 5),
-            vo2_max: Math.round(40 + Math.random() * 5),
-            exercises: [
-                {
-                    type: 'running',
-                    start_time: new Date(now.getTime() - 45 * 60 * 1000).toISOString(),
-                    end_time: new Date(now.getTime() - 15 * 60 * 1000).toISOString(),
-                    duration_minutes: 30,
-                    calories: 220,
-                    distance_meters: 4200,
-                    avg_heart_rate: 145,
-                    source_id: 'mock-ex-1',
-                },
-            ],
-            metadata: {
-                device_name: 'Mock Wearable',
-                device_manufacturer: 'CareMyMed',
-                device_model: 'Simulated v1',
-                record_id: 'mock-activity-1',
-                last_modified: now.toISOString(),
-                timezone: 'Asia/Kolkata',
-                recorded_at: now.toISOString(),
-            },
-        };
-
-        const mockBody = {
-            date: now.toISOString(),
-            weight_kg: Math.round((72.5 + Math.random() * 1.5) * 10) / 10,
-            height_cm: 178,
-            body_fat_pct: Math.round((18.2 + Math.random() * 1.1) * 10) / 10,
-            metadata: {
-                device_name: 'Mock Smart Scale',
-                device_manufacturer: 'CareMyMed Scale',
-                device_model: 'Composition Pro',
-                record_id: 'mock-body-1',
-                last_modified: now.toISOString(),
-                timezone: 'Asia/Kolkata',
-                recorded_at: now.toISOString(),
-            },
-        };
-
-        return { vitals: mockVitals, activity: mockActivity, body: mockBody };
+        return data;
     }
 
     // ── History Methods ──
@@ -330,7 +247,7 @@ class AndroidHealthAdapter {
                 safeReadDaily('TotalCaloriesBurned'),
                 safeReadDaily('FloorsClimbed'),
                 safeRead('Vo2Max'),
-                safeRead('ExerciseSession'),
+                safeReadDaily('ExerciseSession'),
             ]);
 
             const activity = {
@@ -379,27 +296,34 @@ class AndroidHealthAdapter {
                 }));
             }
 
-            // Fallback to native hardware Pedometer if Health Connect steps are 0
+            // Fallback to native hardware Pedometer if Health Connect steps are 0.
+            // Reads real data from the device's built-in step-counter sensor (TYPE_STEP_COUNTER).
+            // ACTIVITY_RECOGNITION permission is requested during the HealthConnectSetupScreen
+            // onboarding flow (user-triggered context), so it should already be granted here.
             if (activity.steps === 0) {
                 try {
                     const { Pedometer } = require('expo-sensors');
                     const isPedometerAvailable = await Pedometer.isAvailableAsync();
                     if (isPedometerAvailable) {
                         const { status } = await Pedometer.getPermissionsAsync();
-                        let finalStatus = status;
-                        if (status !== 'granted') {
-                            const requestResult = await Pedometer.requestPermissionsAsync();
-                            finalStatus = requestResult.status;
-                        }
-                        if (finalStatus === 'granted') {
+                        if (status === 'granted') {
                             const pedometerResult = await Pedometer.getStepCountAsync(startOfToday, endTime);
-                            if (pedometerResult && typeof pedometerResult.steps === 'number') {
+                            if (pedometerResult && typeof pedometerResult.steps === 'number' && pedometerResult.steps > 0) {
                                 activity.steps = pedometerResult.steps;
+                                // Estimate distance and calories from step count when Health Connect has no data
                                 if (activity.distance_meters === 0) {
                                     activity.distance_meters = Math.round(activity.steps * 0.762);
                                 }
                                 if (activity.active_calories === 0) {
                                     activity.active_calories = Math.round(activity.steps * 0.04);
+                                }
+                                // Tag metadata to indicate source is device sensor, not Health Connect
+                                if (!primaryMeta) {
+                                    primaryMeta = {
+                                        device: 'Device Pedometer Sensor',
+                                        id: 'pedometer-fallback',
+                                        lastModifiedTime: endTime.toISOString(),
+                                    };
                                 }
                             }
                         }
@@ -615,7 +539,7 @@ class IOSHealthAdapter {
             const basalEnergyPromise = new Promise(r => AppleHealthKit.getBasalEnergyBurned(dailyOptions, (err, res) => r(err ? [] : res)));
             const flightsPromise = new Promise(r => AppleHealthKit.getFlightsClimbed(dailyOptions, (err, res) => r(err ? [] : res)));
             const vo2Promise = new Promise(r => AppleHealthKit.getVo2MaxSamples(options, (err, res) => r(err ? [] : res)));
-            const workoutsPromise = new Promise(r => AppleHealthKit.getSamples({ type: 'Workout', ...options }, (err, res) => r(err ? [] : res)));
+            const workoutsPromise = new Promise(r => AppleHealthKit.getSamples({ type: 'Workout', ...dailyOptions }, (err, res) => r(err ? [] : res)));
 
             const [steps, dist, actEnergy, basalEnergy, flights, vo2, workouts] = await Promise.all([
                 stepsPromise,

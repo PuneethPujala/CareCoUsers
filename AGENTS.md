@@ -180,6 +180,7 @@ Zustand store (`usePatientStore`) is the single source of truth for patient dash
 
 ### Security Notes
 
+- **No Mock Telemetry Data Policy**: Under no circumstances should mock, fake, or synthetic vital signs, step counts, exercise minutes, sleep durations, or other health telemetry data be generated, merged, or synced to the backend database. This policy applies to all environments including local development (`__DEV__`) and preview/testing channels to prevent database contamination. Real patients, caregiver dashboards, and anomaly/health score datasets must never contain fabricated readings. If mock data is required for local UI layout QA, it must be kept strictly in-memory on the client, watermarked as "PREVIEW DATA", and completely blocked from the API upload sync pipeline.
 - Screen capture is disabled for patients who have `allow_screenshots: false` in their profile.
 - A privacy overlay is shown when `appState === 'background'` (not `inactive` — iOS control center pull-down briefly sets `inactive` and should not trigger the overlay).
 - Sentry is initialized before any other code in `App.js`; PII (email, IP) is stripped in `beforeSend`.

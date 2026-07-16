@@ -28,6 +28,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
 
+const isStalePatient = (newPatient, currentPatient) => {
+    if (!newPatient || !currentPatient) return false;
+    const newTime = new Date(newPatient.updated_at || newPatient.updatedAt || 0).getTime();
+    const currTime = new Date(currentPatient.updated_at || currentPatient.updatedAt || 0).getTime();
+    return newTime < currTime;
+};
+
 /**
  * Derive a YYYY-MM-DD string in a given IANA timezone using Intl.
  * Used on the client side where moment-timezone is not available.
@@ -155,7 +162,18 @@ const usePatientStore = create((set, get) => ({
     newlyUnlockedAchievement: null,
     clearNewlyUnlockedAchievement: () => set({ newlyUnlockedAchievement: null }),
 
-    setPatient: (patient) => set({ patient }),
+    setPatient: (patient) => {
+        const current = get().patient;
+        if (current && isStalePatient(patient, current)) return;
+        set({ patient });
+        // Update client-side cache asynchronously so subsequent cached reads are fresh
+        getCache(CACHE_KEYS.HOME_DASHBOARD).then(cached => {
+            if (cached) {
+                cached.data.patient = patient;
+                setCache(CACHE_KEYS.HOME_DASHBOARD, cached.data, 60).catch(() => {});
+            }
+        }).catch(() => {});
+    },
     setCompanionSelectedPatientId: (id) => set({ companionSelectedPatientId: id }),
     setSyncState: (state) => set({ syncState: state }),
     setPendingSyncCount: (count) => set({ pendingSyncCount: count }),
@@ -334,13 +352,15 @@ const usePatientStore = create((set, get) => ({
                     }
                 }
 
+                const nextPatient = isStalePatient(freshPatient, get().patient) ? get().patient : freshPatient;
+
                 set(s => ({
-                    patient: freshPatient,
+                    patient: nextPatient,
                     vitals: freshVitals,
                     vitalsHistory: dashData.vitalsHistory || [],
                     aiPrediction: dashData.aiPrediction,
                     dashboardMeds: freshMeds,
-                    callPreferences: prefs,
+                    callPreferences: nextPatient?.medication_call_preferences || prefs,
                     adherenceDetails: s.adherenceDetails
                         ? { ...s.adherenceDetails, ...freshAdherenceDetails }
                         : freshAdherenceDetails,
@@ -354,7 +374,7 @@ const usePatientStore = create((set, get) => ({
                 }));
 
                 await setCache(CACHE_KEYS.HOME_DASHBOARD, {
-                    patient: freshPatient,
+                    patient: nextPatient,
                     vitals: freshVitals,
                     meds: freshMeds,
                     activity: dashData.activity || null,
@@ -366,11 +386,11 @@ const usePatientStore = create((set, get) => ({
                     vitals: freshVitals,
                     aiPrediction: dashData.aiPrediction,
                     adherenceDetails: dashData.adherence,
-                    patient: freshPatient,
+                    patient: nextPatient,
                     vitalsHistory: dashData.vitalsHistory || [],
                 });
 
-                return { patient: freshPatient, vitals: freshVitals, meds: freshMeds };
+                return { patient: nextPatient, vitals: freshVitals, meds: freshMeds };
             }
 
             // ── Legacy fallback: 6 parallel calls ───────────────────────
@@ -448,13 +468,15 @@ const usePatientStore = create((set, get) => ({
                 }
             }
 
+            const nextPatient = isStalePatient(freshPatient, get().patient) ? get().patient : freshPatient;
+
             set(s => ({
-                patient: freshPatient,
+                patient: nextPatient,
                 vitals: freshVitals,
                 vitalsHistory: vHistRes.data.vitals || [],
                 aiPrediction: aiRes.data.prediction,
                 dashboardMeds: freshMeds,
-                callPreferences: prefs,
+                callPreferences: nextPatient?.medication_call_preferences || prefs,
                 adherenceDetails: s.adherenceDetails
                     ? { ...s.adherenceDetails, ...freshAdherenceDetails }
                     : freshAdherenceDetails,
@@ -468,7 +490,7 @@ const usePatientStore = create((set, get) => ({
             }));
 
             await setCache(CACHE_KEYS.HOME_DASHBOARD, {
-                patient: freshPatient,
+                patient: nextPatient,
                 vitals: freshVitals,
                 meds: freshMeds,
                 activity: null,
@@ -480,11 +502,11 @@ const usePatientStore = create((set, get) => ({
                 vitals: freshVitals,
                 aiPrediction: aiRes.data.prediction,
                 adherenceDetails: adhRes.data,
-                patient: freshPatient,
+                patient: nextPatient,
                 vitalsHistory: vHistRes.data.vitals || [],
             });
 
-            return { patient: freshPatient, vitals: freshVitals, meds: freshMeds };
+            return { patient: nextPatient, vitals: freshVitals, meds: freshMeds };
         } catch (err) {
             console.warn('[Store] fetchDashboard error:', err.message);
             set({ loading: false });
@@ -499,7 +521,8 @@ const usePatientStore = create((set, get) => ({
             const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' };
 
             if (freshPatient?.subscription?.plan === 'free') {
-                set({ patient: freshPatient, callPreferences: prefs, loading: false });
+                const nextPatient = isStalePatient(freshPatient, get().patient) ? get().patient : freshPatient;
+                set({ patient: nextPatient, callPreferences: nextPatient?.medication_call_preferences || prefs, loading: false });
                 return;
             }
 
@@ -577,9 +600,11 @@ const usePatientStore = create((set, get) => ({
                 });
             }
 
+            const nextPatient = isStalePatient(freshPatient, get().patient) ? get().patient : freshPatient;
+
             set({
-                patient: freshPatient,
-                callPreferences: prefs,
+                patient: nextPatient,
+                callPreferences: nextPatient?.medication_call_preferences || prefs,
                 medicationSchedule: grouped,
                 weeklyAdherence: weeklyData,
                 loading: false,
@@ -587,7 +612,7 @@ const usePatientStore = create((set, get) => ({
                 _optimisticMeds: optRef,
             });
 
-            WidgetBridge.updateAllWidgets({ meds: mergedMeds, patient: freshPatient });
+            WidgetBridge.updateAllWidgets({ meds: mergedMeds, patient: nextPatient });
         } catch (err) {
             console.warn('[Store] fetchMedications error:', err.message);
             set({ loading: false });

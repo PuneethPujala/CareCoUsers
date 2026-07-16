@@ -20,9 +20,16 @@ class ActivityIngestionService {
       return { accepted: false, reason: 'Invalid date' };
     }
 
-    // Normalize date to start of day (midnight) to allow single document per patient per day
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    const Patient = require('../models/Patient');
+    const moment = require('moment-timezone');
+
+    const patient = await Patient.findById(patientId).select('timezone').lean();
+    const timezone = patient?.timezone || 'Asia/Kolkata';
+
+    // Normalize date to UTC midnight relative to the patient's local timezone.
+    // This matches how the dashboard query constructs todayUtc.
+    const localDayStr = moment(date).tz(timezone).format('YYYY-MM-DD');
+    const startOfDay = new Date(`${localDayStr}T00:00:00.000Z`);
 
     // Build update query
     const update = {

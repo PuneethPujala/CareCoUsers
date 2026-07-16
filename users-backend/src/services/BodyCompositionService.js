@@ -24,9 +24,13 @@ class BodyCompositionService {
       return { accepted: false, reason: 'Invalid date' };
     }
 
-    // Normalize date to day level for single daily composition snapshot
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    const moment = require('moment-timezone');
+    const patientObj = await Patient.findById(patientId).select('timezone').lean();
+    const timezone = patientObj?.timezone || 'Asia/Kolkata';
+
+    // Normalize date to UTC midnight relative to the patient's local timezone.
+    const localDayStr = moment(date).tz(timezone).format('YYYY-MM-DD');
+    const startOfDay = new Date(`${localDayStr}T00:00:00.000Z`);
 
     const doc = {
       patient_id: patientId,
