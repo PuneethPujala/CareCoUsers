@@ -58,8 +58,9 @@ async function getManagedCaretakerIds(managerId) {
  */
 async function getManagedPatientIds(managerId) {
     const caretakerIds = await getManagedCaretakerIds(managerId);
+    // Include the manager themselves so directly-assigned patients are visible
     const assignments = await CaretakerPatient.find({
-        caretakerId: { $in: caretakerIds },
+        caretakerId: { $in: [...caretakerIds, managerId] },
         status: 'active',
     }).select('patientId').lean();
     return [...new Set(assignments.map(a => a.patientId.toString()))].map(id => new mongoose.Types.ObjectId(id));
@@ -204,13 +205,21 @@ router.get('/dashboard', async (req, res) => {
             isActive: { $ne: false },
         });
 
-        // Unassigned patients
-        const assignedPatientIds = await CaretakerPatient.distinct('patientId', { status: 'active' });
-        const unassignedCount = totalOrgPatients - assignedPatientIds.length;
+        // Unassigned patients (scoped to THIS org only)
+        const allOrgPatientIds = [
+            ...(await Patient.find({ organization_id: orgId, is_active: true }).distinct('_id')),
+            ...(await Profile.find({ organizationId: orgId, role: 'patient', isActive: { $ne: false } }).distinct('_id')),
+        ];
+        const uniqueOrgPatientIds = [...new Set(allOrgPatientIds.map(id => id.toString()))];
+        const assignedInOrg = await CaretakerPatient.countDocuments({
+            patientId: { $in: uniqueOrgPatientIds },
+            status: 'active',
+        });
+        const unassignedCount = uniqueOrgPatientIds.length - assignedInOrg;
 
         // Total capacity and available slots
         const totalCapacity = activeCallers * MAX_PATIENTS_PER_CALLER;
-        const availableSlots = Math.max(0, totalCapacity - assignedPatientIds.length);
+        const availableSlots = Math.max(0, totalCapacity - assignedInOrg);
 
         // Patient growth rate (last 7 days)
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
