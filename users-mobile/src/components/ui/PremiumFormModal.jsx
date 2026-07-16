@@ -177,7 +177,7 @@ const PremiumFormModal = ({
             </TouchableWithoutFeedback>
 
             <KeyboardAvoidingView
-                style={[styles.sheetWrapper, { paddingHorizontal: 20 }, centered && styles.sheetWrapperCentered]}
+                style={[styles.sheetWrapper, centered ? { paddingHorizontal: 20 } : { paddingHorizontal: 0 }, centered && styles.sheetWrapperCentered]}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
             >
