@@ -760,26 +760,6 @@ export const fetchGranularVitals = async (sinceTimestamp) => {
     // (standalone O2/BP without HR are still valid, but HR is the primary metric)
     const filtered = readings.filter(r => r.heart_rate != null || r.oxygen_saturation != null);
 
-    // Development Mock Fallback: STRICTLY wrapped under __DEV__ check to prevent fake data in production
-    if (__DEV__ && filtered.length === 0) {
-        console.log('🧪 Health sync: [DEV ONLY] Generating high-fidelity vital readings...');
-        const now = Date.now();
-        // Generate a few samples over the last hour (e.g., 5 readings spaced 12 minutes apart)
-        for (let i = 0; i < 5; i++) {
-            const readingTime = new Date(now - i * 12 * 60 * 1000);
-            filtered.push({
-                timestamp: readingTime.toISOString(),
-                heart_rate: Math.round(70 + Math.random() * 12),
-                oxygen_saturation: Math.round(96 + Math.random() * 4),
-                blood_pressure: {
-                    systolic: Math.round(115 + Math.random() * 10),
-                    diastolic: Math.round(75 + Math.random() * 8),
-                },
-                hydration: Math.round(60 + Math.random() * 15),
-            });
-        }
-    }
-
     return filtered;
 };
 
@@ -844,30 +824,6 @@ export const fetchSleepSessions = async (sinceTimestamp) => {
         } catch (e) {
             console.error('Failed to fetch sleep sessions from HealthKit:', e);
         }
-    }
-
-    // Development Mock Fallback: STRICTLY wrapped under __DEV__ check to prevent fake data in production
-    if (__DEV__ && sessions.length === 0) {
-        console.log('🧪 Health sync: [DEV ONLY] Generating dynamic mock sleep session...');
-        
-        // Generate a sleep session from last night: yesterday 23:15 to today 07:27
-        const lastNightStart = new Date();
-        lastNightStart.setDate(lastNightStart.getDate() - 1);
-        lastNightStart.setHours(23, 15, 0, 0);
-
-        const lastNightEnd = new Date();
-        lastNightEnd.setHours(7, 27, 0, 0);
-
-        sessions.push({
-            startTime: lastNightStart.toISOString(),
-            endTime: lastNightEnd.toISOString(),
-            stages: [
-                { stage: 'deep', startTime: lastNightStart.toISOString(), endTime: new Date(lastNightStart.getTime() + 2 * 60 * 60 * 1000).toISOString() },
-                { stage: 'light', startTime: new Date(lastNightStart.getTime() + 2 * 60 * 60 * 1000).toISOString(), endTime: lastNightEnd.toISOString() }
-            ],
-            isMock: true,
-            source: 'development-mock'
-        });
     }
 
     return sessions;
