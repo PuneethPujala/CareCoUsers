@@ -186,13 +186,15 @@ CaretakerPatientSchema.statics.findActiveByCaretaker = function(caretakerId) {
   return this.find({
     caretakerId,
     status: 'active',
-    $or: [
-      { 'schedule.startDate': { $lte: new Date() } },
-      { 'schedule.startDate': { $exists: false } }
-    ],
-    $or: [
-      { 'schedule.endDate': { $gte: new Date() } },
-      { 'schedule.endDate': { $exists: false } }
+    $and: [
+      { $or: [
+        { 'schedule.startDate': { $lte: new Date() } },
+        { 'schedule.startDate': { $exists: false } }
+      ]},
+      { $or: [
+        { 'schedule.endDate': { $gte: new Date() } },
+        { 'schedule.endDate': { $exists: false } }
+      ]}
     ]
   }).populate('patientId', 'fullName email phone');
 };
@@ -202,13 +204,15 @@ CaretakerPatientSchema.statics.findActiveByPatient = function(patientId) {
   return this.find({
     patientId,
     status: 'active',
-    $or: [
-      { 'schedule.startDate': { $lte: new Date() } },
-      { 'schedule.startDate': { $exists: false } }
-    ],
-    $or: [
-      { 'schedule.endDate': { $gte: new Date() } },
-      { 'schedule.endDate': { $exists: false } }
+    $and: [
+      { $or: [
+        { 'schedule.startDate': { $lte: new Date() } },
+        { 'schedule.startDate': { $exists: false } }
+      ]},
+      { $or: [
+        { 'schedule.endDate': { $gte: new Date() } },
+        { 'schedule.endDate': { $exists: false } }
+      ]}
     ]
   }).populate('caretakerId', 'fullName email phone');
 };

@@ -69,12 +69,17 @@ async function reconcileUnassignedPatients(orgId, assignedById) {
             break;
         }
 
+        // Resolve the caller's care manager for dashboard visibility
+        const callerWithManager = await Profile.findById(bestCaller._id).select('managedBy').lean();
+        const resolvedManagerId = callerWithManager?.managedBy || assignedById;
+
         // Direct upsert — bypasses Profile-only validation in caretakerService
         await CaretakerPatient.findOneAndUpdate(
             { caretakerId: bestCaller._id, patientId: patient._id },
             {
                 caretakerId: bestCaller._id,
                 patientId: patient._id,
+                careManagerId: resolvedManagerId,
                 assignedBy: assignedById,
                 status: 'active',
                 notes: [{ 
@@ -90,11 +95,15 @@ async function reconcileUnassignedPatients(orgId, assignedById) {
         try {
             await Profile.findByIdAndUpdate(patient._id, {
                 caller_id: bestCaller._id,
-                assigned_caller_id: bestCaller._id
+                assigned_caller_id: bestCaller._id,
+                care_manager_id: resolvedManagerId,
+                assigned_manager_id: resolvedManagerId,
             });
             await Patient.findByIdAndUpdate(patient._id, {
                 caller_id: bestCaller._id,
-                assigned_caller_id: bestCaller._id
+                assigned_caller_id: bestCaller._id,
+                care_manager_id: resolvedManagerId,
+                assigned_manager_id: resolvedManagerId,
             });
         } catch (e) {
             console.error('[Reconciliation] Failed to mirror ID to patient:', e.message);
