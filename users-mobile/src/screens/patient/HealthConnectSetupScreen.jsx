@@ -1449,12 +1449,15 @@ export default function HealthConnectSetupScreen({ navigation }) {
                     </View>
 
                     {/* ── Privacy Info ──────────────────────────────── */}
-                    <View style={styles.privacySection}>
-                        <Lock size={14} color={colors.textMuted} />
-                        <Text style={styles.privacyText}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 20, paddingTop: 4 }}>
+                        <Lock size={14} color={'#9CA3AF'} />
+                        <Text style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 18, flex: 1 }}>
                             Your health metrics are encrypted end-to-end. CareMyMed only reads records to calculate real-time insights — we never modify your native records.
                         </Text>
                     </View>
+
+                    {/* Bottom spacer — ensures last content scrolls above the floating sync bar */}
+                    <View style={{ height: 100 }} />
                 </Animated.View>
                 </>
             )}
