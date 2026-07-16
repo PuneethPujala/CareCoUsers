@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useMotion } from '../../theme/MotionProvider';
 import { X } from 'lucide-react-native';
 
@@ -10,10 +10,8 @@ import { X } from 'lucide-react-native';
  * Built on @gorhom/bottom-sheet v5. Provides:
  * - Configurable multi-stop snap points
  * - Animated backdrop dimming
- * - Drag handle indicator
- * - Optional title bar with close button
+ * - z-index overlay above tab-bar and floating controls via BottomSheetModal Portal
  * - Reduce Motion graceful degradation
- * - Keyboard awareness (built-in)
  *
  * @param {boolean} isOpen — Whether the sheet is visible.
  * @param {function} onClose — Called when the sheet is dismissed.
@@ -38,9 +36,9 @@ export default function BottomSheetWrapper({
 
     useEffect(() => {
         if (isOpen) {
-            bottomSheetRef.current?.snapToIndex?.(0);
+            bottomSheetRef.current?.present();
         } else {
-            bottomSheetRef.current?.close?.();
+            bottomSheetRef.current?.dismiss();
         }
     }, [isOpen]);
 
@@ -69,9 +67,8 @@ export default function BottomSheetWrapper({
         : { style: styles.scrollContent };
 
     return (
-        <BottomSheet
+        <BottomSheetModal
             ref={bottomSheetRef}
-            index={isOpen ? 0 : -1}
             snapPoints={memoSnapPoints}
             onChange={handleSheetChanges}
             enablePanDownToClose={enablePanDownToClose}
@@ -98,7 +95,7 @@ export default function BottomSheetWrapper({
             <ContentWrapper {...contentWrapperProps}>
                 {children}
             </ContentWrapper>
-        </BottomSheet>
+        </BottomSheetModal>
     );
 }
 
