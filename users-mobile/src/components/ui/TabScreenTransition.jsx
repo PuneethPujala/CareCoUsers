@@ -11,6 +11,7 @@
  */
 
 import React, { useEffect } from 'react';
+import { View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import Animated, {
     useSharedValue,
@@ -20,20 +21,31 @@ import Animated, {
     interpolate,
 } from 'react-native-reanimated';
 import { reanimatedMotion } from '../../theme/reanimatedMotion';
+import { colors, useReduceMotion } from '../../theme';
 
 export default function TabScreenTransition({ children, style }) {
     const isFocused = useIsFocused();
+    const reduceMotion = useReduceMotion();
     const progress = useSharedValue(0);
 
     useEffect(() => {
         if (isFocused) {
-            progress.value = withSpring(1, reanimatedMotion.springs.gentle);
+            if (reduceMotion) {
+                // Instantly commit layout for accessibility
+                progress.value = 1;
+            } else {
+                // Defer transition by 1 frame to ensure parent background paints first
+                const handle = requestAnimationFrame(() => {
+                    progress.value = withSpring(1, reanimatedMotion.springs.gentle);
+                });
+                return () => cancelAnimationFrame(handle);
+            }
         } else {
-            progress.value = withTiming(0, {
+            progress.value = reduceMotion ? 0 : withTiming(0, {
                 duration: reanimatedMotion.durations.tap,
             });
         }
-    }, [isFocused, progress]);
+    }, [isFocused, reduceMotion, progress]);
 
     const animatedStyle = useAnimatedStyle(() => ({
         opacity: progress.value,
@@ -42,15 +54,17 @@ export default function TabScreenTransition({ children, style }) {
                 translateY: interpolate(
                     progress.value,
                     [0, 1],
-                    [reanimatedMotion.fadeUp.page, 0]
+                    [reduceMotion ? 0 : reanimatedMotion.fadeUp.page, 0]
                 ),
             },
         ],
     }));
 
     return (
-        <Animated.View style={[{ flex: 1 }, style, animatedStyle]}>
-            {children}
-        </Animated.View>
+        <View style={[{ flex: 1, backgroundColor: colors.background }, style]}>
+            <Animated.View style={[{ flex: 1 }, animatedStyle]}>
+                {children}
+            </Animated.View>
+        </View>
     );
 }

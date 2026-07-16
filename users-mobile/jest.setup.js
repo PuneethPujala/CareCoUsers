@@ -100,11 +100,17 @@ jest.mock('@shopify/react-native-skia', () => ({
 jest.mock('@gorhom/bottom-sheet', () => {
   const react = require('react');
   const { View } = require('react-native');
+  const MockView = react.forwardRef(({ children, ...props }, ref) => {
+    react.useImperativeHandle(ref, () => ({
+      present: jest.fn(),
+      dismiss: jest.fn(),
+    }));
+    return react.createElement(View, { ...props }, children);
+  });
   return {
     __esModule: true,
-    default: react.forwardRef(({ children, ...props }, ref) => {
-      return react.createElement(View, { ref, ...props }, children);
-    }),
+    default: MockView,
+    BottomSheetModal: MockView,
     BottomSheetScrollView: View,
     BottomSheetBackdrop: () => null,
     BottomSheetModalProvider: ({ children }) => children,

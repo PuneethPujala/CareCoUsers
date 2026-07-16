@@ -135,7 +135,7 @@ function PatientTabNavigator() {
     const fabBottom = dynamicBottom + layout.TAB_BAR_HEIGHT + 16;
     return (
         <View style={{ flex: 1 }}>
-            <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+            <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false, sceneContainerStyle: { backgroundColor: colors.background } }}>
                 <Tab.Screen name="PatientHome" component={PatientHomeScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
                 <Tab.Screen name="MyCaller" component={MyCallerScreen} options={{ tabBarIconComponent: Users }} />
                 <Tab.Screen name="Medications" component={MedicationsScreen} options={{ tabBarIconComponent: Pill }} />
@@ -149,7 +149,7 @@ function PatientTabNavigator() {
 
 function CompanionTabNavigator() {
     return (
-        <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+        <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false, sceneContainerStyle: { backgroundColor: colors.background } }}>
             <Tab.Screen name="CompanionDashboard" component={CompanionDashboardScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
             <Tab.Screen name="CompanionAlerts" component={CompanionAlertsScreen} options={{ tabBarIconComponent: Bell }} />
             <Tab.Screen name="CompanionChatList" component={CompanionChatListScreen} options={{ tabBarIconComponent: MessageSquare }} />
@@ -159,7 +159,7 @@ function CompanionTabNavigator() {
 }
 
 const CompanionMainStack = () => (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: "fade" }}>
         <Stack.Screen name="CompanionHome" component={CompanionHomeScreen} />
         <Stack.Screen name="CompanionTabs" component={CompanionTabNavigator} />
         <Stack.Screen name="CompanionAnalytics" component={CompanionAnalyticsScreen} />
@@ -171,7 +171,7 @@ const CompanionMainStack = () => (
 );
 
 const AuthStack = () => (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade", animationDuration: 300 }} initialRouteName="Login">
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: "fade", animationDuration: 300 }} initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="PatientSignup" component={PatientSignupScreen} />
         <Stack.Screen name="CompanionSignup" component={CompanionSignupScreen} />
@@ -182,13 +182,13 @@ const AuthStack = () => (
 );
 
 const PatientOnboardingStack = () => (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: "fade" }}>
         <Stack.Screen name="PatientSignupOnboarding" component={PatientSignupScreen} />
     </Stack.Navigator>
 );
 
 const MainAppStack = () => (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: "slide_from_right", animationDuration: 250 }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: "slide_from_right", animationDuration: 250 }}>
         <Stack.Screen name="PatientTabs" component={PatientTabNavigator} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="VitalsHistory" component={VitalsHistoryScreen} options={{ animation: "fade_from_bottom" }} />

@@ -10,6 +10,9 @@ jest.mock('lucide-react-native', () => {
   return {
     X: function XIcon() {
       return React.createElement(Text, { testID: 'close-icon' }, 'X');
+    },
+    Save: function SaveIcon() {
+      return React.createElement(Text, { testID: 'save-icon' }, 'Save');
     }
   };
 });

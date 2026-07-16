@@ -27,7 +27,8 @@ LogBox.ignoreLogs([
 ]);
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { colors } from './src/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/context/AuthContext';
 import { NetworkProvider } from './src/context/NetworkContext';
@@ -119,7 +120,17 @@ export default function App() {
                         <SecurityProvider>
                             <NetworkProvider>
                                 <AuthProvider>
-                                    <NavigationContainer linking={linking} ref={navigationRef}>
+                                    <NavigationContainer
+                                        linking={linking}
+                                        ref={navigationRef}
+                                        theme={{
+                                            ...DefaultTheme,
+                                            colors: {
+                                                ...DefaultTheme.colors,
+                                                background: __DEV__ ? '#FF0000' : colors.background,
+                                            },
+                                        }}
+                                    >
                                         <AppNavigator fontsLoaded={fontsLoaded} />
                                         <StatusBar style="light" />
                                     </NavigationContainer>
