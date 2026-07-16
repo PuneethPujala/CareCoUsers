@@ -30,13 +30,20 @@ class HealthRepository {
             console.error('HealthRepository fetchAll error:', err);
         }
 
-        const hasVitals = data && data.vitals && data.vitals.length > 0;
-        const hasActivity = data && data.activity !== null;
-        const hasBody = data && data.body !== null;
+        if (__DEV__) {
+            const hasVitals = data && data.vitals && data.vitals.length > 0;
+            const hasActivity = data && data.activity !== null;
+            const hasBody = data && data.body !== null;
 
-        if (__DEV__ && !hasVitals && !hasActivity && !hasBody) {
-            console.log('🧪 HealthRepository: [DEV ONLY] No real wearable data found. Generating mock payload...');
-            return this.generateDevMockPayload(since, source);
+            if (!hasVitals || !hasActivity || !hasBody) {
+                console.log('🧪 HealthRepository: [DEV ONLY] Merging missing wearable categories with mock payload.');
+                const mock = this.generateDevMockPayload(since, source);
+                return {
+                    vitals: hasVitals ? data.vitals : mock.vitals,
+                    activity: hasActivity ? data.activity : mock.activity,
+                    body: hasBody ? data.body : mock.body,
+                };
+            }
         }
 
         return data;
