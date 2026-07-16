@@ -55,12 +55,15 @@ jest.mock(
 jest.mock('../src/models/Patient', () => {
   const mockPatientModel = {
     findById: jest.fn().mockReturnValue({
-      select: jest.fn().mockResolvedValue({
-        _id: 'patient123',
-        name: 'John Doe',
-        height_cm: 180,
-        weight_kg: 75,
-        expo_push_token: 'test-token',
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: 'patient123',
+          name: 'John Doe',
+          height_cm: 180,
+          weight_kg: 75,
+          expo_push_token: 'test-token',
+          timezone: 'Asia/Kolkata',
+        }),
       }),
     }),
     findByIdAndUpdate: jest.fn().mockResolvedValue({}),

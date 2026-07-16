@@ -330,7 +330,7 @@ class AndroidHealthAdapter {
                 safeReadDaily('TotalCaloriesBurned'),
                 safeReadDaily('FloorsClimbed'),
                 safeRead('Vo2Max'),
-                safeRead('ExerciseSession'),
+                safeReadDaily('ExerciseSession'),
             ]);
 
             const activity = {
@@ -615,7 +615,7 @@ class IOSHealthAdapter {
             const basalEnergyPromise = new Promise(r => AppleHealthKit.getBasalEnergyBurned(dailyOptions, (err, res) => r(err ? [] : res)));
             const flightsPromise = new Promise(r => AppleHealthKit.getFlightsClimbed(dailyOptions, (err, res) => r(err ? [] : res)));
             const vo2Promise = new Promise(r => AppleHealthKit.getVo2MaxSamples(options, (err, res) => r(err ? [] : res)));
-            const workoutsPromise = new Promise(r => AppleHealthKit.getSamples({ type: 'Workout', ...options }, (err, res) => r(err ? [] : res)));
+            const workoutsPromise = new Promise(r => AppleHealthKit.getSamples({ type: 'Workout', ...dailyOptions }, (err, res) => r(err ? [] : res)));
 
             const [steps, dist, actEnergy, basalEnergy, flights, vo2, workouts] = await Promise.all([
                 stepsPromise,

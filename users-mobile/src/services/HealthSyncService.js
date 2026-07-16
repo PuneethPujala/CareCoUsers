@@ -347,6 +347,8 @@ class HealthSyncService {
                 totalAccepted,
                 totalDuplicates,
                 anomaliesDetected,
+                localActivity: data.activity,
+                localBody: data.body,
             };
 
             console.log(`✅ Health sync complete: ${totalAccepted} accepted, ${totalDuplicates} duplicates, ${anomaliesDetected} anomalies`);

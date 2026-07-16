@@ -643,7 +643,10 @@ export default function HealthConnectSetupScreen({ navigation }) {
 
         try {
             await trackSetupEvent('manual_sync_clicked');
-            await HealthSyncService.syncNow();
+            const syncResult = await HealthSyncService.syncNow();
+            if (syncResult?.localActivity) {
+                usePatientStore.setState({ activity: syncResult.localActivity });
+            }
             
             const formatTime = (d) => {
                 let hrs = d.getHours();
