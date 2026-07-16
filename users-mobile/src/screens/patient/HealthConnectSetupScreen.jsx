@@ -137,7 +137,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const trackSetupEvent = async (event, metadata = {}) => {
         try {
             await apiService.patients.flagIssue({
-                type: 'wearable_setup_telemetry',
+                type: 'other',
                 description: `Setup Telemetry: ${event}`,
                 metadata: {
                     event,
