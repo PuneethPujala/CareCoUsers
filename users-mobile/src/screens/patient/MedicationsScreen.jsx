@@ -2879,6 +2879,8 @@ export default function MedicationsScreen({ navigation }) {
           title={t("medications.call_preferences", {
             defaultValue: "Call Preferences",
           })}
+          subtitle="Choose your preferred medication check-in times"
+          icon={<Clock size={20} color="#6366F1" strokeWidth={2.5} />}
           onClose={() => setShowPrefModal(false)}
           onSave={handleSavePreferences}
           saveText={

@@ -1836,6 +1836,8 @@ export default function MyCallerScreen({ navigation }) {
             ? t("caller.edit_contact", { defaultValue: "Edit Contact" })
             : t("caller.new_contact", { defaultValue: "New Contact" })
         }
+        subtitle="Primary person for emergency notifications"
+        icon={<Users size={20} color="#EF4444" strokeWidth={2.5} />}
         onClose={closeContactModal}
         onSave={saveContact}
         saveText={
@@ -1971,6 +1973,8 @@ export default function MyCallerScreen({ navigation }) {
       <PremiumFormModal
         visible={flagIssueModalVisible}
         title={t("caller.flag_issue_title", { defaultValue: "Flag an Issue" })}
+        subtitle="Report issues with your caller to care managers"
+        icon={<AlertTriangle size={20} color="#EF4444" strokeWidth={2.5} />}
         onClose={() => setFlagIssueModalVisible(false)}
         onSave={submitFlagIssue}
         saveText={t("caller.submit_report", { defaultValue: "Submit Report" })}

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
 import { colors, radius, spacing, shadows, layout } from '../../theme';
-import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, Shield, MessageSquare, ArrowLeft, AlertCircle } from 'lucide-react-native';
+import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, Shield, MessageSquare, ArrowLeft, AlertCircle, FileText } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AlertManager from '../../utils/AlertManager';
@@ -657,6 +657,8 @@ export default function CompanionAlertsScreen() {
              <PremiumFormModal
                  visible={showLogsModal}
                  title="Activity & Logs History"
+                 subtitle="Timeline of recorded alerts and health events"
+                 icon={<FileText size={20} color="#8B5CF6" strokeWidth={2.5} />}
                  onClose={() => setShowLogsModal(false)}
              >
                  <View style={{ gap: 12 }}>

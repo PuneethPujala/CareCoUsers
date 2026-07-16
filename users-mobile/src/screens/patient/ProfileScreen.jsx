@@ -1371,6 +1371,8 @@ export default function PatientProfileScreen({ navigation }) {
             <PremiumFormModal
                 visible={phoneModalVisible}
                 title={t('profile.phone_number', { defaultValue: 'Phone Number' })}
+                subtitle="Keep your contact number secure and verified"
+                icon={<Phone size={20} color="#8B5CF6" strokeWidth={2.5} />}
                 onClose={() => setPhoneModalVisible(false)}
                 onSave={handleSavePhone}
                 saveText={saving ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.save_phone', { defaultValue: 'Save Phone' })}
@@ -1391,6 +1393,8 @@ export default function PatientProfileScreen({ navigation }) {
             <PremiumFormModal
                 visible={ecModalVisible}
                 title={t('profile.emergency_contact', { defaultValue: 'Emergency Contact' })}
+                subtitle="Primary person for emergency notifications"
+                icon={<Users size={20} color="#EF4444" strokeWidth={2.5} />}
                 onClose={() => setEcModalVisible(false)}
                 onSave={handleSaveEC}
                 saveText={requestingEcOTP ? t('common.saving', { defaultValue: 'Saving...' }) : t('caller.save_contact', { defaultValue: 'Save Contact' })}
@@ -1443,6 +1447,8 @@ export default function PatientProfileScreen({ navigation }) {
             <PremiumFormModal
                 visible={editAccountModalVisible}
                 title={t('profile.edit_profile', { defaultValue: 'Edit Profile' })}
+                subtitle="Update your full name and city"
+                icon={<User size={20} color="#3B82F6" strokeWidth={2.5} />}
                 onClose={() => setEditAccountModalVisible(false)}
                 onSave={handleSaveAccount}
                 saveText={savingAccount ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.save_profile', { defaultValue: 'Save Profile' })}
@@ -1456,6 +1462,8 @@ export default function PatientProfileScreen({ navigation }) {
             <PremiumFormModal
                 visible={cpModalVisible}
                 title="Change Password"
+                subtitle="Protect your account with a secure password"
+                icon={<LockIcon size={20} color="#10B981" strokeWidth={2.5} />}
                 onClose={() => setCpModalVisible(false)}
                 onSave={handleChangePassword}
                 saveText={savingCp ? t('common.changing', { defaultValue: 'Changing...' }) : t('profile.change_password', { defaultValue: 'Change Password' })}
@@ -1470,6 +1478,8 @@ export default function PatientProfileScreen({ navigation }) {
             <PremiumFormModal
                 visible={setPassModalVisible}
                 title={t('profile.set_password', { defaultValue: 'Set Password' })}
+                subtitle="Create a password to enable direct credentials login"
+                icon={<LockIcon size={20} color="#F59E0B" strokeWidth={2.5} />}
                 onClose={() => setSetPassModalVisible(false)}
                 onSave={handleSetPassword}
                 saveText={savingSetPass ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.set_password', { defaultValue: 'Set Password' })}
@@ -1483,12 +1493,13 @@ export default function PatientProfileScreen({ navigation }) {
             <PremiumFormModal
                 visible={screenshotOTPModalVisible}
                 title={t('profile.security_verification', { defaultValue: 'Security Verification' })}
+                subtitle="Enter verification code to change settings"
                 onClose={() => setScreenshotOTPModalVisible(false)}
                 onSave={handleVerifyScreenshotOTP}
                 saveText={verifyingScreenshotOTP ? t('common.verifying', { defaultValue: 'Verifying...' }) : t('profile.verify_setup', { defaultValue: 'Verify & Setup' })}
                 saving={verifyingScreenshotOTP}
                 centered={true}
-                icon={<ShieldCheck size={20} color="#2563EB" />}
+                icon={<ShieldCheck size={20} color="#8B5CF6" strokeWidth={2.5} />}
             >
                 <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
                     {pendingScreenshotSetting ? t('profile.screenshot_otp_allow', { defaultValue: 'Enter the 6-digit code sent to your email to allow screenshots.' }) : t('profile.screenshot_otp_block', { defaultValue: 'Enter the 6-digit code sent to your email to block screenshots.' })}
@@ -1507,12 +1518,13 @@ export default function PatientProfileScreen({ navigation }) {
             <PremiumFormModal
                 visible={ecOTPModalVisible}
                 title={t('profile.security_verification', { defaultValue: 'Security Verification' })}
+                subtitle="Enter verification code to save contact"
                 onClose={() => setEcOTPModalVisible(false)}
                 onSave={handleVerifyEcOTP}
                 saveText={verifyingEcOTP ? t('common.verifying', { defaultValue: 'Verifying...' }) : t('profile.verify_setup', { defaultValue: 'Verify & Setup' })}
                 saving={verifyingEcOTP}
                 centered={true}
-                icon={<LockIcon size={20} color="#2563EB" />}
+                icon={<LockIcon size={20} color="#8B5CF6" strokeWidth={2.5} />}
             >
                 <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
                     Enter the 6-digit code sent to your email to verify the emergency contact change.
@@ -1530,6 +1542,8 @@ export default function PatientProfileScreen({ navigation }) {
             <PremiumFormModal
                 visible={dobModalVisible}
                 title={t('profile.dob', { defaultValue: 'Date of Birth' })}
+                subtitle="Your biological date of birth for age calculation"
+                icon={<Calendar size={20} color="#6366F1" strokeWidth={2.5} />}
                 onClose={() => setDobModalVisible(false)}
                 onSave={handleSaveDob}
                 saveText={saving ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.save_dob', { defaultValue: 'Save Date of Birth' })}
