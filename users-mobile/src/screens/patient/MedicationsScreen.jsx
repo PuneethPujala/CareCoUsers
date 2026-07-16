@@ -2580,7 +2580,19 @@ export default function MedicationsScreen({ navigation }) {
                               >
                                 Added by {tm.addedByName || tm.addedByRole}{" "}
                                 <Text style={{ color: "#94A3B8" }}>
-                                  • Today
+                                  •{" "}
+                                  {(() => {
+                                    if (!tm.createdAt) return "Today";
+                                    const created = new Date(tm.createdAt);
+                                    const now = new Date();
+                                    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                    const createdDay = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+                                    const diffDays = Math.round((todayStart - createdDay) / 86400000);
+                                    if (diffDays === 0) return "Today";
+                                    if (diffDays === 1) return "Yesterday";
+                                    if (diffDays < 7) return `${diffDays} days ago`;
+                                    return created.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                  })()}
                                 </Text>
                               </Text>
                             </View>
