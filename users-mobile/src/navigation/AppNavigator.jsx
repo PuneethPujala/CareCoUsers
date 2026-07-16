@@ -417,9 +417,10 @@ export default function AppNavigator({ fontsLoaded }) {
             if (!user || !onboardingComplete) return;
             // Only register push tokens for patients — companions use a different API
             if (profile?.role === 'companion') return;
-            if (hasNotifiedForUserRef.current === user.id) return;
+            const setupKey = `${user.id}_${profile?.role || 'patient'}`;
+            if (hasNotifiedForUserRef.current === setupKey) return;
 
-            hasNotifiedForUserRef.current = user.id;
+            hasNotifiedForUserRef.current = setupKey;
 
             try {
                 const { token, granted, isNewGrant } = await registerForPushNotificationsAsync();
