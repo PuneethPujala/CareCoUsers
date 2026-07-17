@@ -512,8 +512,21 @@ export default function HealthConnectSetupScreen({ navigation }) {
             if (Platform.OS === 'android') {
                 const hasUsage = await sleepEstimation.hasUsageStatsPermission();
                 detailed.usageStats = hasUsage;
+                try {
+                    const { Pedometer } = require('expo-sensors');
+                    const isAvailable = await Pedometer.isAvailableAsync();
+                    if (isAvailable) {
+                        const { status: pedStatus } = await Pedometer.getPermissionsAsync();
+                        detailed.pedometer = pedStatus === 'granted';
+                    } else {
+                        detailed.pedometer = false;
+                    }
+                } catch (e) {
+                    detailed.pedometer = false;
+                }
             } else {
                 detailed.usageStats = true;
+                detailed.pedometer = true;
             }
             setPermissionsMap(detailed);
 
@@ -1136,7 +1149,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                     { key: 'sleep', label: 'Sleep (Wearable)', icon: <Moon size={14} color="#8B5CF6" /> },
                                     { key: 'usageStats', label: 'Phone Inactivity (Sleep fallback)', icon: <Smartphone size={14} color="#6366F1" /> },
                                     { key: 'oxygen', label: 'Oxygen Level', icon: <Wind size={14} color="#06B6D4" /> },
-                                    { key: 'steps', label: 'Steps', icon: <Activity size={14} color="#10B981" /> },
+                                    { key: 'steps', label: 'Steps (Health Connect)', icon: <Activity size={14} color="#10B981" /> },
+                                    { key: 'pedometer', label: 'Phone Step Sensor (Steps fallback)', icon: <Activity size={14} color="#10B981" /> },
                                     { key: 'exercise', label: 'Exercise', icon: <Flame size={14} color="#F59E0B" /> },
                                     { key: 'weight', label: 'Weight', icon: <Scale size={14} color="#6366F1" /> },
                                     { key: 'glucose', label: 'Blood Glucose', icon: <Droplet size={14} color="#EC4899" /> },
@@ -1163,6 +1177,21 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                                             }
                                                         ]
                                                     );
+                                                }
+                                            } else if (item.key === 'pedometer') {
+                                                if (!permissionsMap.pedometer) {
+                                                    try {
+                                                        const { Pedometer } = require('expo-sensors');
+                                                        const { status } = await Pedometer.requestPermissionsAsync();
+                                                        if (status === 'granted') {
+                                                            AlertManager.alert('Permission Granted', 'CareMyMed will now sync steps directly from your phone sensor.');
+                                                        }
+                                                        checkCurrentStatus();
+                                                    } catch (e) {
+                                                        console.warn('Failed to request pedometer permission:', e);
+                                                    }
+                                                } else {
+                                                    AlertManager.alert('Permission Enabled', 'Device step counter is active and will count steps when Health Connect data is unavailable.');
                                                 }
                                             } else {
                                                 openHealthSettings();
