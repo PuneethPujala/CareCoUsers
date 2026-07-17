@@ -659,7 +659,7 @@ PatientSchema.virtual('age').get(function () {
 });
 
 PatientSchema.virtual('active_medications').get(function () {
-  return this.medications.filter((m) => m.is_active);
+  return (this.medications || []).filter((m) => m.is_active);
 });
 
 // ── Methods ───────────────────────────────────────
