@@ -1,12 +1,12 @@
 /**
  * CareMyMed — BreathingOrb
  *
- * GPU-rendered breathing AI orb using React Native Skia.
+ * Pulse-rendered breathing AI orb using pure React Native Animated component.
  * Three concentric layers create a living, organic glow:
  *
- *   Core:       scale 1.00 → 1.04   (solid gradient fill)
+ *   Core:       scale 1.00 → 1.04   (solid background color)
  *   Inner glow: scale 1.00 → 1.18   (opacity 0.25 → 0.45)
- *   Outer glow: opacity  0.10 → 0.30 (large blur radius)
+ *   Outer glow: opacity  0.10 → 0.30 (large scale)
  *
  * Fully disabled when Reduce Motion is on (renders static).
  *
@@ -14,22 +14,9 @@
  *   <BreathingOrb size={80} />
  */
 
-import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Canvas, Circle, Group, Blur, RadialGradient, vec } from '@shopify/react-native-skia';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withRepeat,
-    withSequence,
-    withTiming,
-    Easing,
-    interpolate,
-    useAnimatedProps,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated, Easing } from 'react-native';
 import { useMotion } from '../../theme/MotionProvider';
-
-const BREATH_DURATION = 2800; // Full breath cycle (inhale + exhale)
 
 export default function BreathingOrb({
     size = 80,
@@ -38,103 +25,109 @@ export default function BreathingOrb({
     style,
 }) {
     const { reduceMotion } = useMotion();
-    const breath = useSharedValue(0);
+    const breathAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         if (reduceMotion) {
-            breath.value = 0;
+            breathAnim.setValue(0);
             return;
         }
 
-        breath.value = withRepeat(
-            withSequence(
-                withTiming(1, {
-                    duration: BREATH_DURATION / 2,
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(breathAnim, {
+                    toValue: 1,
+                    duration: 1400,
                     easing: Easing.inOut(Easing.sin),
+                    useNativeDriver: true,
                 }),
-                withTiming(0, {
-                    duration: BREATH_DURATION / 2,
+                Animated.timing(breathAnim, {
+                    toValue: 0,
+                    duration: 1400,
                     easing: Easing.inOut(Easing.sin),
-                })
-            ),
-            -1, // infinite
-            false
-        );
-    }, [reduceMotion, breath]);
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+    }, [reduceMotion]);
 
-    const center = size / 2;
-    const coreRadius = size * 0.28;
-    const innerGlowRadius = size * 0.38;
-    const outerGlowRadius = size * 0.48;
+    const coreSize = size * 0.56;
+    const innerGlowSize = size * 0.76;
+    const outerGlowSize = size * 0.96;
 
-    // Animate the wrapper view for scale (core layer)
-    const coreAnimatedStyle = useAnimatedStyle(() => {
-        const scale = interpolate(breath.value, [0, 1], [1.0, 1.04]);
-        return {
-            transform: [{ scale }],
-        };
+    // Animate scale & opacity
+    const coreScale = breathAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1.0, 1.04],
     });
 
-    // Inner glow scale + opacity
-    const innerGlowAnimatedStyle = useAnimatedStyle(() => {
-        const scale = interpolate(breath.value, [0, 1], [1.0, 1.18]);
-        const opacity = interpolate(breath.value, [0, 1], [0.25, 0.45]);
-        return {
-            transform: [{ scale }],
-            opacity,
-        };
+    const innerScale = breathAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1.0, 1.18],
     });
 
-    // Outer glow opacity
-    const outerGlowAnimatedStyle = useAnimatedStyle(() => {
-        const opacity = interpolate(breath.value, [0, 1], [0.10, 0.30]);
-        return { opacity };
+    const innerOpacity = breathAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.25, 0.45],
+    });
+
+    const outerOpacity = breathAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.10, 0.30],
     });
 
     const staticOpacity = reduceMotion ? 0.35 : undefined;
 
     return (
         <View style={[styles.container, { width: size, height: size }, style]}>
-            {/* Layer 3: Outer glow (largest, faintest) */}
-            <Animated.View style={[styles.absoluteFill, outerGlowAnimatedStyle, staticOpacity != null && { opacity: staticOpacity }]}>
-                <Canvas style={{ width: size, height: size }}>
-                    <Circle cx={center} cy={center} r={outerGlowRadius} opacity={0.5}>
-                        <RadialGradient
-                            c={vec(center, center)}
-                            r={outerGlowRadius}
-                            colors={[glowColor, 'transparent']}
-                        />
-                        <Blur blur={12} />
-                    </Circle>
-                </Canvas>
-            </Animated.View>
+            {/* Layer 3: Outer glow */}
+            <Animated.View
+                style={[
+                    styles.circle,
+                    {
+                        width: outerGlowSize,
+                        height: outerGlowSize,
+                        borderRadius: outerGlowSize / 2,
+                        backgroundColor: glowColor,
+                        opacity: staticOpacity ?? outerOpacity,
+                        transform: [{ scale: innerScale }],
+                    },
+                ]}
+            />
 
             {/* Layer 2: Inner glow */}
-            <Animated.View style={[styles.absoluteFill, innerGlowAnimatedStyle, staticOpacity != null && { opacity: 0.35 }]}>
-                <Canvas style={{ width: size, height: size }}>
-                    <Circle cx={center} cy={center} r={innerGlowRadius} opacity={0.7}>
-                        <RadialGradient
-                            c={vec(center, center)}
-                            r={innerGlowRadius}
-                            colors={[coreColors[0], 'transparent']}
-                        />
-                        <Blur blur={6} />
-                    </Circle>
-                </Canvas>
-            </Animated.View>
+            <Animated.View
+                style={[
+                    styles.circle,
+                    {
+                        width: innerGlowSize,
+                        height: innerGlowSize,
+                        borderRadius: innerGlowSize / 2,
+                        backgroundColor: coreColors[0],
+                        opacity: staticOpacity ?? innerOpacity,
+                        transform: [{ scale: innerScale }],
+                    },
+                ]}
+            />
 
-            {/* Layer 1: Core (solid gradient) */}
-            <Animated.View style={[styles.absoluteFill, coreAnimatedStyle]}>
-                <Canvas style={{ width: size, height: size }}>
-                    <Circle cx={center} cy={center} r={coreRadius}>
-                        <RadialGradient
-                            c={vec(center, center)}
-                            r={coreRadius}
-                            colors={coreColors}
-                        />
-                    </Circle>
-                </Canvas>
-            </Animated.View>
+            {/* Layer 1: Core */}
+            <Animated.View
+                style={[
+                    styles.circle,
+                    {
+                        width: coreSize,
+                        height: coreSize,
+                        borderRadius: coreSize / 2,
+                        backgroundColor: coreColors[1],
+                        transform: [{ scale: coreScale }],
+                        shadowColor: coreColors[1],
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 6,
+                        elevation: 4,
+                    },
+                ]}
+            />
         </View>
     );
 }
@@ -143,8 +136,9 @@ const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
         justifyContent: 'center',
+        position: 'relative',
     },
-    absoluteFill: {
-        ...StyleSheet.absoluteFillObject,
+    circle: {
+        position: 'absolute',
     },
 });

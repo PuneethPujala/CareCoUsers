@@ -584,10 +584,10 @@ const styles = StyleSheet.create({
     scoreBadgeLowVisibility: {
         bottom: -4,
         right: -8,
-        paddingHorizontal: 6,
-        paddingVertical: 3,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
         borderRadius: 8,
-        minWidth: 44,
+        minWidth: 48,
     },
     scoreText: {
         color: '#FFFFFF',
@@ -596,17 +596,15 @@ const styles = StyleSheet.create({
     },
     scoreTextLow: {
         color: '#FFFFFF',
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 'bold',
-        lineHeight: 11,
     },
     scoreBadgeEstimatedLabel: {
         color: '#FFFFFF',
-        fontSize: 6.5,
-        lineHeight: 8,
+        fontSize: 7,
         fontWeight: '800',
         textTransform: 'uppercase',
-        marginTop: 1,
+        marginTop: 2,
     },
     patientInfo: {
         flex: 1,

@@ -9,7 +9,7 @@ import usePatientStore from '../../store/usePatientStore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Svg, { Path, Circle as SvgCircle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Canvas, Circle as SkiaCircle, Blur, RadialGradient, vec } from '@shopify/react-native-skia';
+
 import ReanimatedAnimated, {
     useSharedValue as useReanimatedShared,
     useAnimatedStyle as useReanimatedStyle,
@@ -377,28 +377,30 @@ export default function CompanionDashboardScreen() {
     if (!data || !data.patient) {
         return (
             <View style={styles.container}>
-                {/* Skia Ambient Background Glows */}
+                {/* Ambient Background Glows */}
                 <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                    <Canvas style={{ flex: 1 }}>
-                        {/* Top-left indigo glow */}
-                        <SkiaCircle cx={width * 0.15} cy={120} r={180} opacity={0.12}>
-                            <RadialGradient
-                                c={vec(width * 0.15, 120)}
-                                r={180}
-                                colors={['#818CF8', 'transparent']}
-                            />
-                            <Blur blur={80} />
-                        </SkiaCircle>
-                        {/* Bottom-right purple glow */}
-                        <SkiaCircle cx={width * 0.85} cy={600} r={200} opacity={0.08}>
-                            <RadialGradient
-                                c={vec(width * 0.85, 600)}
-                                r={200}
-                                colors={['#C084FC', 'transparent']}
-                            />
-                            <Blur blur={100} />
-                        </SkiaCircle>
-                    </Canvas>
+                    {/* Top-left indigo glow */}
+                    <View style={{
+                        position: 'absolute',
+                        left: -50,
+                        top: 20,
+                        width: 250,
+                        height: 250,
+                        borderRadius: 125,
+                        backgroundColor: '#818CF8',
+                        opacity: 0.06,
+                    }} />
+                    {/* Bottom-right purple glow */}
+                    <View style={{
+                        position: 'absolute',
+                        right: -70,
+                        top: 450,
+                        width: 300,
+                        height: 300,
+                        borderRadius: 150,
+                        backgroundColor: '#C084FC',
+                        opacity: 0.04,
+                    }} />
                 </View>
 
                 <CompanionHeader
@@ -460,26 +462,30 @@ export default function CompanionDashboardScreen() {
     return (
         <TabScreenTransition>
             <View style={styles.container}>
-            {/* Skia Ambient Background Glows */}
+            {/* Ambient Background Glows */}
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <Canvas style={{ flex: 1 }}>
-                    <SkiaCircle cx={width * 0.15} cy={120} r={180} opacity={0.12}>
-                        <RadialGradient
-                            c={vec(width * 0.15, 120)}
-                            r={180}
-                            colors={['#818CF8', 'transparent']}
-                        />
-                        <Blur blur={80} />
-                    </SkiaCircle>
-                    <SkiaCircle cx={width * 0.85} cy={600} r={200} opacity={0.08}>
-                        <RadialGradient
-                            c={vec(width * 0.85, 600)}
-                            r={200}
-                            colors={['#C084FC', 'transparent']}
-                        />
-                        <Blur blur={100} />
-                    </SkiaCircle>
-                </Canvas>
+                {/* Top-left indigo glow */}
+                <View style={{
+                    position: 'absolute',
+                    left: -50,
+                    top: 20,
+                    width: 250,
+                    height: 250,
+                    borderRadius: 125,
+                    backgroundColor: '#818CF8',
+                    opacity: 0.06,
+                }} />
+                {/* Bottom-right purple glow */}
+                <View style={{
+                    position: 'absolute',
+                    right: -70,
+                    top: 450,
+                    width: 300,
+                    height: 300,
+                    borderRadius: 150,
+                    backgroundColor: '#C084FC',
+                    opacity: 0.04,
+                }} />
             </View>
 
             <CompanionHeader
