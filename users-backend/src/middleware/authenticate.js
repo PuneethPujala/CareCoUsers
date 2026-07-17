@@ -344,6 +344,12 @@ async function attachSupabaseUser(token, req) {
         isActive: true,
       });
       if (emailCompanion) {
+        // TODO: Technical Debt / Identity Alert:
+        // Overwriting companion.supabaseUid with the user's Google UID here results in
+        // both the Patient and Companion records sharing the same supabaseUid.
+        // Currently, this doesn't break authentication because the active JWT role claim (typ)
+        // determines which collection is queried. However, if supabaseUid is ever assumed
+        // to be globally unique across both collections in future logic, this will cause bugs.
         emailCompanion.supabaseUid = user.id;
         await emailCompanion.save();
         profile = await Companion.findById(emailCompanion._id);

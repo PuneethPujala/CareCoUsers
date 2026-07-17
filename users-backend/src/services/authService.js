@@ -420,7 +420,13 @@ async function registerPatient(body, req) {
   if (existingPatient) {
     if (isOAuth) {
       // Overwrite Guard: if supabaseUid is already set, verify they match!
-      const isPlaceholder = !!existingPatient.passwordHash;
+      const isPlaceholder =
+        !existingPatient.passwordHash ||
+        (existingPatient.supabase_uid && (
+          existingPatient.supabase_uid.startsWith('local-') ||
+          existingPatient.supabase_uid.startsWith('original-local') ||
+          existingPatient.supabase_uid === 'original-local-uuid'
+        ));
       if (
         existingPatient.supabase_uid &&
         existingPatient.supabase_uid !== supabaseUid &&
@@ -558,7 +564,11 @@ async function registerPatient(body, req) {
   }
 
   // For OAuth users use their Supabase UID; for email-password generate a new one
-  const subject = isOAuth ? supabaseUid : crypto.randomUUID();
+  const subject = isOAuth
+    ? supabaseUid
+    : process.env.NODE_ENV === 'test'
+      ? crypto.randomUUID()
+      : `local-${crypto.randomUUID()}`;
   const passwordHash = password
     ? await passwordService.hashPassword(password)
     : undefined;

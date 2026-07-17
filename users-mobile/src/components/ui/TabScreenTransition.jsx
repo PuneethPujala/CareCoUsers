@@ -30,20 +30,15 @@ export default function TabScreenTransition({ children, style }) {
 
     useEffect(() => {
         if (isFocused) {
-            if (reduceMotion) {
-                // Instantly commit layout for accessibility
-                progress.value = 1;
-            } else {
-                // Defer transition by 1 frame to ensure parent background paints first
-                const handle = requestAnimationFrame(() => {
-                    progress.value = withSpring(1, reanimatedMotion.springs.gentle);
-                });
-                return () => cancelAnimationFrame(handle);
-            }
+            progress.value = reduceMotion
+                ? 1
+                : withSpring(1, reanimatedMotion.springs.gentle);
         } else {
-            progress.value = reduceMotion ? 0 : withTiming(0, {
-                duration: reanimatedMotion.durations.tap,
-            });
+            progress.value = reduceMotion
+                ? 0
+                : withTiming(0, {
+                    duration: reanimatedMotion.durations.tap,
+                });
         }
     }, [isFocused, reduceMotion, progress]);
 
@@ -51,10 +46,10 @@ export default function TabScreenTransition({ children, style }) {
         opacity: progress.value,
         transform: [
             {
-                scale: interpolate(
+                translateY: interpolate(
                     progress.value,
                     [0, 1],
-                    [reduceMotion ? 1 : 0.98, 1]
+                    [reduceMotion ? 0 : reanimatedMotion.fadeUp.page, 0]
                 ),
             },
         ],
