@@ -184,7 +184,7 @@ const PremiumFormModal = ({
             >
               <Animated.View
                 style={[
-                    centered ? { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' } : { flex: 1, justifyContent: 'center' },
+                    centered ? { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' } : { flex: 1, justifyContent: 'flex-end' },
                     {
                         opacity: slideAnim,
                         transform: centered
@@ -227,7 +227,7 @@ const PremiumFormModal = ({
                     <View style={[
                         styles.header,
                         centered && styles.headerCentered,
-                        !centered && { paddingTop: 6, borderBottomWidth: 0 } // borderless flow as per design spec
+                        !centered && { paddingTop: 16, borderBottomWidth: 0 } // borderless flow as per design spec with safe padding to prevent rounded corner clipping
                     ]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
                             {icon && (
@@ -380,7 +380,6 @@ const styles = StyleSheet.create({
         fontSize: 20,
         ...FONT.bold,
         color: colors.textPrimary || '#0F172A',
-        flex: 1,
         letterSpacing: -0.4,
     },
     headerActions: {
