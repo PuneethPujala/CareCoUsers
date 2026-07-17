@@ -51,10 +51,10 @@ export default function TabScreenTransition({ children, style }) {
         opacity: progress.value,
         transform: [
             {
-                translateY: interpolate(
+                scale: interpolate(
                     progress.value,
                     [0, 1],
-                    [reduceMotion ? 0 : reanimatedMotion.fadeUp.page, 0]
+                    [reduceMotion ? 1 : 0.98, 1]
                 ),
             },
         ],

@@ -76,14 +76,23 @@ class PushNotificationService {
 
       const ticketId = ticket?.id;
       console.log(
-        `✅ Push notification sent to token: ${expoPushToken.substring(0, 30)}...`
+        `Push notification sent to token: ${expoPushToken.substring(0, 30)}...`
       );
       return { success: true, ticketId };
     } catch (error) {
-      console.error('❌ Push notification network error:', error.message);
+      console.error('Push notification network error:', error.message);
       return { success: false, reason: 'network_error', error: error.message };
     }
   }
+
+  /**
+   * Helper wrapper to map sendPushNotification calls to the base sendPush implementation.
+   * Resolves issues where weekly summaries and medicine supply warnings were failing.
+   */
+  static async sendPushNotification(expoPushToken, { title, body, data = {} }) {
+    return this.sendPush(expoPushToken, title, body, data);
+  }
+
 
   /**
    * Send a critical vital alert push notification to a patient.

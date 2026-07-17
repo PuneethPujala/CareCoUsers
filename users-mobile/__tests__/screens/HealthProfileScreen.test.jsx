@@ -119,6 +119,7 @@ jest.mock('lucide-react-native', () => {
     Info: () => React.createElement(View),
     Clock: () => React.createElement(View),
     MapPin: () => React.createElement(View),
+    HelpCircle: () => React.createElement(View),
   };
 });
 

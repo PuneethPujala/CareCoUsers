@@ -6,16 +6,52 @@ import { Platform } from 'react-native';
 import { getRandomTemplate, personalize } from './notificationTemplates';
 
 import AlertManager from './AlertManager';
+import { navigationRef } from '../lib/navigationRef';
+
 /**
  * Configure how notifications appear when the app is in the foreground.
+ * Includes context-aware suppression to silence duplicate alerts (e.g. chat messages
+ * when the user is already on the Chat screen).
  */
 Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-    }),
+    handleNotification: async (notification) => {
+        const type = notification.request.content.data?.type;
+
+        // Retrieve current active screen name safely
+        let currentScreen = null;
+        try {
+            if (navigationRef.current && navigationRef.current.isReady && navigationRef.current.isReady()) {
+                const currentRoute = navigationRef.current.getCurrentRoute();
+                currentScreen = currentRoute?.name;
+            }
+        } catch (e) {
+            console.warn('[notifications] Failed to read current navigation route name:', e.message);
+        }
+
+        // Strict suppression allowlist logic:
+        // Mute and hide chat_response notifications only if user is already inside a chat screen.
+        if (type === 'chat_response') {
+            if (currentScreen === 'Chatbot' || currentScreen === 'ChatHistory' || currentScreen === 'HealthCopilot') {
+                console.log('[notifications] Suppressing foreground chat notification (audio + visual muted)');
+                return {
+                    shouldShowAlert: false,
+                    shouldShowBanner: false,
+                    shouldShowList: false,
+                    shouldPlaySound: false,
+                    shouldSetBadge: false,
+                };
+            }
+        }
+
+        // All non-suppressed/schedule-critical notifications must alert the user fully.
+        return {
+            shouldShowAlert: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+        };
+    },
 });
 
 /**

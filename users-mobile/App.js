@@ -123,11 +123,15 @@ export default function App() {
                                     <NavigationContainer
                                         linking={linking}
                                         ref={navigationRef}
+                                        onReady={() => {
+                                            const { flushPendingNotifications } = require('./src/utils/NotificationRouter');
+                                            flushPendingNotifications();
+                                        }}
                                         theme={{
                                             ...DefaultTheme,
                                             colors: {
                                                 ...DefaultTheme.colors,
-                                                background: __DEV__ ? '#FF0000' : colors.background,
+                                                background: colors.background,
                                             },
                                         }}
                                     >

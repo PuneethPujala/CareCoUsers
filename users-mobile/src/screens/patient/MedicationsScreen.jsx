@@ -906,10 +906,11 @@ const TimePickerModal = ({ visible, onClose, onSave, initialTime }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 // ══ MAIN SCREEN ══════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
-export default function MedicationsScreen({ navigation }) {
+export default function MedicationsScreen({ navigation, route }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const patient = usePatientStore((s) => s.patient);
+
   const schedule = usePatientStore((s) => s.medicationSchedule);
   const adherence = usePatientStore((s) => s.weeklyAdherence);
   const preferences = usePatientStore((s) => s.callPreferences);
@@ -917,6 +918,36 @@ export default function MedicationsScreen({ navigation }) {
   const storeSavePrefs = usePatientStore((s) => s.saveCallPreferences);
   const storeOptimisticToggle = usePatientStore((s) => s.optimisticToggleMed);
   const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
+
+  // Handle notification deep linking/routing parameters
+  useEffect(() => {
+    if (route?.params && schedule) {
+      const { slot, focusMedicationId } = route.params;
+      console.log('[MedicationsScreen] Notification route params detected:', { slot, focusMedicationId });
+
+      if (focusMedicationId) {
+        // Search through all slots in the medication schedule
+        let foundMed = null;
+        for (const slotKey of Object.keys(schedule)) {
+          const med = (schedule[slotKey] || []).find(
+            (m) => m._id?.toString() === focusMedicationId?.toString()
+          );
+          if (med) {
+            foundMed = med;
+            break;
+          }
+        }
+
+        if (foundMed) {
+          console.log('[MedicationsScreen] Auto-focusing medication:', foundMed.name);
+          if (!foundMed.taken) {
+            setConfirmingMed(foundMed);
+            setIsConfirmVisible(true);
+          }
+        }
+      }
+    }
+  }, [route?.params, schedule]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -2812,59 +2843,7 @@ export default function MedicationsScreen({ navigation }) {
                       })}
                     </Text>
                     {patient.uploaded_prescriptions.map((up, idx) => (
-                      <View
-                        key={idx}
-                        style={[styles.uploadCard, { marginBottom: 8 }]}
-                      >
-                        <View
-                          style={[
-                            styles.uploadStatusBox,
-                            {
-                              backgroundColor:
-                                up.status === "reviewed"
-                                  ? "#DCFCE7"
-                                  : up.status === "rejected"
-                                    ? "#FEE2E2"
-                                    : "#FEF3C7",
-                            },
-                          ]}
-                        >
-                          {up.status === "reviewed" ? (
-                            <CheckCircle2 size={18} color="#16A34A" />
-                          ) : up.status === "rejected" ? (
-                            <X size={18} color="#DC2626" />
-                          ) : (
-                            <Clock size={18} color="#D97706" />
-                          )}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.uploadName}>
-                            {t("medications.doctors_slip", {
-                              defaultValue: "Doctor's Slip",
-                            })}
-                          </Text>
-                          <Text style={styles.uploadDate}>
-                            {new Date(up.uploaded_at).toLocaleDateString()}
-                          </Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.uploadStatus,
-                            {
-                              color:
-                                up.status === "reviewed"
-                                  ? "#16A34A"
-                                  : up.status === "rejected"
-                                    ? "#DC2626"
-                                    : "#D97706",
-                            },
-                          ]}
-                        >
-                          {t(`medications.status_${up.status}`, {
-                            defaultValue: up.status,
-                          })}
-                        </Text>
-                      </View>
+                      <UploadRow key={idx} upload={up} />
                     ))}
                   </View>
                 )}
@@ -3715,56 +3694,79 @@ export default function MedicationsScreen({ navigation }) {
 // ── Upload row helper ─────────────────────────────────────────────────────────
 function UploadRow({ upload }) {
   const { t } = useTranslation();
+  const status = upload.status || "pending";
+
+  let statusBg = "#FEF3C7";
+  let statusColor = "#D97706";
+  let statusText = t("medications.status_pending", { defaultValue: "Awaiting Review" });
+  let Icon = <Clock size={16} color="#D97706" />;
+
+  if (status === "in_review") {
+    statusBg = "#FFF3E0";
+    statusColor = "#EF6C00";
+    statusText = t("medications.status_in_review", { defaultValue: "In Review" });
+    Icon = <Clock size={16} color="#EF6C00" />;
+  } else if (status === "applied") {
+    statusBg = "#DCFCE7";
+    statusColor = "#16A34A";
+    statusText = t("medications.status_applied", { defaultValue: "Medications Scheduled" });
+    Icon = <CheckCircle2 size={16} color="#16A34A" />;
+  } else if (status === "reviewed") {
+    statusBg = "#ECFEFF";
+    statusColor = "#0891B2";
+    statusText = t("medications.status_reviewed", { defaultValue: "Reviewed (No Changes)" });
+    Icon = <CheckCircle2 size={16} color="#0891B2" />;
+  } else if (status === "rejected") {
+    statusBg = "#FEE2E2";
+    statusColor = "#DC2626";
+    statusText = t("medications.status_rejected", { defaultValue: "Rejected" });
+    Icon = <X size={16} color="#DC2626" />;
+  }
+
   return (
-    <View style={[styles.uploadCard, { marginBottom: 8 }]}>
-      <View
-        style={[
-          styles.uploadStatusBox,
-          {
-            backgroundColor:
-              upload.status === "reviewed"
-                ? "#DCFCE7"
-                : upload.status === "rejected"
-                  ? "#FEE2E2"
-                  : "#FEF3C7",
-          },
-        ]}
-      >
-        {upload.status === "reviewed" ? (
-          <CheckCircle2 size={16} color="#16A34A" />
-        ) : upload.status === "rejected" ? (
-          <X size={16} color="#DC2626" />
-        ) : (
-          <Clock size={16} color="#D97706" />
-        )}
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.uploadName}>
-          {t("medications.prescription_slip", {
-            defaultValue: "Prescription Slip",
-          })}
+    <View style={[styles.uploadCard, { marginBottom: 8, flexDirection: "column", alignItems: "stretch", padding: 14, gap: 6 }]}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View
+          style={[
+            styles.uploadStatusBox,
+            {
+              backgroundColor: statusBg,
+            },
+          ]}
+        >
+          {Icon}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.uploadName}>
+            {t("medications.prescription_slip", {
+              defaultValue: "Prescription Slip",
+            })}
+          </Text>
+          <Text style={styles.uploadDate}>
+            {new Date(upload.uploaded_at || upload.uploadedAt).toLocaleDateString()}
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.uploadStatus,
+            {
+              color: statusColor,
+            },
+          ]}
+        >
+          {statusText}
         </Text>
-        <Text style={styles.uploadDate}>
-          {new Date(upload.uploaded_at).toLocaleDateString()}
-        </Text>
       </View>
-      <Text
-        style={[
-          styles.uploadStatus,
-          {
-            color:
-              upload.status === "reviewed"
-                ? "#16A34A"
-                : upload.status === "rejected"
-                  ? "#DC2626"
-                  : "#D97706",
-          },
-        ]}
-      >
-        {t(`medications.status_${upload.status}`, {
-          defaultValue: upload.status,
-        })}
-      </Text>
+      {upload.reviewer_notes ? (
+        <View style={{ backgroundColor: "#F8FAFC", borderRadius: 8, padding: 10, marginTop: 4, borderWidth: 1, borderColor: "#E2E8F0" }}>
+          <Text style={{ fontSize: 11, color: "#64748B", fontWeight: "700" }}>
+            {t("medications.note_from_care_team", { defaultValue: "NOTE FROM CARE TEAM:" })}
+          </Text>
+          <Text style={{ fontSize: 13, color: "#334155", marginTop: 2, lineHeight: 18 }}>
+            {upload.reviewer_notes}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }

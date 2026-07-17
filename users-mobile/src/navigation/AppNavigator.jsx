@@ -26,6 +26,7 @@ import usePatientStore from '../store/usePatientStore';
 import NetInfo from '@react-native-community/netinfo';
 import OfflineSyncService from '../lib/OfflineSyncService';
 import { navigate } from '../lib/navigationRef';
+import { routeNotification, flushPendingNotifications } from '../utils/NotificationRouter';
 import GlobalSyncBanner from '../components/ui/GlobalSyncBanner';
 import AchievementCelebration from '../components/adherence/AchievementCelebration';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -367,20 +368,20 @@ export default function AppNavigator({ fontsLoaded }) {
                 return;
             }
 
-            const screen = content.data?.screen;
-            if (screen) {
-                console.log('📲 Navigate to:', screen);
-                navigate(screen);
+            const data = content.data;
+            if (data) {
+                console.log('📲 Navigate via NotificationRouter:', data);
+                routeNotification(data);
             }
         });
 
         // BUG 12 FIX: reject stale notifications older than STALE_NOTIFICATION_MS.
         Notifications.getLastNotificationResponseAsync().then(response => {
             if (response && !isStaleNotification(response)) {
-                const screen = response.notification.request.content.data?.screen;
-                if (screen) {
-                    console.log('🚀 Launched from notification, routing to:', screen);
-                    setTimeout(() => navigate(screen), 500);
+                const data = response.notification.request.content.data;
+                if (data) {
+                    console.log('🚀 Launched from notification, routing via Router:', data);
+                    setTimeout(() => routeNotification(data), 500);
                 }
             }
         });
@@ -446,6 +447,14 @@ export default function AppNavigator({ fontsLoaded }) {
 
         setupNotifications();
     }, [onboardingComplete, user, profile]);
+
+    // Flush pending notifications once navigator mounts and auth settles
+    useEffect(() => {
+        if (user) {
+            console.log('[AppNavigator] User authenticated, flushing pending notifications');
+            flushPendingNotifications();
+        }
+    }, [user, onboardingComplete]);
 
     const alertRef = useCallback((ref) => {
         if (ref) AlertManager.setRef(ref);

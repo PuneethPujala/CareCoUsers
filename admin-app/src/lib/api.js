@@ -214,6 +214,7 @@ export const apiService = {
       api.delete(`/patients/${id}/mentors/${mentorId}/revoke`, { data: { reason } }),
     getMentors: (id, params) => api.get(`/patients/${id}/mentors`, { params }),
     toggleMedication: (patientId, medId, dateString, timeString) => api.post(`/patients/${patientId}/medications/${medId}/toggle`, { date: dateString, time: timeString }),
+    reviewPrescription: (patientId, prescriptionId, data) => api.put(`/patients/${patientId}/prescriptions/${prescriptionId}`, data),
   },
 
   // Manager endpoints (Care Manager)

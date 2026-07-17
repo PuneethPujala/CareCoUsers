@@ -29,6 +29,7 @@ export default function PatientDetail({ route, navigation }) {
     const [medForm, setMedForm] = useState({ name: '', dosage: '', frequency: '', timePhase: 'morning' });
     const [uploadedPrescriptions, setUploadedPrescriptions] = useState([]);
     const [isExtracting, setIsExtracting] = useState(false);
+    const [currentPrescriptionId, setCurrentPrescriptionId] = useState(null);
 
     const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [], type: 'info' });
 
@@ -136,7 +137,8 @@ export default function PatientDetail({ route, navigation }) {
                 dosage: medForm.dosage,
                 frequency: medForm.frequency,
                 times: timePhaseArr,
-                scheduledTimes: timePhaseArr
+                scheduledTimes: timePhaseArr,
+                prescriptionId: currentPrescriptionId
             };
             if (editingMed) {
                 await apiService.caretaker.updateMedication(patientId, editingMed._id || editingMed.id, payload);
@@ -146,6 +148,7 @@ export default function PatientDetail({ route, navigation }) {
                 showAlert('Success', 'Medication added successfully.', 'success');
             }
             setShowMedModal(false);
+            setCurrentPrescriptionId(null);
             fetchData();
         } catch (err) {
             showAlert('Error', handleApiError(err).message, 'error');
@@ -154,8 +157,9 @@ export default function PatientDetail({ route, navigation }) {
         }
     };
 
-    const handleExtractOCR = async (fileUrl) => {
+    const handleExtractOCR = async (prescriptionId, fileUrl) => {
         setIsExtracting(true);
+        setCurrentPrescriptionId(prescriptionId);
         try {
             const res = await apiService.caretaker.extractPrescriptionOCR(patientId, fileUrl);
             const meds = res.data?.data?.medications || [];
@@ -176,6 +180,41 @@ export default function PatientDetail({ route, navigation }) {
             showAlert('OCR Error', handleApiError(err).message, 'error');
         } finally {
             setIsExtracting(false);
+        }
+    };
+
+    const handleManualReview = async (prescriptionId, status) => {
+        try {
+            setSubmitting(true);
+            let notes = '';
+            if (status === 'rejected') {
+                notes = await new Promise((resolve) => {
+                    Alert.prompt(
+                        "Reject Prescription",
+                        "Enter the reason for rejection (visible to patient):",
+                        [
+                            { text: "Cancel", onPress: () => resolve(null), style: "cancel" },
+                            { text: "Submit", onPress: (text) => resolve(text) }
+                        ],
+                        "plain-text"
+                    );
+                });
+                if (notes === null) {
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
+            await apiService.patients.reviewPrescription(patientId, prescriptionId, {
+                status,
+                reviewer_notes: notes
+            });
+            showAlert('Success', `Prescription marked as ${status}.`, 'success');
+            fetchData();
+        } catch (err) {
+            showAlert('Error', handleApiError(err).message, 'error');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -247,23 +286,84 @@ export default function PatientDetail({ route, navigation }) {
                         {uploadedPrescriptions && uploadedPrescriptions.length > 0 && (
                             <PremiumCard style={s.medsCard}>
                                 <Text style={s.contactTitle}>Uploaded Prescriptions</Text>
-                                {uploadedPrescriptions.map((presc, idx) => (
-                                    <View key={presc._id || presc.id || idx} style={[s.medRow, idx > 0 && s.medDivider]}>
-                                        <View style={s.medInfo}>
-                                            <Text style={s.medName}>Prescription {idx + 1}</Text>
-                                            <Text style={s.medDosage}>{new Date(presc.uploadedAt || presc.created_at).toLocaleDateString()}</Text>
+                                {uploadedPrescriptions.map((presc, idx) => {
+                                    const status = presc.status || 'pending';
+                                    const isEditable = ['pending', 'in_review'].includes(status);
+                                    
+                                    let statusColor = '#64748B'; // gray for pending
+                                    let statusBg = '#F1F5F9';
+                                    let statusText = 'Pending Review';
+                                    
+                                    if (status === 'in_review') {
+                                        statusColor = '#D97706'; // amber
+                                        statusBg = '#FEF3C7';
+                                        statusText = 'In Review';
+                                    } else if (status === 'applied') {
+                                        statusColor = '#059669'; // green
+                                        statusBg = '#D1FAE5';
+                                        statusText = 'Scheduled';
+                                    } else if (status === 'reviewed') {
+                                        statusColor = '#0891B2'; // teal
+                                        statusBg = '#CFFAFE';
+                                        statusText = 'Reviewed (No Changes)';
+                                    } else if (status === 'rejected') {
+                                        statusColor = '#DC2626'; // red
+                                        statusBg = '#FEE2E2';
+                                        statusText = 'Rejected';
+                                    }
+
+                                    return (
+                                        <View key={presc._id || presc.id || idx} style={[s.medRow, idx > 0 && s.medDivider, { flexDirection: 'column', alignItems: 'stretch', paddingVertical: 12, borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: '#F1F5F9' }]}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <View style={s.medInfo}>
+                                                    <Text style={s.medName}>Prescription {idx + 1}</Text>
+                                                    <Text style={s.medDosage}>{new Date(presc.uploadedAt || presc.uploaded_at || presc.created_at).toLocaleDateString()}</Text>
+                                                </View>
+                                                <View style={{ backgroundColor: statusBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                                                    <Text style={{ color: statusColor, fontSize: 10, fontWeight: '700' }}>{statusText.toUpperCase()}</Text>
+                                                </View>
+                                            </View>
+
+                                            {presc.reviewer_notes ? (
+                                                <Text style={{ fontSize: 12, color: Colors.textMuted, fontStyle: 'italic', marginTop: 4 }}>
+                                                    Notes: {presc.reviewer_notes}
+                                                </Text>
+                                            ) : null}
+
+                                            {isEditable && (
+                                                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                                                    <TouchableOpacity 
+                                                        onPress={() => handleExtractOCR(presc._id || presc.id, presc.file_url)} 
+                                                        style={[{ backgroundColor: Colors.primary, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 6, flex: 1, alignItems: 'center' }]}
+                                                        disabled={isExtracting}
+                                                    >
+                                                        {isExtracting && currentPrescriptionId === (presc._id || presc.id) ? (
+                                                            <ActivityIndicator size="small" color="#fff" />
+                                                        ) : (
+                                                            <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '600' }}>Extract with AI</Text>
+                                                        )}
+                                                    </TouchableOpacity>
+
+                                                    <TouchableOpacity 
+                                                        onPress={() => handleManualReview(presc._id || presc.id, 'reviewed')} 
+                                                        style={[{ backgroundColor: '#0891B2', borderRadius: 4, paddingHorizontal: 10, paddingVertical: 6, flex: 1, alignItems: 'center' }]}
+                                                        disabled={submitting}
+                                                    >
+                                                        <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '600' }}>No Changes</Text>
+                                                    </TouchableOpacity>
+
+                                                    <TouchableOpacity 
+                                                        onPress={() => handleManualReview(presc._id || presc.id, 'rejected')} 
+                                                        style={[{ backgroundColor: '#DC2626', borderRadius: 4, paddingHorizontal: 10, paddingVertical: 6, flex: 1, alignItems: 'center' }]}
+                                                        disabled={submitting}
+                                                    >
+                                                        <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '600' }}>Reject</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            )}
                                         </View>
-                                        <View style={s.medRowActions}>
-                                            <TouchableOpacity 
-                                                onPress={() => handleExtractOCR(presc.file_url)} 
-                                                style={[s.iconBtn, { backgroundColor: Colors.primary, borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 4 }]}
-                                                disabled={isExtracting}
-                                            >
-                                                {isExtracting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '600' }}>Extract with AI</Text>}
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                ))}
+                                    );
+                                })}
                             </PremiumCard>
                         )}
 

@@ -123,6 +123,8 @@ export default function PatientDetailScreen({ navigation, route }) {
     const [submitting, setSubmitting] = useState(false);
     const [uploadedPrescriptions, setUploadedPrescriptions] = useState([]);
     const [viewingPrescriptionUrl, setViewingPrescriptionUrl] = useState(null);
+    const [currentPrescriptionId, setCurrentPrescriptionId] = useState(null);
+    const [isExtracting, setIsExtracting] = useState(false);
 
     const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [], type: 'info' });
 
@@ -247,7 +249,8 @@ export default function PatientDetailScreen({ navigation, route }) {
                 scheduledTimes: combinedScheduledTimes,
                 startDate: editingMed ? (editingMed.startDate || new Date()) : new Date(),
                 takenLogs: updatedLogs,
-                takenDates: updatedDates
+                takenDates: updatedDates,
+                prescriptionId: currentPrescriptionId
             };
 
             if (editingMed) {
@@ -256,7 +259,72 @@ export default function PatientDetailScreen({ navigation, route }) {
                 await apiService.caretaker.addMedication(patientId, medData);
             }
             setShowMedModal(false);
+            setCurrentPrescriptionId(null);
             fetchPatient(); 
+        } catch (err) {
+            showAlert('Error', handleApiError(err).message, 'error');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleExtractOCR = async (prescriptionId, fileUrl) => {
+        setIsExtracting(true);
+        setCurrentPrescriptionId(prescriptionId);
+        try {
+            const res = await apiService.caretaker.extractPrescriptionOCR(patientId, fileUrl);
+            const meds = res.data?.data?.medications || [];
+            if (meds.length > 0) {
+                const first = meds[0];
+                setMedForm({
+                    name: first.name,
+                    dosage: first.dosage || '',
+                    frequency: first.frequency || 'Daily',
+                    timePhases: ['morning'],
+                    route: first.route || 'oral',
+                    instructions: first.instructions || '',
+                    withFood: false
+                });
+                setShowMedModal(true);
+                showAlert('OCR Success', `Extracted ${meds.length} medications. Added first one to the form.`, 'success');
+            } else {
+                showAlert('OCR Result', 'No medications could be confidently extracted from this image.', 'info');
+            }
+        } catch (err) {
+            showAlert('OCR Error', handleApiError(err).message, 'error');
+        } finally {
+            setIsExtracting(false);
+        }
+    };
+
+    const handleManualReview = async (prescriptionId, status) => {
+        try {
+            setSubmitting(true);
+            let notes = '';
+            if (status === 'rejected') {
+                notes = await new Promise((resolve) => {
+                    Alert.prompt(
+                        "Reject Prescription",
+                        "Enter the reason for rejection (visible to patient):",
+                        [
+                            { text: "Cancel", onPress: () => resolve(null), style: "cancel" },
+                            { text: "Submit", onPress: (text) => resolve(text) }
+                        ],
+                        "plain-text"
+                    );
+                });
+                if (notes === null) {
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
+            await apiService.patients.reviewPrescription(patientId, prescriptionId, {
+                status,
+                reviewer_notes: notes
+            });
+            showAlert('Success', `Prescription marked as ${status}.`, 'success');
+            fetchPatient();
         } catch (err) {
             showAlert('Error', handleApiError(err).message, 'error');
         } finally {
@@ -640,21 +708,92 @@ export default function PatientDetailScreen({ navigation, route }) {
                             <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 0, marginBottom: 0 }]}>Uploaded Prescriptions</Text>
                         </View>
                         <View style={{ gap: 10 }}>
-                            {uploadedPrescriptions.map((presc, idx) => (
-                                <View key={presc._id || presc.id || idx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                                    <View>
-                                        <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Prescription {idx + 1}</Text>
-                                        <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{new Date(presc.uploaded_at || presc.uploadedAt || presc.created_at).toLocaleDateString()}</Text>
+                            {uploadedPrescriptions.map((presc, idx) => {
+                                const status = presc.status || 'pending';
+                                const isEditable = ['pending', 'in_review'].includes(status);
+                                
+                                let statusColor = '#64748B'; // gray for pending
+                                let statusBg = '#F1F5F9';
+                                let statusText = 'Pending Review';
+                                
+                                if (status === 'in_review') {
+                                    statusColor = '#D97706'; // amber
+                                    statusBg = '#FEF3C7';
+                                    statusText = 'In Review';
+                                } else if (status === 'applied') {
+                                    statusColor = '#059669'; // green
+                                    statusBg = '#D1FAE5';
+                                    statusText = 'Scheduled';
+                                } else if (status === 'reviewed') {
+                                    statusColor = '#0891B2'; // teal
+                                    statusBg = '#CFFAFE';
+                                    statusText = 'Reviewed (No Changes)';
+                                } else if (status === 'rejected') {
+                                    statusColor = '#DC2626'; // red
+                                    statusBg = '#FEE2E2';
+                                    statusText = 'Rejected';
+                                }
+
+                                return (
+                                    <View key={presc._id || presc.id || idx} style={{ backgroundColor: '#FFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', gap: 8 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <View>
+                                                <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Prescription {idx + 1}</Text>
+                                                <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{new Date(presc.uploaded_at || presc.uploadedAt || presc.created_at).toLocaleDateString()}</Text>
+                                            </View>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                <View style={{ backgroundColor: statusBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                                    <Text style={{ color: statusColor, fontSize: 10, fontWeight: '700' }}>{statusText.toUpperCase()}</Text>
+                                                </View>
+                                                <TouchableOpacity 
+                                                    onPress={() => setViewingPrescriptionUrl(presc.file_url)} 
+                                                    style={{ backgroundColor: '#EEF2FF', padding: 8, borderRadius: 8 }}
+                                                >
+                                                    <Feather name="eye" size={14} color="#6366F1" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+
+                                        {presc.reviewer_notes ? (
+                                            <Text style={{ fontSize: 12, color: '#64748B', fontStyle: 'italic', marginTop: 2 }}>
+                                                Notes: {presc.reviewer_notes}
+                                            </Text>
+                                        ) : null}
+
+                                        {isEditable && (
+                                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                                                <TouchableOpacity 
+                                                    onPress={() => handleExtractOCR(presc._id || presc.id, presc.file_url)} 
+                                                    style={{ backgroundColor: '#6366F1', flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}
+                                                    disabled={isExtracting}
+                                                >
+                                                    {isExtracting && currentPrescriptionId === (presc._id || presc.id) ? (
+                                                        <ActivityIndicator size="small" color="#fff" />
+                                                    ) : (
+                                                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>Extract with AI</Text>
+                                                    )}
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity 
+                                                    onPress={() => handleManualReview(presc._id || presc.id, 'reviewed')} 
+                                                    style={{ backgroundColor: '#0891B2', flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}
+                                                    disabled={submitting}
+                                                >
+                                                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>No Changes</Text>
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity 
+                                                    onPress={() => handleManualReview(presc._id || presc.id, 'rejected')} 
+                                                    style={{ backgroundColor: '#DC2626', flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}
+                                                    disabled={submitting}
+                                                >
+                                                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>Reject</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
                                     </View>
-                                    <TouchableOpacity 
-                                        onPress={() => setViewingPrescriptionUrl(presc.file_url)} 
-                                        style={{ backgroundColor: '#6366F1', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                                    >
-                                        <Feather name="eye" size={14} color="#FFF" />
-                                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>View Prescription</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
+                                );
+                            })}
                         </View>
                     </View>
                 )}

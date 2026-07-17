@@ -583,7 +583,7 @@ router.put(
   async (req, res) => {
     try {
       const { status, reviewer_notes } = req.body;
-      if (!['reviewed', 'rejected', 'pending'].includes(status)) {
+      if (!['reviewed', 'rejected', 'pending', 'in_review', 'applied'].includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
       }
 
@@ -607,6 +607,31 @@ router.put(
       rx.reviewed_at = new Date();
 
       await patient.save();
+
+      // Send push notification to patient on status transition
+      if (patient.expo_push_token && patient.push_notifications_enabled !== false) {
+        let title = 'Prescription Status Update 📋';
+        let body = '';
+        if (status === 'reviewed') {
+          body = 'Your care team has reviewed your uploaded prescription. No schedule changes were required.';
+        } else if (status === 'rejected') {
+          //SURFACES notes directly to patient. notes should be professional and clear.
+          body = `Prescription review update: ${reviewer_notes || 'illegible or incorrect document uploaded'}.`;
+        } else if (status === 'applied') {
+          body = 'Your care team has updated your medications from your uploaded prescription.';
+        } else if (status === 'in_review') {
+          body = 'Your care team is now reviewing the prescription you uploaded.';
+        }
+
+        if (body) {
+          const PushNotificationService = require('../utils/pushNotifications');
+          PushNotificationService.sendPush(
+            patient.expo_push_token,
+            title,
+            body
+          ).catch(err => console.warn('Failed to send prescription status update push:', err));
+        }
+      }
 
       await logEvent(
         req.profile.supabaseUid,

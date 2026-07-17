@@ -372,12 +372,27 @@ const PatientSchema = new mongoose.Schema(
         file_name: String,
         status: {
           type: String,
-          enum: ['pending', 'reviewed', 'rejected'],
+          enum: ['pending', 'in_review', 'applied', 'reviewed', 'rejected'],
           default: 'pending',
         },
         uploaded_at: { type: Date, default: Date.now },
         reviewed_by: String,
         reviewer_notes: String,
+        extracted_meds: [
+          {
+            name: String,
+            dosage: String,
+            frequency: String,
+            duration: String,
+            confidence: Number,
+          },
+        ],
+        associated_medication_ids: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Medication',
+          },
+        ],
       },
     ],
     trusted_contacts: [

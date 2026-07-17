@@ -151,22 +151,20 @@ async function runWeeklySummaries() {
         patient_id: patient._id,
         title: '✨ Your Weekly Care Summary is Ready!',
         message: generated.summary_text,
-        type: 'info',
-        target_screen: 'Dashboard', // Or MedicationsScreen
+        type: 'system',
+        target_screen: 'Medications',
       });
 
       // Assuming patient object needs to be a mongoose document for PushNotificationService
       const patientDoc = await Patient.findById(patient._id);
       try {
-        // We reuse an existing alert function or build a simple generic one.
-        // Assuming PushNotificationService has sendPushNotification
         if (patientDoc.expo_push_token) {
           await PushNotificationService.sendPushNotification(
             patientDoc.expo_push_token,
             {
               title: '✨ Your Weekly Care Summary is Ready!',
               body: generated.encouragement_text,
-              data: { screen: 'Dashboard' },
+              data: { screen: 'Medications', type: 'weekly_summary' },
             }
           );
         }
@@ -176,6 +174,7 @@ async function runWeeklySummaries() {
           err.message
         );
       }
+
 
       console.log(
         `[WeeklySummaryJob] Successfully generated summary for ${patient.name}`

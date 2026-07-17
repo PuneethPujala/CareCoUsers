@@ -52,6 +52,7 @@ import {
   ChevronDown,
   Upload,
   Siren,
+  HelpCircle,
   ChevronRight,
   TrendingUp,
   TrendingDown,
@@ -2167,9 +2168,22 @@ export default function HealthProfileScreen({ navigation }) {
                   defaultValue: "HEALTH VAULT",
                 })}
               </Text>
-              <Text style={s.headerTitle}>
-                {t("health_profile.my_records", { defaultValue: "My Records" })}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={s.headerTitle}>
+                  {t("health_profile.my_records", { defaultValue: "My Records" })}
+                </Text>
+                <Pressable
+                  style={s.helpBtn}
+                  onPress={() => {
+                    triggerHapticSelection();
+                    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                    setShowProfileTour(true);
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <HelpCircle size={18} color="#7C3AED" strokeWidth={2.5} />
+                </Pressable>
+              </View>
               <Text
                 style={{
                   fontSize: 13,
@@ -7143,6 +7157,15 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  helpBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
   },
   headerEyebrow: {
     fontSize: 13,
