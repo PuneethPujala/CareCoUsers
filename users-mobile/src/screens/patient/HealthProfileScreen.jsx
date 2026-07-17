@@ -2545,7 +2545,7 @@ export default function HealthProfileScreen({ navigation }) {
                         <Text
                           style={[
                             s.dashScoreSub,
-                            { color: "#94A3B8", fontSize: 12, marginLeft: 6 },
+                            { color: "#94A3B8", fontSize: 12, marginLeft: 6, flexShrink: 1 },
                           ]}
                         >
                           Complete profile to unlock
