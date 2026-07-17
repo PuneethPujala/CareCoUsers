@@ -308,6 +308,46 @@ router.post('/',
         });
       }
 
+      // Auto-assign least loaded care manager to new caller
+      // CONCURRENCY NOTE: This workload query is subject to concurrency race conditions (e.g., if multiple callers 
+      // are created in parallel during bulk CSV import scripts or rapid loop requests). In such loops, multiple 
+      // callers might resolve and be assigned to the same manager. We deliberately accept this trade-off for simplicity 
+      // here because this is a low-throughput administrative action where the blast radius of a race is a workload 
+      // imbalance (one manager gets 6 callers instead of 5), unlike patient onboarding which has clinical safety stakes.
+      let assignedManagerId = null;
+      if (role === 'caller' && organizationId) {
+        try {
+          const managers = await Profile.find({
+            organizationId: organizationId,
+            role: 'care_manager',
+            isActive: true
+          }).select('_id');
+
+          if (managers.length > 0) {
+            const managerIds = managers.map(m => m._id);
+            const workloads = await Profile.aggregate([
+              { $match: { managedBy: { $in: managerIds }, role: 'caller', isActive: true } },
+              { $group: { _id: '$managedBy', count: { $sum: 1 } } }
+            ]);
+
+            const workloadMap = {};
+            workloads.forEach(w => {
+              workloadMap[String(w._id)] = w.count;
+            });
+
+            managers.sort((a, b) => {
+              const countA = workloadMap[String(a._id)] || 0;
+              const countB = workloadMap[String(b._id)] || 0;
+              return countA - countB;
+            });
+
+            assignedManagerId = managers[0]._id;
+          }
+        } catch (err) {
+          console.warn('[CreateProfile] Failed to resolve manager for caller:', err.message);
+        }
+      }
+
       // Create profile
       const profile = new Profile({
         supabaseUid,
@@ -315,6 +355,7 @@ router.post('/',
         fullName,
         role,
         organizationId: organizationId || null,
+        managedBy: assignedManagerId || null,
         phone: phone || null,
         avatarUrl: avatarUrl || null,
         metadata: metadata || {},
