@@ -152,15 +152,17 @@ async function activateCoverageForOrg(orgId, shift, dayStart, dayEnd) {
 
     if (absentCallers.length === 0) return; // All callers are active
 
-    // 4. Get active callers (the ones who HAVE made calls)
-    const activeCallers = allCallers.filter(c => activeCallerSet.has(c._id.toString()));
-    if (activeCallers.length === 0) {
-        // ALL callers are absent — notify care manager but can't redistribute
-        await notifyCareManagerAllAbsent(orgId, absentCallers.length, shift);
-        return;
+    // 4. Group absent callers by their care manager (managedBy)
+    //    so we redistribute ONLY within the same manager's pool
+    const absentByManager = {};
+    for (const caller of absentCallers) {
+        const mgrKey = caller.managedBy ? caller.managedBy.toString() : 'unmanaged';
+        if (!absentByManager[mgrKey]) absentByManager[mgrKey] = [];
+        absentByManager[mgrKey].push(caller);
     }
 
-    // 5. Get current patient counts for active callers (for load balancing)
+    // 5. Get current patient counts for ALL active callers (for load balancing)
+    const activeCallers = allCallers.filter(c => activeCallerSet.has(c._id.toString()));
     const countAgg = await CaretakerPatient.aggregate([
         { $match: { caretakerId: { $in: activeCallers.map(c => c._id) }, status: 'active' } },
         { $group: { _id: '$caretakerId', count: { $sum: 1 } } },
@@ -168,107 +170,142 @@ async function activateCoverageForOrg(orgId, shift, dayStart, dayEnd) {
     const countMap = {};
     countAgg.forEach(c => { countMap[c._id.toString()] = c.count; });
 
-    const callerSlots = activeCallers.map(c => ({
-        id: c._id,
-        name: c.fullName,
-        count: countMap[c._id.toString()] || 0,
-    }));
+    // 6. Process each manager group independently
+    for (const [mgrKey, managerAbsentCallers] of Object.entries(absentByManager)) {
+        const managerId = mgrKey !== 'unmanaged' ? new mongoose.Types.ObjectId(mgrKey) : null;
 
-    // 6. For each absent caller, redistribute their patients
-    for (const absentCaller of absentCallers) {
-        const absentEventKey = `failover_${absentCaller._id}_${shift}`;
-        if (await alreadyHandled(absentEventKey)) continue;
+        // Find active callers under the SAME manager only
+        const sameManagerActiveCallers = activeCallers.filter(c => {
+            const callerMgr = c.managedBy ? c.managedBy.toString() : 'unmanaged';
+            return callerMgr === mgrKey;
+        });
 
-        const assignments = await CaretakerPatient.find({
-            caretakerId: absentCaller._id,
-            status: 'active',
-            isTemporary: { $ne: true },
-        }).select('patientId').lean();
-
-        const patientIds = assignments.map(a => a.patientId);
-        if (patientIds.length === 0) continue;
-
-        // Check if patients already have temp coverage today
-        const existingTemp = await CaretakerPatient.find({
-            patientId: { $in: patientIds },
-            isTemporary: true,
-            createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-        }).select('patientId').lean();
-        const alreadyCoveredSet = new Set(existingTemp.map(t => t.patientId.toString()));
-
-        const uncoveredPatients = patientIds.filter(id => !alreadyCoveredSet.has(id.toString()));
-        if (uncoveredPatients.length === 0) continue;
-
-        // 7. Round-robin distribute to active callers
-        let assignedCount = 0;
-        const coveringCallerIds = new Set();
-
-        for (const patientId of uncoveredPatients) {
-            callerSlots.sort((a, b) => a.count - b.count);
-            const target = callerSlots[0];
-
-            try {
-                await CaretakerPatient.create({
-                    caretakerId: target.id,
-                    patientId: patientId,
-                    careManagerId: absentCaller.managedBy || null,
-                    assignedBy: target.id,
+        if (sameManagerActiveCallers.length === 0) {
+            // No active callers under this manager — notify the manager, do NOT cross-assign
+            if (managerId) {
+                const absentNames = managerAbsentCallers.map(c => c.fullName).join(', ');
+                const totalPatients = await CaretakerPatient.countDocuments({
+                    caretakerId: { $in: managerAbsentCallers.map(c => c._id) },
                     status: 'active',
-                    isTemporary: true,
-                    priority: 8, // Higher priority so they show up first
-                    schedule: { startDate: new Date() },
-                    careInstructions: `Temporary coverage for ${absentCaller.fullName} (${getShiftLabel(shift)} shift)`,
+                    isTemporary: { $ne: true },
                 });
-
-                target.count += 1;
-                assignedCount++;
-                coveringCallerIds.add(target.id.toString());
-            } catch (err) {
-                // Duplicate key = patient already has assignment to this caller, skip
-                if (err.code !== 11000) {
-                    console.error(`[Failover] Failed to create temp assignment:`, err.message);
-                }
+                await sendPush(managerId, {
+                    title: 'All Your Callers Inactive',
+                    body: `None of your callers (${absentNames}) have started their ${shift} shift. ${totalPatients} patient${totalPatients !== 1 ? 's are' : ' is'} not being contacted. Immediate action required.`,
+                    type: 'caller_coverage',
+                    priority: 'urgent',
+                    data: {
+                        screen: 'TeamList',
+                        failoverEvent: `failover_mgr_all_absent_${mgrKey}_${shift}`,
+                    },
+                });
+                console.log(`[Failover] All callers under manager ${mgrKey} are absent — manager notified, no cross-assignment`);
             }
+            continue;
         }
 
-        if (assignedCount === 0) continue;
+        // Build load-balanced slots for callers under this manager
+        const managerCallerSlots = sameManagerActiveCallers.map(c => ({
+            id: c._id,
+            name: c.fullName,
+            count: countMap[c._id.toString()] || 0,
+        }));
 
-        console.log(`[Failover] ${absentCaller.fullName} absent — ${assignedCount} patients redistributed to ${coveringCallerIds.size} callers`);
+        // 7. For each absent caller under this manager, redistribute their patients
+        for (const absentCaller of managerAbsentCallers) {
+            const absentEventKey = `failover_${absentCaller._id}_${shift}`;
+            if (await alreadyHandled(absentEventKey)) continue;
 
-        // 8. Notify care manager
-        const careManagerId = absentCaller.managedBy;
-        if (careManagerId) {
-            await sendPush(careManagerId, {
-                title: 'Caller Coverage Activated',
-                body: `${absentCaller.fullName} has not made any calls this ${shift} shift. ${assignedCount} patient${assignedCount !== 1 ? 's have' : ' has'} been temporarily redistributed to ${coveringCallerIds.size} active caller${coveringCallerIds.size !== 1 ? 's' : ''}.`,
-                type: 'caller_coverage',
-                priority: 'high',
-                data: {
-                    screen: 'TeamList',
-                    absentCallerId: absentCaller._id.toString(),
-                    failoverEvent: absentEventKey,
-                },
-            });
-        }
+            const assignments = await CaretakerPatient.find({
+                caretakerId: absentCaller._id,
+                status: 'active',
+                isTemporary: { $ne: true },
+            }).select('patientId').lean();
 
-        // 9. Notify covering callers
-        for (const coveringId of coveringCallerIds) {
-            const coverCount = await CaretakerPatient.countDocuments({
-                caretakerId: new mongoose.Types.ObjectId(coveringId),
+            const patientIds = assignments.map(a => a.patientId);
+            if (patientIds.length === 0) continue;
+
+            // Check if patients already have temp coverage today
+            const existingTemp = await CaretakerPatient.find({
+                patientId: { $in: patientIds },
                 isTemporary: true,
                 createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-            });
+            }).select('patientId').lean();
+            const alreadyCoveredSet = new Set(existingTemp.map(t => t.patientId.toString()));
 
-            await sendPush(new mongoose.Types.ObjectId(coveringId), {
-                title: 'Temporary Patients Added',
-                body: `${coverCount} additional patient${coverCount !== 1 ? 's' : ''} from ${absentCaller.fullName} added to your queue for this shift.`,
-                type: 'caller_coverage',
-                priority: 'normal',
-                data: {
-                    screen: 'CallerDashboard',
-                    failoverEvent: `cover_notify_${coveringId}_${shift}`,
-                },
-            });
+            const uncoveredPatients = patientIds.filter(id => !alreadyCoveredSet.has(id.toString()));
+            if (uncoveredPatients.length === 0) continue;
+
+            // 8. Round-robin distribute to active callers under the SAME manager
+            let assignedCount = 0;
+            const coveringCallerIds = new Set();
+
+            for (const patientId of uncoveredPatients) {
+                managerCallerSlots.sort((a, b) => a.count - b.count);
+                const target = managerCallerSlots[0];
+
+                try {
+                    await CaretakerPatient.create({
+                        caretakerId: target.id,
+                        patientId: patientId,
+                        careManagerId: managerId,
+                        assignedBy: target.id,
+                        status: 'active',
+                        isTemporary: true,
+                        priority: 8, // Higher priority so they show up first
+                        schedule: { startDate: new Date() },
+                        careInstructions: `Temporary coverage for ${absentCaller.fullName} (${getShiftLabel(shift)} shift)`,
+                    });
+
+                    target.count += 1;
+                    assignedCount++;
+                    coveringCallerIds.add(target.id.toString());
+                } catch (err) {
+                    // Duplicate key = patient already has assignment to this caller, skip
+                    if (err.code !== 11000) {
+                        console.error(`[Failover] Failed to create temp assignment:`, err.message);
+                    }
+                }
+            }
+
+            if (assignedCount === 0) continue;
+
+            console.log(`[Failover] ${absentCaller.fullName} absent — ${assignedCount} patients redistributed to ${coveringCallerIds.size} callers (same manager: ${mgrKey})`);
+
+            // 9. Notify care manager
+            if (managerId) {
+                await sendPush(managerId, {
+                    title: 'Caller Coverage Activated',
+                    body: `${absentCaller.fullName} has not made any calls this ${shift} shift. ${assignedCount} patient${assignedCount !== 1 ? 's have' : ' has'} been temporarily redistributed to ${coveringCallerIds.size} active caller${coveringCallerIds.size !== 1 ? 's' : ''}.`,
+                    type: 'caller_coverage',
+                    priority: 'high',
+                    data: {
+                        screen: 'TeamList',
+                        absentCallerId: absentCaller._id.toString(),
+                        failoverEvent: absentEventKey,
+                    },
+                });
+            }
+
+            // 10. Notify covering callers
+            for (const coveringId of coveringCallerIds) {
+                const coverCount = await CaretakerPatient.countDocuments({
+                    caretakerId: new mongoose.Types.ObjectId(coveringId),
+                    isTemporary: true,
+                    createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+                });
+
+                await sendPush(new mongoose.Types.ObjectId(coveringId), {
+                    title: 'Temporary Patients Added',
+                    body: `${coverCount} additional patient${coverCount !== 1 ? 's' : ''} from ${absentCaller.fullName} added to your queue for this shift.`,
+                    type: 'caller_coverage',
+                    priority: 'normal',
+                    data: {
+                        screen: 'CallerDashboard',
+                        failoverEvent: `cover_notify_${coveringId}_${shift}`,
+                    },
+                });
+            }
         }
     }
 }
@@ -375,6 +412,8 @@ async function handleCallerDeactivation(callerId, orgId) {
         const caller = await Profile.findById(callerId).select('fullName managedBy').lean();
         if (!caller) return { reassigned: 0 };
 
+        const managerId = caller.managedBy || null;
+
         // 1. Get all active assignments for this caller
         const assignments = await CaretakerPatient.find({
             caretakerId: callerId,
@@ -397,16 +436,99 @@ async function handleCallerDeactivation(callerId, orgId) {
 
         console.log(`[Failover] Terminated ${assignments.length} assignments for deactivated caller ${caller.fullName}`);
 
-        // 4. Run round-robin reassignment for the org
-        const { autoAssignPatients } = require('../utils/autoAssign');
-        const result = await autoAssignPatients(orgId);
+        // 4. Find other active callers under the SAME care manager
+        const sameManagerCallers = await Profile.find({
+            organizationId: orgId,
+            role: { $in: ['caller', 'caretaker'] },
+            isActive: { $ne: false },
+            _id: { $ne: callerId },
+            ...(managerId ? { managedBy: managerId } : {}),
+        }).select('_id fullName').lean();
 
-        // 5. Notify care manager
-        const careManagerId = caller.managedBy;
-        if (careManagerId) {
-            await sendPush(careManagerId, {
+        let reassignedCount = 0;
+
+        if (sameManagerCallers.length === 0) {
+            // No callers under the same manager — notify for manual intervention
+            if (managerId) {
+                await sendPush(managerId, {
+                    title: 'Caller Removed — Manual Reassignment Needed',
+                    body: `${caller.fullName} has been deactivated. ${assignments.length} patient${assignments.length !== 1 ? 's need' : ' needs'} to be reassigned. No other callers are available under your team.`,
+                    type: 'caller_coverage',
+                    priority: 'urgent',
+                    data: {
+                        screen: 'TeamList',
+                        deactivatedCallerId: callerId.toString(),
+                    },
+                });
+            }
+            return { reassigned: 0, terminated: assignments.length };
+        }
+
+        // 5. Get current load for same-manager callers
+        const callerIds = sameManagerCallers.map(c => c._id);
+        const countAgg = await CaretakerPatient.aggregate([
+            { $match: { caretakerId: { $in: callerIds }, status: 'active' } },
+            { $group: { _id: '$caretakerId', count: { $sum: 1 } } },
+        ]);
+        const countMap = {};
+        countAgg.forEach(c => { countMap[c._id.toString()] = c.count; });
+
+        const callerSlots = sameManagerCallers.map(c => ({
+            id: c._id,
+            name: c.fullName,
+            count: countMap[c._id.toString()] || 0,
+        }));
+
+        // 6. Round-robin reassign patients to same-manager callers
+        const patientIds = assignments.map(a => a.patientId);
+        for (const patientId of patientIds) {
+            callerSlots.sort((a, b) => a.count - b.count);
+            const target = callerSlots[0];
+
+            try {
+                await CaretakerPatient.findOneAndUpdate(
+                    { caretakerId: target.id, patientId: patientId },
+                    {
+                        caretakerId: target.id,
+                        patientId: patientId,
+                        careManagerId: managerId,
+                        assignedBy: target.id,
+                        status: 'active',
+                        isTemporary: false,
+                        schedule: { startDate: new Date() },
+                        careInstructions: `Reassigned from deactivated caller ${caller.fullName}`,
+                    },
+                    { upsert: true, new: true, setDefaultsOnInsert: true }
+                );
+
+                // Sync with Patient model — manager stays the same
+                await Patient.updateOne(
+                    { _id: patientId },
+                    {
+                        $set: {
+                            caller_id: target.id,
+                            assigned_caller_id: target.id,
+                            ...(managerId ? { care_manager_id: managerId, assigned_manager_id: managerId } : {}),
+                        },
+                    }
+                );
+
+                target.count += 1;
+                reassignedCount++;
+            } catch (err) {
+                if (err.code !== 11000) {
+                    console.error(`[Failover] Failed to reassign patient ${patientId}:`, err.message);
+                }
+            }
+        }
+
+        console.log(`[Failover] Permanently reassigned ${reassignedCount}/${patientIds.length} patients from ${caller.fullName} to same-manager callers`);
+
+        // 7. Notify care manager
+        if (managerId) {
+            await sendPush(managerId, {
                 title: 'Caller Removed — Patients Reassigned',
-                body: `${caller.fullName} has been deactivated. ${assignments.length} patient${assignments.length !== 1 ? 's have' : ' has'} been permanently reassigned to other callers.`,
+                body: `${caller.fullName} has been deactivated. ${reassignedCount} patient${reassignedCount !== 1 ? 's have' : ' has'} been permanently reassigned to other callers in your team.`,
                 type: 'caller_coverage',
                 priority: 'urgent',
                 data: {
@@ -416,7 +538,7 @@ async function handleCallerDeactivation(callerId, orgId) {
             });
         }
 
-        return { reassigned: result.assigned, terminated: assignments.length };
+        return { reassigned: reassignedCount, terminated: assignments.length };
     } catch (err) {
         console.error('[Failover] Deactivation handler error:', err.message);
         return { reassigned: 0, error: err.message };

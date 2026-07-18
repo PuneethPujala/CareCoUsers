@@ -1396,9 +1396,9 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
         'name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id manager_id'
       );
       if (caller) {
-        // Sync both caller AND manager onto the patient record
+        // Sync caller onto the patient record; only set manager if patient doesn't already have one
         const syncUpdate = { assigned_caller_id: caller._id };
-        if (caller.manager_id) {
+        if (caller.manager_id && !patient.assigned_manager_id && !patient.care_manager_id) {
           syncUpdate.assigned_manager_id = caller.manager_id;
           syncUpdate.care_manager_id = caller.manager_id;
         }
@@ -1407,35 +1407,44 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
           { $set: syncUpdate }
         );
         req.patient = await Patient.findById(patient._id);
-        logger.info('Synced assigned_caller_id and manager', {
+        logger.info('Synced assigned_caller_id (manager preserved if existing)', {
           patientId: patient._id,
           callerId: caller._id,
-          managerId: caller.manager_id || null,
+          existingManagerId: patient.assigned_manager_id || patient.care_manager_id || null,
+          callerManagerId: caller.manager_id || null,
         });
 
-        // Populate manager if we just synced it
-        if (!manager && caller.manager_id) {
-          manager = await Profile.findById(caller.manager_id).select(
-            'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
-          );
+        // Populate manager: use patient's existing manager, or fall back to caller's
+        if (!manager) {
+          const mgrIdToUse = patient.assigned_manager_id || patient.care_manager_id || caller.manager_id;
+          if (mgrIdToUse) {
+            manager = await Profile.findById(mgrIdToUse).select(
+              'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
+            );
+          }
         }
       }
     }
 
-    // Backfill: If caller exists but manager is still null, resolve from caller.manager_id
-    if (caller && !manager && caller.manager_id) {
-      manager = await Profile.findById(caller.manager_id).select(
-        'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
-      );
-      if (manager) {
-        await Patient.updateOne(
-          { _id: patient._id },
-          { $set: { assigned_manager_id: caller.manager_id, care_manager_id: caller.manager_id } }
+    // Backfill: Only if patient has NO manager at all, resolve from caller.manager_id
+    if (caller && !manager) {
+      // Use patient's existing manager first, then fall back to caller's manager
+      const backfillMgrId = patient.assigned_manager_id || patient.care_manager_id || caller.manager_id;
+      if (backfillMgrId) {
+        manager = await Profile.findById(backfillMgrId).select(
+          'fullName phone email profile_photo_url languages_spoken experience_years last_active_at'
         );
-        logger.info('Backfilled assigned_manager_id from caller', {
-          patientId: patient._id,
-          managerId: caller.manager_id,
-        });
+        // Only write to DB if patient had no manager at all (don't overwrite existing)
+        if (manager && !patient.assigned_manager_id && !patient.care_manager_id) {
+          await Patient.updateOne(
+            { _id: patient._id },
+            { $set: { assigned_manager_id: backfillMgrId, care_manager_id: backfillMgrId } }
+          );
+          logger.info('Backfilled assigned_manager_id (no existing manager)', {
+            patientId: patient._id,
+            managerId: backfillMgrId,
+          });
+        }
       }
     }
 

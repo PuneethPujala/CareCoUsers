@@ -27,12 +27,12 @@ async function reconcileUnassignedPatients(orgId, assignedById) {
         return { assigned: 0, remaining: 0, message: 'All patients are already assigned' };
     }
 
-    // 2. Get all active callers in this org
+    // 2. Get all active callers in this org (with their managedBy info)
     const allCallers = await Profile.find({
         organizationId: orgId,
         role: { $in: ['caller', 'caretaker'] },
         isActive: { $ne: false }
-    });
+    }).select('_id fullName managedBy');
 
     if (allCallers.length === 0) {
         return { 
@@ -53,12 +53,27 @@ async function reconcileUnassignedPatients(orgId, assignedById) {
 
     let assignedCount = 0;
 
-    // 4. Assign each unassigned patient to the least-loaded caller
+    // 4. Assign each unassigned patient to the least-loaded caller,
+    //    preferring callers under the patient's existing care manager
     for (const patient of unassignedPatients) {
-        // Find least-loaded caller
-        let bestCaller = allCallers[0];
+        const existingManagerId = patient.care_manager_id || patient.assigned_manager_id || null;
+
+        // Filter callers: prefer same-manager callers if patient has an existing manager
+        let eligibleCallers = allCallers;
+        if (existingManagerId) {
+            const sameManagerCallers = allCallers.filter(c =>
+                c.managedBy && c.managedBy.toString() === existingManagerId.toString()
+            );
+            // Only use same-manager pool if it has available callers
+            if (sameManagerCallers.length > 0) {
+                eligibleCallers = sameManagerCallers;
+            }
+        }
+
+        // Find least-loaded caller from the eligible pool
+        let bestCaller = eligibleCallers[0];
         let bestCount = countMap[bestCaller._id.toString()] || 0;
-        for (const c of allCallers) {
+        for (const c of eligibleCallers) {
             const cc = countMap[c._id.toString()] || 0;
             if (cc < bestCount) { bestCount = cc; bestCaller = c; }
         }
@@ -69,9 +84,8 @@ async function reconcileUnassignedPatients(orgId, assignedById) {
             break;
         }
 
-        // Resolve the caller's care manager for dashboard visibility
-        const callerWithManager = await Profile.findById(bestCaller._id).select('managedBy').lean();
-        const resolvedManagerId = callerWithManager?.managedBy || assignedById;
+        // Resolve the care manager: use existing patient manager, or fall back to caller's managedBy
+        const resolvedManagerId = existingManagerId || bestCaller.managedBy || assignedById;
 
         // Direct upsert — bypasses Profile-only validation in caretakerService
         await CaretakerPatient.findOneAndUpdate(
@@ -111,7 +125,7 @@ async function reconcileUnassignedPatients(orgId, assignedById) {
 
         countMap[bestCaller._id.toString()] = (countMap[bestCaller._id.toString()] || 0) + 1;
         assignedCount++;
-        console.log(`[Reconciliation] Patient ${patient.name} -> Caller ${bestCaller.fullName}`);
+        console.log(`[Reconciliation] Patient ${patient.name} -> Caller ${bestCaller.fullName} (manager preserved: ${resolvedManagerId})`);
     }
 
     return {
