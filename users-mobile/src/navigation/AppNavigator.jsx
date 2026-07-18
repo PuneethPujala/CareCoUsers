@@ -95,6 +95,17 @@ function isStaleNotification(response) {
 function CustomTabBar({ state, descriptors, navigation }) {
     const insets = useSafeAreaInsets();
     const dynamicBottom = insets.bottom > 0 ? insets.bottom : layout.TAB_BAR_BOTTOM;
+    const [isModalVisible, setIsModalVisible] = useState(false);
+
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('FORM_MODAL_VISIBLE', (visible) => {
+            setIsModalVisible(visible);
+        });
+        return () => sub.remove();
+    }, []);
+
+    if (isModalVisible) return null;
+
     return (
         <View style={[styles.tabBarContainer, { bottom: dynamicBottom }]}>
             {state.routes.map((route, index) => {

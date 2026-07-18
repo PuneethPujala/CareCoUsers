@@ -8,7 +8,8 @@ import {
     Watch, Heart, Wind, Moon, ShieldCheck, ChevronLeft, ChevronDown,
     CheckCircle2, XCircle, Smartphone, ArrowRight, Activity, Sliders,
     HelpCircle, Lock, RefreshCw, MoreHorizontal, AlertTriangle, LogOut,
-    Flame, Scale, Droplet, Settings, ArrowUp, ArrowDown, Eye, EyeOff, MapPin
+    Flame, Scale, Droplet, Settings, ArrowUp, ArrowDown, Eye, EyeOff, MapPin,
+    Footprints, PersonStanding, Bike, Timer
 } from 'lucide-react-native';
 import {
     initializeHealthPlatform,
@@ -111,59 +112,13 @@ export default function HealthConnectSetupScreen({ navigation }) {
         usageStats: false,
     });
 
-    // Dynamically calculate actual sync quality based on granted channels with successful data syncs
+    // Dynamically calculate actual sync quality based on configuration/permission completeness
     useEffect(() => {
-        let totalGranted = 0;
-        let syncedCount = 0;
-
-        // 1. Heart Rate
-        if (permissionsMap.heartRate) {
-            totalGranted++;
-            if (vitals?.heart_rate) syncedCount++;
-        }
-        // 2. Sleep Quality
-        if (permissionsMap.sleep || permissionsMap.usageStats) {
-            totalGranted++;
-            if (sleepStr && !sleepStr.toLowerCase().includes('no activity') && !sleepStr.toLowerCase().includes('waiting')) {
-                syncedCount++;
-            }
-        }
-        // 3. Blood Pressure
-        if (permissionsMap.bloodPressure) {
-            totalGranted++;
-            if (vitals?.blood_pressure?.systolic) syncedCount++;
-        }
-        // 4. Oxygen Level
-        if (permissionsMap.oxygen) {
-            totalGranted++;
-            if (vitals?.oxygen_saturation) syncedCount++;
-        }
-        // 5. Steps
-        if (permissionsMap.steps) {
-            totalGranted++;
-            if (activity?.steps !== undefined && activity?.steps !== null) syncedCount++;
-        }
-        // 6. Exercise
-        if (permissionsMap.exercise) {
-            totalGranted++;
-            const exerciseMins = activity?.exercises?.reduce((sum, e) => sum + (e.duration_minutes || 0), 0) || 0;
-            if (activity?.exercises !== undefined && activity?.exercises !== null) syncedCount++;
-        }
-        // 7. Weight
-        if (permissionsMap.weight) {
-            totalGranted++;
-            const profile = usePatientStore.getState().patient || {};
-            if (profile.weight_kg || activity?.weight) syncedCount++;
-        }
-        // 8. Blood Glucose
-        if (permissionsMap.glucose) {
-            totalGranted++;
-            if (vitals?.blood_glucose) syncedCount++;
-        }
-
-        const calculatedQuality = totalGranted === 0 ? 0 : Math.round((syncedCount / totalGranted) * 100);
+        const keys = Object.keys(permissionsMap);
+        const grantedCount = keys.filter(k => permissionsMap[k]).length;
+        const calculatedQuality = keys.length === 0 ? 0 : Math.round((grantedCount / keys.length) * 100);
         setSyncQuality(calculatedQuality);
-    }, [permissionsMap, vitals, activity, sleepStr]);
+    }, [permissionsMap]);
     const [permissionsChecklistVisible, setPermissionsChecklistVisible] = useState(false);
     // Bento card configuration and customize states
     const [bentoCards, setBentoCards] = useState([
@@ -556,7 +511,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
         }
     };
 
-    const handleConnect = async () => {
+    const handleConnect = async (includeActivity = true) => {
         setLoading(true);
         try {
             const initialized = await initializeHealthPlatform();
@@ -592,10 +547,10 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 await trackSetupEvent('permissions_granted', { allowedCount });
 
                 // Request Pedometer (ACTIVITY_RECOGNITION) permission for hardware step sensor fallback.
-                // This must happen in a user-triggered context (button press) so the OS shows the prompt.
+                // Only fires if the user tapped "Turn on" in the activity explainer step.
                 // When Health Connect has no step records, the sync pipeline falls back to the device's
                 // built-in step counter sensor — real data from a real sensor, not synthetic values.
-                if (Platform.OS === 'android') {
+                if (includeActivity && Platform.OS === 'android') {
                     try {
                         const { Pedometer } = require('expo-sensors');
                         const isAvailable = await Pedometer.isAvailableAsync();
@@ -803,7 +758,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 icon = <Activity size={16} color="#10B981" strokeWidth={2.5} />;
                 bg = '#D1FAE5';
                 val = hasPerm 
-                    ? (activity?.steps != null ? `${activity.steps.toLocaleString()} steps` : '0 steps') 
+                    ? (activity?.steps != null ? `${activity.steps.toLocaleString()} steps` : 'Waiting for first sync...') 
                     : 'Permission Required';
                 badge = 'DAILY';
                 break;
@@ -954,23 +909,80 @@ export default function HealthConnectSetupScreen({ navigation }) {
                     <View style={styles.obActionArea}>
                         <Pressable
                             style={({ pressed }) => [styles.obConnectBtn, pressed && { opacity: 0.85 }]}
-                            onPress={handleConnect}
+                            onPress={() => setOnboardingStep('activity')}
                             disabled={loading}
                         >
-                            {loading ? (
-                                <ActivityIndicator color="#FFFFFF" size="small" />
-                            ) : (
-                                <>
-                                    <Watch size={18} color="#FFFFFF" strokeWidth={2.5} />
-                                    <Text style={styles.obConnectBtnTxt}>Connect {Platform.OS === 'ios' ? 'HealthKit' : 'Health Connect'}</Text>
-                                </>
-                            )}
+                            <>
+                                <Watch size={18} color="#FFFFFF" strokeWidth={2.5} />
+                                <Text style={styles.obConnectBtnTxt}>Connect {Platform.OS === 'ios' ? 'HealthKit' : 'Health Connect'}</Text>
+                            </>
                         </Pressable>
                         <Text style={styles.obConnectNote}>
                             Secure connection · You can revoke access anytime in device settings.
                         </Text>
                     </View>
                 </>
+
+            ) : !isConnected && onboardingStep === 'activity' ? (
+                /* ── Onboarding: Activity Tracking Explainer ──────── */
+                <View style={styles.obActivityScreen}>
+                    {/* Icon */}
+                    <View style={styles.obActivityIconWrap}>
+                        <Footprints size={48} color="#60A5FA" strokeWidth={1.5} />
+                    </View>
+
+                    {/* Title */}
+                    <Text style={styles.obActivityTitle}>Track your activities</Text>
+
+                    {/* Description */}
+                    <Text style={styles.obActivityDesc}>
+                        CareMyMed can track walking, running and cycling in the background.
+                        This means you'll get metrics like steps, distance and calories for all these activities.
+                    </Text>
+                    <Text style={styles.obActivityDesc}>
+                        To do this, the app needs permission to recognise your activity. Over time, CareMyMed
+                        uses this data to personalise your health insights and recognise activity better.
+                    </Text>
+                    <Text style={styles.obActivityDescMuted}>
+                        If you choose to turn this off, you can still manually log activity from your wearable
+                        via Health Connect.
+                    </Text>
+
+                    {/* Activity Icons Row */}
+                    <View style={styles.obActivityIconsRow}>
+                        <View style={styles.obActivityIconItem}>
+                            <Footprints size={40} color="#93C5FD" strokeWidth={1.5} />
+                        </View>
+                        <View style={styles.obActivityIconItem}>
+                            <Timer size={40} color="#93C5FD" strokeWidth={1.5} />
+                        </View>
+                        <View style={styles.obActivityIconItem}>
+                            <Bike size={40} color="#93C5FD" strokeWidth={1.5} />
+                        </View>
+                    </View>
+
+                    {/* Actions */}
+                    <View style={styles.obActivityActions}>
+                        <Pressable
+                            style={({ pressed }) => [styles.obConnectBtn, pressed && { opacity: 0.85 }]}
+                            onPress={() => handleConnect(true)}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#FFFFFF" size="small" />
+                            ) : (
+                                <Text style={styles.obConnectBtnTxt}>Turn on</Text>
+                            )}
+                        </Pressable>
+                        <Pressable
+                            style={({ pressed }) => [styles.obActivitySkipBtn, pressed && { opacity: 0.6 }]}
+                            onPress={() => handleConnect(false)}
+                            disabled={loading}
+                        >
+                            <Text style={styles.obActivitySkipTxt}>No, thanks</Text>
+                        </Pressable>
+                    </View>
+                </View>
 
             ) : !isConnected && onboardingStep === 'confirm' ? (
                 /* ── Onboarding: Post-Permission Confirmation ────── */
@@ -1317,6 +1329,13 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             </View>
                         ));
                     })()}
+                    
+                    <View style={styles.bentoTipContainer}>
+                        <HelpCircle size={14} color={colors.textMuted} style={{ marginRight: 6, marginTop: 1 }} />
+                        <Text style={styles.bentoTipText}>
+                            No wearable? Phone-only users can log Vitals (Heart Rate, Blood Pressure, SpO2, and Blood Glucose) manually on the Health Profile screen.
+                        </Text>
+                    </View>
                 </Animated.View>
 
                 {/* ── Today's Sync Timeline ──────────────────────── */}
@@ -2618,5 +2637,88 @@ const styles = StyleSheet.create({
         fontSize: 13,
         ...FONT.bold,
         color: '#FFFFFF',
+    },
+    bentoTipContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: colors.card || '#FFFFFF',
+        borderColor: colors.border || '#E5E7EB',
+        borderWidth: 1,
+        borderRadius: radius.md || 8,
+        padding: 12,
+        marginTop: 16,
+    },
+    bentoTipText: {
+        flex: 1,
+        fontSize: 12,
+        ...FONT.regular,
+        color: colors.textMuted || '#6B7280',
+        lineHeight: 16,
+    },
+
+    // ── Activity Tracking Explainer Step ──────────────────────────────
+    obActivityScreen: {
+        flex: 1,
+        alignItems: 'center',
+        paddingHorizontal: 28,
+        paddingTop: 32,
+        paddingBottom: 24,
+    },
+    obActivityIconWrap: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(96, 165, 250, 0.12)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+    },
+    obActivityTitle: {
+        fontSize: 26,
+        ...FONT.semibold,
+        color: colors.textPrimary,
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    obActivityDesc: {
+        fontSize: 15,
+        ...FONT.regular,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 14,
+    },
+    obActivityDescMuted: {
+        fontSize: 13,
+        ...FONT.regular,
+        color: colors.textMuted || '#6B7280',
+        textAlign: 'center',
+        lineHeight: 19,
+        marginBottom: 32,
+    },
+    obActivityIconsRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 32,
+        marginBottom: 40,
+    },
+    obActivityIconItem: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: 0.85,
+    },
+    obActivityActions: {
+        width: '100%',
+        alignItems: 'center',
+        gap: 4,
+    },
+    obActivitySkipBtn: {
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+    },
+    obActivitySkipTxt: {
+        fontSize: 15,
+        ...FONT.medium,
+        color: colors.textSecondary,
     },
 });

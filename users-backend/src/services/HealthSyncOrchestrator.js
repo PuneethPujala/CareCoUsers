@@ -71,27 +71,29 @@ class HealthSyncOrchestrator {
 
       // 4. Update HealthSyncState
       const syncUpdate = {
-        last_sync: new Date(),
-        platform,
-        health_provider: effectiveSource,
+        $set: {
+          last_sync: new Date(),
+          platform,
+          health_provider: effectiveSource,
+        }
       };
 
       if (metadata) {
-        if (metadata.device_id) syncUpdate.device_id = metadata.device_id;
-        if (metadata.device_name) syncUpdate.device_name = metadata.device_name;
+        if (metadata.device_id) syncUpdate.$set.device_id = metadata.device_id;
+        if (metadata.device_name) syncUpdate.$set.device_name = metadata.device_name;
         if (
           metadata.permissions_granted &&
           Array.isArray(metadata.permissions_granted)
         ) {
-          syncUpdate.permissions_granted = metadata.permissions_granted;
+          syncUpdate.$set.permissions_granted = metadata.permissions_granted;
         }
       }
 
       if (hasErrors) {
-        syncUpdate.last_error = errorMessage;
-        syncUpdate.last_error_at = new Date();
+        syncUpdate.$set.last_error = errorMessage;
+        syncUpdate.$set.last_error_at = new Date();
       } else {
-        syncUpdate.last_successful_sync = new Date();
+        syncUpdate.$set.last_successful_sync = new Date();
         syncUpdate.$inc = { sync_count_today: 1 };
       }
 

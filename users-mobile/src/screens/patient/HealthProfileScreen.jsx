@@ -301,7 +301,9 @@ const getConsistencyStyle = (score) => {
 
 const cmToFtIn = (cm) => {
   if (!cm) return "";
-  const realInches = cm / 2.54;
+  const parsed = parseFloat(cm);
+  if (isNaN(parsed) || parsed <= 0) return "";
+  const realInches = parsed / 2.54;
   const ft = Math.floor(realInches / 12);
   const inch = Math.round(realInches % 12);
   if (inch === 12) {
@@ -819,18 +821,16 @@ export default function HealthProfileScreen({ navigation }) {
   const [vitalsTempWeightKg, setVitalsTempWeightKg] = useState(70);
 
   const openHeightPicker = () => {
-    const currentHeight = formState.height_cm
-      ? Number(formState.height_cm)
-      : 170;
+    const parsed = parseFloat(formState.height_cm);
+    const currentHeight = !isNaN(parsed) && parsed > 0 ? parsed : 170;
     setVitalsTempHeightCm(currentHeight);
     setVitalsPickerType("height");
     setVitalsPickerVisible(true);
   };
 
   const openWeightPicker = () => {
-    const currentWeight = formState.weight_kg
-      ? Number(formState.weight_kg)
-      : 70;
+    const parsed = parseFloat(formState.weight_kg);
+    const currentWeight = !isNaN(parsed) && parsed > 0 ? parsed : 70;
     setVitalsTempWeightKg(currentWeight);
     setVitalsPickerType("weight");
     setVitalsPickerVisible(true);
@@ -1400,9 +1400,9 @@ export default function HealthProfileScreen({ navigation }) {
     }
 
     if (editingType === "vitals") {
-      const h = Number(formState.height_cm);
-      const w = Number(formState.weight_kg);
-      if (formState.height_cm && (h < 50 || h > 300)) {
+      const h = parseFloat(formState.height_cm);
+      const w = parseFloat(formState.weight_kg);
+      if (formState.height_cm && (isNaN(h) || h < 50 || h > 300)) {
         return Platform.OS === "web"
           ? window.alert(
               t("health.height_range", {
@@ -1416,7 +1416,7 @@ export default function HealthProfileScreen({ navigation }) {
               }),
             );
       }
-      if (formState.weight_kg && (w < 10 || w > 500)) {
+      if (formState.weight_kg && (isNaN(w) || w < 10 || w > 500)) {
         return Platform.OS === "web"
           ? window.alert(
               t("health.weight_range", {
@@ -1430,7 +1430,7 @@ export default function HealthProfileScreen({ navigation }) {
               }),
             );
       }
-      if (h && w) {
+      if (!isNaN(h) && !isNaN(w) && h > 0 && w > 0) {
         const bmi = w / Math.pow(h / 100, 2);
         if (bmi < 10 || bmi > 60) {
           return AlertManager.alert(
@@ -2833,7 +2833,10 @@ export default function HealthProfileScreen({ navigation }) {
                   <Activity size={18} color="#8B5CF6" />
                 </View>
                 <Text style={s.bentoVal}>
-                  {lifestyle.height_cm ? `${lifestyle.height_cm} cm` : "—"}
+                  {lifestyle.height_cm ? (() => {
+                    const parsed = parseFloat(lifestyle.height_cm);
+                    return !isNaN(parsed) && parsed > 0 ? `${parsed} cm` : String(lifestyle.height_cm);
+                  })() : "—"}
                 </Text>
                 <Text style={s.bentoLbl}>
                   {t("health_profile.height", {
@@ -2849,7 +2852,10 @@ export default function HealthProfileScreen({ navigation }) {
                   <Activity size={18} color="#10B981" />
                 </View>
                 <Text style={s.bentoVal}>
-                  {lifestyle.weight_kg ? `${lifestyle.weight_kg} kg` : "—"}
+                  {lifestyle.weight_kg ? (() => {
+                    const parsed = parseFloat(lifestyle.weight_kg);
+                    return !isNaN(parsed) && parsed > 0 ? `${parsed} kg` : String(lifestyle.weight_kg);
+                  })() : "—"}
                 </Text>
                 <Text style={s.bentoLbl}>
                   {t("health_profile.weight", {
@@ -3823,7 +3829,11 @@ export default function HealthProfileScreen({ navigation }) {
                       })}
                       value={
                         formState.height_cm
-                          ? `${formState.height_cm} cm (${cmToFtIn(formState.height_cm)})`
+                          ? (() => {
+                              const parsed = parseFloat(formState.height_cm);
+                              if (isNaN(parsed) || parsed <= 0) return String(formState.height_cm);
+                              return `${parsed} cm (${cmToFtIn(parsed)})`;
+                            })()
                           : ""
                       }
                       placeholder={t("health_profile.select_height", {
@@ -3845,7 +3855,11 @@ export default function HealthProfileScreen({ navigation }) {
                       })}
                       value={
                         formState.weight_kg
-                          ? `${formState.weight_kg} kg (${Math.round(formState.weight_kg / 0.45359237)} lbs)`
+                          ? (() => {
+                              const parsed = parseFloat(formState.weight_kg);
+                              if (isNaN(parsed) || parsed <= 0) return String(formState.weight_kg);
+                              return `${parsed} kg (${Math.round(parsed / 0.45359237)} lbs)`;
+                            })()
                           : ""
                       }
                       placeholder={t("health_profile.select_weight", {

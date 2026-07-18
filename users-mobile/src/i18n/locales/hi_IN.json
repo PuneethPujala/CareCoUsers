@@ -647,7 +647,8 @@
     "confirm_intake": "सेवन की पुष्टि करें",
     "have_you_taken": "क्या आपने ले लिया",
     "yes_i_took_it": "हाँ, मैंने इसे ले लिया!",
-    "prescription_slip": "प्रिस्क्रिप्शन पर्ची"
+    "prescription_slip": "प्रिस्क्रिप्शन",
+    "prescription_number": "प्रिस्क्रिप्शन #{{number}}"
   },
   "meds": {
     "care_plan": "देखभाल योजना"

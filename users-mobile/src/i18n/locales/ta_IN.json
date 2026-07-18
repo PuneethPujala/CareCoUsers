@@ -646,7 +646,8 @@
     "confirm_intake": "உட்கொள்வதை உறுதிப்படுத்தவும்",
     "have_you_taken": "எடுத்து விட்டீர்களா",
     "yes_i_took_it": "ஆம், நான் எடுத்தேன்!",
-    "prescription_slip": "மருந்து சீட்டு"
+    "prescription_slip": "மருந்துச் சீட்டு",
+    "prescription_number": "மருந்துச் சீட்டு #{{number}}"
   },
   "meds": {
     "care_plan": "பராமரிப்பு திட்டம்"

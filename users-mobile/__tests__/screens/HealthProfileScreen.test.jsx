@@ -302,4 +302,29 @@ describe('HealthProfileScreen', () => {
       expect(queryByText('Tap to view checklist')).toBeTruthy();
     });
   });
+
+  describe('Vitals Input and formatting safety', () => {
+    it('does not crash and renders successfully with various invalid or suffixed lifestyle string formats', async () => {
+      const testCases = [
+        { height_cm: '180 cm', weight_kg: '80.5 kg' },
+        { height_cm: '180cm', weight_kg: '80kg' },
+        { height_cm: '   180  ', weight_kg: '  80  ' },
+        { height_cm: 'invalid', weight_kg: 'invalid' },
+        { height_cm: '', weight_kg: '' },
+        { height_cm: null, weight_kg: null },
+      ];
+
+      for (const tc of testCases) {
+        const profile = {
+          data: {
+            blood_type: 'O+',
+            lifestyle: tc,
+          },
+        };
+        const { toJSON } = await renderScreen(profile);
+        expect(toJSON()).toBeTruthy();
+      }
+    });
+  });
 });
+

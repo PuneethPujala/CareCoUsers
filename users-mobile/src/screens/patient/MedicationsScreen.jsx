@@ -2020,9 +2020,15 @@ export default function MedicationsScreen({ navigation, route }) {
                         defaultValue: "RECENT UPLOADS",
                       })}
                     </Text>
-                    {patient.uploaded_prescriptions.map((up, idx) => (
-                      <UploadRow key={idx} upload={up} />
-                    ))}
+                    {[...(patient?.uploaded_prescriptions || [])]
+                      .reverse()
+                      .map((up, idx, arr) => (
+                        <UploadRow
+                          key={up._id || idx}
+                          upload={up}
+                          number={arr.length - idx}
+                        />
+                      ))}
                   </View>
                 )}
               </View>
@@ -2842,9 +2848,15 @@ export default function MedicationsScreen({ navigation, route }) {
                         defaultValue: "UPLOADED PRESCRIPTIONS",
                       })}
                     </Text>
-                    {patient.uploaded_prescriptions.map((up, idx) => (
-                      <UploadRow key={idx} upload={up} />
-                    ))}
+                    {[...(patient?.uploaded_prescriptions || [])]
+                      .reverse()
+                      .map((up, idx, arr) => (
+                        <UploadRow
+                          key={up._id || idx}
+                          upload={up}
+                          number={arr.length - idx}
+                        />
+                      ))}
                   </View>
                 )}
               </Animated.View>
@@ -3692,7 +3704,7 @@ export default function MedicationsScreen({ navigation, route }) {
 }
 
 // ── Upload row helper ─────────────────────────────────────────────────────────
-function UploadRow({ upload }) {
+function UploadRow({ upload, number }) {
   const { t } = useTranslation();
   const status = upload.status || "pending";
 
@@ -3738,9 +3750,14 @@ function UploadRow({ upload }) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.uploadName}>
-            {t("medications.prescription_slip", {
-              defaultValue: "Prescription Slip",
-            })}
+            {number
+              ? t("medications.prescription_number", {
+                  number,
+                  defaultValue: `Prescription #${number}`,
+                })
+              : t("medications.prescription_slip", {
+                  defaultValue: "Prescription",
+                })}
           </Text>
           <Text style={styles.uploadDate}>
             {new Date(upload.uploaded_at || upload.uploadedAt).toLocaleDateString()}

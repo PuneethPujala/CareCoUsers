@@ -215,7 +215,7 @@ export default function GuidedTour({
 
                 {/* Tooltip Card */}
                 <Animated.View
-                    style={[s.wtCard, spotlightCoords ? cardStyle : null, { opacity: cardFade }]}
+                    style={[s.wtCard, cardStyle, { opacity: cardFade }]}
                     pointerEvents={isTransitioning ? 'none' : 'auto'}
                 >
                     {spotlightCoords && (showArrowUp ? (

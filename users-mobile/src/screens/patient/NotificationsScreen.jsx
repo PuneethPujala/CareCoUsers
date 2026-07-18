@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -100,13 +100,14 @@ const GROUP_ORDER = [
 
 export default function NotificationsScreen({ navigation }) {
   const reduceMotion = useReduceMotion();
-  const { patient, dashboardMeds, vitals } = usePatientStore();
+  const patient = usePatientStore((s) => s.patient);
+  const dashboardMeds = usePatientStore((s) => s.dashboardMeds);
+  const vitals = usePatientStore((s) => s.vitals);
   const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  // Ref so we can check staleness inside async callbacks without stale closures
-  const notificationsRef = useRef([]);
+  const [backendNotifs, setBackendNotifs] = useState([]);
+  const [recentCalls, setRecentCalls] = useState([]);
   const [showBatteryPrompt, setShowBatteryPrompt] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -158,220 +159,222 @@ export default function NotificationsScreen({ navigation }) {
         apiService.patients.getMyCalls({ limit: 10 }),
       ]);
 
-      const patientObj = patient || {};
-      const medicines = dashboardMeds || [];
-      const todayVitals = vitals || null;
-      const backendNotifs = notifRes.data.notifications || [];
-      const recentCalls = callsRes.data.calls || [];
-
-      // Start of today check (local date helper)
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-
-      const newNotifs = [];
-      let nId = 1;
-
-      // ── 1. Persistent Backend Notifications ───────────────────────
-      backendNotifs.forEach((b) => {
-        const createdDate = new Date(b.created_at);
-        const isToday =
-          new Date().toDateString() === createdDate.toDateString();
-        const timeStr = isToday
-          ? createdDate.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : createdDate.toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-            });
-
-        // Remap backend screen names to navigator screen names
-        let target = b.target_screen || "PatientHome";
-        if (target === "HomeScreen") target = "PatientHome";
-        if (target === "MedicationsScreen") target = "Medications";
-        if (target === "WellnessScreen" || target === "ActivityScreen")
-          target = "PatientHome";
-
-        let Icon = MessageSquare;
-        if (b.type === "critical_alerts") Icon = AlertCircle;
-        else if (b.type === "reminders") Icon = Bell;
-        else if (b.type === "activity") Icon = Heart;
-
-        newNotifs.push({
-          id: b._id,
-          isBackend: true,
-          isTransient: false,
-          isRead: b.is_read,
-          group: "Messages & Updates",
-          name: b.title,
-          action: b.message,
-          time: timeStr,
-          Icon,
-          color: b.is_read ? colors.textMuted : colors.primary,
-          bg: b.is_read ? "#F1F5F9" : "#EEF2FF",
-          target,
-          actionTxt: b.is_read ? "Open" : "View",
-        });
-      });
-
-      // ── 2. Vitals Contextual Alert ────────────────────────────────
-      const vitalsLogged = !!todayVitals && (todayVitals.heart_rate != null || todayVitals.blood_pressure?.systolic != null);
-
-      if (!vitalsLogged) {
-        newNotifs.push({
-          id: `transient-${nId++}`,
-          isBackend: false,
-          isTransient: true,
-          isRead: false,
-          group: "Today's Activity",
-          name: "Log Your Vitals",
-          action:
-            "Your vitals (Heart rate, BP) have not been logged today. Keep your health record updated.",
-          time: "Now",
-          Icon: Heart,
-          color: C.danger,
-          bg: "#FFE4E6",
-          target: "PatientHome",
-          actionTxt: "Log Now",
-        });
-      }
-
-      // ── 3. Medication Alerts ──────────────────────────────────────
-      const currentTime = new Date();
-      const prefs = patientObj.medication_call_preferences || {
-        morning: "09:00",
-        afternoon: "14:00",
-        evening: "17:00",
-        night: "20:00",
-      };
-
-      medicines.forEach((m) => {
-        if (!m.taken) {
-          const timeKey = m.scheduled_time || m.type || "morning";
-          const timePref =
-            prefs[timeKey] ||
-            (timeKey === "morning"
-              ? "09:00"
-              : timeKey === "afternoon"
-                ? "14:00"
-                : timeKey === "evening"
-                  ? "17:00"
-                  : "20:00");
-          const [h, min] = timePref.split(":").map(Number);
-          const medTime = new Date();
-          medTime.setHours(h, min, 0, 0);
-
-          const diffHours = (medTime - currentTime) / (1000 * 60 * 60);
-
-          // Alert if overdue or coming up within 2 hours
-          if (diffHours <= 2) {
-            const slot = timeKey.charAt(0).toUpperCase() + timeKey.slice(1);
-            const timeLabel = diffHours < -0.5 ? "Overdue" : "Soon";
-
-            newNotifs.push({
-              id: `transient-${nId++}`,
-              isBackend: false,
-              isTransient: true,
-              isRead: false,
-              group: "Today's Activity",
-              name: `${slot} Medication`,
-              action: `Time to take ${m.medicine_name || m.name}. Scheduled at ${timePref}.`,
-              time: timeLabel,
-              Icon: Pill,
-              color: diffHours < -0.5 ? colors.danger : "#3B82F6",
-              bg: diffHours < -0.5 ? "#FFE4E6" : "#DBEAFE",
-              target: "Medications",
-              actionTxt: "View",
-            });
-          }
-        }
-      });
-
-      // ── 4. Missed Calls Alert ─────────────────────────────────────
-      const todaysCalls = recentCalls.filter(
-        (c) => new Date(c.call_date) >= todayStart,
-      );
-      const missedCalls = todaysCalls.filter((c) => c.status === "missed");
-      if (missedCalls.length > 0) {
-        newNotifs.push({
-          id: `transient-${nId++}`,
-          isBackend: false,
-          isTransient: true,
-          isRead: false,
-          group: "Today's Activity",
-          name: `Missed Call${missedCalls.length > 1 ? "s" : ""}`,
-          action: `Your caller tried to reach you ${missedCalls.length > 1 ? `${missedCalls.length} times` : ""} today. Please call them back.`,
-          time: "Missed",
-          Icon: PhoneMissed,
-          color: C.danger,
-          bg: "#FFE4E6",
-          target: "MyCaller",
-          actionTxt: "Call Back",
-        });
-      }
-
-      // ── 5. Appointment Alert (within 7 days) ─────────────────────
-      const upcoming = (patientObj.appointments || []).filter(
-        (a) => a.status === "upcoming",
-      );
-      upcoming.forEach((a) => {
-        const daysUntil = Math.ceil(
-          (new Date(a.date) - new Date()) / (1000 * 60 * 60 * 24),
-        );
-        if (daysUntil >= 0 && daysUntil <= 7) {
-          newNotifs.push({
-            id: `transient-${nId++}`,
-            isBackend: false,
-            isTransient: true,
-            isRead: false,
-            group: "Upcoming",
-            name: "Upcoming Appointment",
-            action: `Visit with ${a.doctor_name} on ${new Date(a.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}.`,
-            time: daysUntil === 0 ? "Today" : `${daysUntil}d`,
-            Icon: Calendar,
-            color: "#8B5CF6",
-            bg: "#EDE9FE",
-            target: "HealthProfile",
-            actionTxt: "View",
-          });
-        }
-      });
-
-      // ── 6. Subscription Alert (within 7 days) ────────────────────
-      if (patientObj.subscription?.expires_at) {
-        const daysLeft = Math.ceil(
-          (new Date(patientObj.subscription.expires_at) - new Date()) /
-            (1000 * 60 * 60 * 24),
-        );
-        if (daysLeft >= 0 && daysLeft <= 7) {
-          newNotifs.push({
-            id: `transient-${nId++}`,
-            isBackend: false,
-            isTransient: true,
-            isRead: false,
-            group: "System Alerts",
-            name: "Subscription Expiring",
-            action: `Your premium plan expires in ${daysLeft === 0 ? "today" : `${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}. Renew to keep full access.`,
-            time: daysLeft === 0 ? "Today" : `${daysLeft}d`,
-            Icon: AlertCircle,
-            color: colors.warning,
-            bg: "#FEF3C7",
-            target: "PatientHome",
-            actionTxt: "Renew",
-          });
-        }
-      }
-
-      notificationsRef.current = newNotifs;
-      setNotifications(newNotifs);
+      setBackendNotifs(notifRes.data.notifications || []);
+      setRecentCalls(callsRes.data.calls || []);
     } catch (err) {
       console.warn("[NotificationsScreen] Fetch failed:", err.message);
     } finally {
       setLoading(false);
       runStagger();
     }
-  }, [patient, dashboardMeds, vitals, runStagger]);
+  }, [runStagger]);
+
+  const notifications = useMemo(() => {
+    const patientObj = patient || {};
+    const medicines = dashboardMeds || [];
+    const todayVitals = vitals || null;
+
+    // Start of today check (local date helper)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const newNotifs = [];
+    let nId = 1;
+
+    // ── 1. Persistent Backend Notifications ───────────────────────
+    backendNotifs.forEach((b) => {
+      const createdDate = new Date(b.created_at);
+      const isToday =
+        new Date().toDateString() === createdDate.toDateString();
+      const timeStr = isToday
+        ? createdDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : createdDate.toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+          });
+
+      // Remap backend screen names to navigator screen names
+      let target = b.target_screen || "PatientHome";
+      if (target === "HomeScreen") target = "PatientHome";
+      if (target === "MedicationsScreen") target = "Medications";
+      if (target === "WellnessScreen" || target === "ActivityScreen")
+        target = "PatientHome";
+
+      let Icon = MessageSquare;
+      if (b.type === "critical_alerts") Icon = AlertCircle;
+      else if (b.type === "reminders") Icon = Bell;
+      else if (b.type === "activity") Icon = Heart;
+
+      newNotifs.push({
+        id: b._id,
+        isBackend: true,
+        isTransient: false,
+        isRead: b.is_read,
+        group: "Messages & Updates",
+        name: b.title,
+        action: b.message,
+        time: timeStr,
+        Icon,
+        color: b.is_read ? colors.textMuted : colors.primary,
+        bg: b.is_read ? "#F1F5F9" : "#EEF2FF",
+        target,
+        actionTxt: b.is_read ? "Open" : "View",
+      });
+    });
+
+    // ── 2. Vitals Contextual Alert ────────────────────────────────
+    const vitalsLogged = !!todayVitals && (todayVitals.heart_rate != null || todayVitals.blood_pressure?.systolic != null);
+
+    if (!vitalsLogged) {
+      newNotifs.push({
+        id: `transient-${nId++}`,
+        isBackend: false,
+        isTransient: true,
+        isRead: false,
+        group: "Today's Activity",
+        name: "Log Your Vitals",
+        action:
+          "Your vitals (Heart rate, BP) have not been logged today. Keep your health record updated.",
+        time: "Now",
+        Icon: Heart,
+        color: C.danger,
+        bg: "#FFE4E6",
+        target: "PatientHome",
+        actionTxt: "Log Now",
+      });
+    }
+
+    // ── 3. Medication Alerts ──────────────────────────────────────
+    const currentTime = new Date();
+    const prefs = patientObj.medication_call_preferences || {
+      morning: "09:00",
+      afternoon: "14:00",
+      evening: "17:00",
+      night: "20:00",
+    };
+
+    medicines.forEach((m) => {
+      if (!m.taken) {
+        const timeKey = m.scheduled_time || m.type || "morning";
+        const timePref =
+          prefs[timeKey] ||
+          (timeKey === "morning"
+            ? "09:00"
+            : timeKey === "afternoon"
+              ? "14:00"
+              : timeKey === "evening"
+                ? "17:00"
+                : "20:00");
+        const [h, min] = timePref.split(":").map(Number);
+        const medTime = new Date();
+        medTime.setHours(h, min, 0, 0);
+
+        const diffHours = (medTime - currentTime) / (1000 * 60 * 60);
+
+        // Alert if overdue or coming up within 2 hours
+        if (diffHours <= 2) {
+          const slot = timeKey.charAt(0).toUpperCase() + timeKey.slice(1);
+          const timeLabel = diffHours < -0.5 ? "Overdue" : "Soon";
+
+          newNotifs.push({
+            id: `transient-${nId++}`,
+            isBackend: false,
+            isTransient: true,
+            isRead: false,
+            group: "Today's Activity",
+            name: `${slot} Medication`,
+            action: `Time to take ${m.medicine_name || m.name}. Scheduled at ${timePref}.`,
+            time: timeLabel,
+            Icon: Pill,
+            color: diffHours < -0.5 ? colors.danger : "#3B82F6",
+            bg: diffHours < -0.5 ? "#FFE4E6" : "#DBEAFE",
+            target: "Medications",
+            actionTxt: "View",
+          });
+        }
+      }
+    });
+
+    // ── 4. Missed Calls Alert ─────────────────────────────────────
+    const todaysCalls = recentCalls.filter(
+      (c) => new Date(c.call_date) >= todayStart,
+    );
+    const missedCalls = todaysCalls.filter((c) => c.status === "missed");
+    if (missedCalls.length > 0) {
+      newNotifs.push({
+        id: `transient-${nId++}`,
+        isBackend: false,
+        isTransient: true,
+        isRead: false,
+        group: "Today's Activity",
+        name: `Missed Call${missedCalls.length > 1 ? "s" : ""}`,
+        action: `Your caller tried to reach you ${missedCalls.length > 1 ? `${missedCalls.length} times` : ""} today. Please call them back.`,
+        time: "Missed",
+        Icon: PhoneMissed,
+        color: C.danger,
+        bg: "#FFE4E6",
+        target: "MyCaller",
+        actionTxt: "Call Back",
+      });
+    }
+
+    // ── 5. Appointment Alert (within 7 days) ─────────────────────
+    const upcoming = (patientObj.appointments || []).filter(
+      (a) => a.status === "upcoming",
+    );
+    upcoming.forEach((a) => {
+      const daysUntil = Math.ceil(
+        (new Date(a.date) - new Date()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysUntil >= 0 && daysUntil <= 7) {
+        newNotifs.push({
+          id: `transient-${nId++}`,
+          isBackend: false,
+          isTransient: true,
+          isRead: false,
+          group: "Upcoming",
+          name: "Upcoming Appointment",
+          action: `Visit with ${a.doctor_name} on ${new Date(a.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}.`,
+          time: daysUntil === 0 ? "Today" : `${daysUntil}d`,
+          Icon: Calendar,
+          color: "#8B5CF6",
+          bg: "#EDE9FE",
+          target: "HealthProfile",
+          actionTxt: "View",
+        });
+      }
+    });
+
+    // ── 6. Subscription Alert (within 7 days) ────────────────────
+    if (patientObj.subscription?.expires_at) {
+      const daysLeft = Math.ceil(
+        (new Date(patientObj.subscription.expires_at) - new Date()) /
+          (1000 * 60 * 60 * 24),
+      );
+      if (daysLeft >= 0 && daysLeft <= 7) {
+        newNotifs.push({
+          id: `transient-${nId++}`,
+          isBackend: false,
+          isTransient: true,
+          isRead: false,
+          group: "System Alerts",
+          name: "Subscription Expiring",
+          action: `Your premium plan expires in ${daysLeft === 0 ? "today" : `${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}. Renew to keep full access.`,
+          time: daysLeft === 0 ? "Today" : `${daysLeft}d`,
+          Icon: AlertCircle,
+          color: colors.warning,
+          bg: "#FEF3C7",
+          target: "PatientHome",
+          actionTxt: "Renew",
+        });
+      }
+    }
+
+    return newNotifs;
+  }, [backendNotifs, recentCalls, patient, dashboardMeds, vitals]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -402,34 +405,18 @@ export default function NotificationsScreen({ navigation }) {
     async (item) => {
       if (item.isBackend && !item.isRead) {
         // Optimistic update first for snappy UI
-        setNotifications((prev) =>
+        setBackendNotifs((prev) =>
           prev.map((n) =>
-            n.id === item.id
-              ? {
-                  ...n,
-                  isRead: true,
-                  color: colors.textMuted,
-                  bg: "#F1F5F9",
-                  actionTxt: "Open",
-                }
-              : n,
+            n._id === item.id ? { ...n, is_read: true } : n
           ),
         );
         try {
           await apiService.patients.markNotificationRead(item.id);
         } catch (err) {
           // Revert on failure
-          setNotifications((prev) =>
+          setBackendNotifs((prev) =>
             prev.map((n) =>
-              n.id === item.id
-                ? {
-                    ...n,
-                    isRead: false,
-                    color: colors.primary,
-                    bg: "#EEF2FF",
-                    actionTxt: "View",
-                  }
-                : n,
+              n._id === item.id ? { ...n, is_read: false } : n
             ),
           );
           console.warn("[NotificationsScreen] markRead failed:", err.message);
@@ -448,31 +435,21 @@ export default function NotificationsScreen({ navigation }) {
 
   // ─── Mark all backend notifications as read ───────────────────────────────
   const handleMarkAllRead = useCallback(async () => {
-    const hasUnread = notifications.some((n) => n.isBackend && !n.isRead);
+    const hasUnread = backendNotifs.some((n) => !n.is_read);
     if (!hasUnread || markingAll) return;
 
     setMarkingAll(true);
     try {
       await apiService.patients.markAllNotificationsRead();
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.isBackend
-            ? {
-                ...n,
-                isRead: true,
-                color: colors.textMuted,
-                bg: "#F1F5F9",
-                actionTxt: "Open",
-              }
-            : n,
-        ),
+      setBackendNotifs((prev) =>
+        prev.map((n) => ({ ...n, is_read: true }))
       );
     } catch (err) {
       console.warn("[NotificationsScreen] markAllRead failed:", err.message);
     } finally {
       setMarkingAll(false);
     }
-  }, [notifications, markingAll]);
+  }, [backendNotifs, markingAll]);
 
   // ─── Battery Optimization Action ──────────────────────────────────────────
   const handleBatteryAction = async () => {

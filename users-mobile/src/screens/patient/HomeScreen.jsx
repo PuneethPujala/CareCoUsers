@@ -399,6 +399,9 @@ export default function PatientHomeScreen({ navigation }) {
   const heartRateInputRef = useRef(null);
   const vitalsSectionY = useRef(0);
   const vitalsCardRef = useRef(null);
+  const orbRef = useRef(null);
+  const insightCardRef = useRef(null);
+  const medsCardRef = useRef(null);
 
   const [showVitalsTour, setShowVitalsTour] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -407,15 +410,54 @@ export default function PatientHomeScreen({ navigation }) {
   const getVitalsTourSteps = () => {
     return [
       {
-        title: t("home.guide_dashboard_title", {
-          defaultValue: "👋 Welcome to your Dashboard",
+        title: t("home.guide_orb_title", {
+          defaultValue: "🔮 Glass Health Orb",
         }),
-        desc: t("home.guide_dashboard_desc", {
+        desc: t("home.guide_orb_desc", {
           defaultValue:
-            "This page is your daily health tracker. Here, you can monitor your health vitals, track your medication plan, review AI insights, and easily call your care companion.",
+            "This is your daily health score. It combines your medication adherence, sleep patterns, active minutes, and vital logs into a single biological wellness estimate.",
         }),
         icon: Sparkles,
-        iconColor: "#8B5CF6",
+        iconColor: "#A78BFA",
+        ref: orbRef,
+        visible: true,
+      },
+      {
+        title: t("home.guide_insight_title", {
+          defaultValue: "✨ AI Coach Guidance",
+        }),
+        desc: t("home.guide_insight_desc", {
+          defaultValue:
+            "Your personal AI coach provides custom check-in insights based on your recent health trends and daily habits. Swipe through the cards to read tips.",
+        }),
+        icon: Sparkles,
+        iconColor: "#A855F7",
+        ref: insightCardRef,
+        visible: true,
+      },
+      {
+        title: t("home.guide_meds_title", {
+          defaultValue: "📅 Today's Plan",
+        }),
+        desc: t("home.guide_meds_desc", {
+          defaultValue:
+            "Keep track of your scheduled medication dosages throughout the day. Mark slots as taken here or in the Medications tab to keep your adherence high.",
+        }),
+        icon: Pill,
+        iconColor: "#3B82F6",
+        ref: medsCardRef,
+        visible: true,
+      },
+      {
+        title: t("home.guide_vitals_title", {
+          defaultValue: "📊 Wearables & Vitals",
+        }),
+        desc: t("home.guide_vitals_desc", {
+          defaultValue:
+            "Monitor physiological vitals (blood pressure, blood glucose, temperature, weight). Connect your wearables (like Health Connect or Fitbit) to sync active minutes automatically.",
+        }),
+        icon: Heart,
+        iconColor: "#EF4444",
         ref: vitalsCardRef,
         visible: true,
       },
@@ -2355,7 +2397,8 @@ export default function PatientHomeScreen({ navigation }) {
             </Animated.View>
 
             {/* ── 1. GLASS HEALTH ORB (Brand Focus, 60% Width) ── */}
-            <Animated.View style={[entranceStyle(1), styles.orbContainer]}>
+            <View ref={orbRef} collapsable={false}>
+              <Animated.View style={[entranceStyle(1), styles.orbContainer]}>
               <Animated.View
                 style={[
                   styles.orbWrapper,
@@ -2513,6 +2556,7 @@ export default function PatientHomeScreen({ navigation }) {
                     })}
               </Text>
             </Animated.View>
+            </View>
 
             {/* ── 2. DAILY CHECK-IN (Directly under the Orb) ── */}
             <Animated.View style={[entranceStyle(2), styles.section]}>
@@ -2624,7 +2668,8 @@ export default function PatientHomeScreen({ navigation }) {
             {/* Removed Health Pulse - combined with Vitals below */}
 
             {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance sliding carousel) ── */}
-            <Animated.View style={[entranceStyle(4), styles.section]}>
+            <View ref={insightCardRef} collapsable={false}>
+              <Animated.View style={[entranceStyle(4), styles.section]}>
               <View style={styles.insightCard}>
                 <View style={styles.insightHeaderRow}>
                   <View style={styles.insightHeaderLeft}>
@@ -2719,9 +2764,11 @@ export default function PatientHomeScreen({ navigation }) {
                 </View>
               </View>
             </Animated.View>
+            </View>
 
             {/* ── 6. MEDICATIONS ── */}
-            <Animated.View style={[entranceStyle(6), styles.section]}>
+            <View ref={medsCardRef} collapsable={false}>
+              <Animated.View style={[entranceStyle(6), styles.section]}>
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>
                   {t("home.todays_plan", { defaultValue: "TODAY'S PLAN" })}
@@ -2913,6 +2960,7 @@ export default function PatientHomeScreen({ navigation }) {
                   />
                 ))}
             </Animated.View>
+            </View>
 
             {/* ── 7. VITALS (Apple Health Style) ── */}
             <Animated.View

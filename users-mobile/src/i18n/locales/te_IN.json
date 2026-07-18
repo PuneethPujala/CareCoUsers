@@ -647,7 +647,8 @@
     "confirm_intake": "తీసుకోవడం నిర్ధారించండి",
     "have_you_taken": "మీరు తీసుకున్నారా",
     "yes_i_took_it": "అవును, నేను తీసుకున్నాను!",
-    "prescription_slip": "ప్రిస్క్రిప్షన్ స్లిప్"
+    "prescription_slip": "ప్రిస్క్రిప్షన్",
+    "prescription_number": "ప్రిస్క్రిప్షన్ #{{number}}"
   },
   "meds": {
     "care_plan": "సంరక్షణ ప్రణాళిక"

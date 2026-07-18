@@ -38,6 +38,17 @@ jest.mock('react-native-health-connect', () => {
   };
 }, { virtual: true });
 
+// Mock expo-sensors Pedometer
+jest.mock('expo-sensors', () => {
+  return {
+    Pedometer: {
+      isAvailableAsync: jest.fn().mockResolvedValue(true),
+      getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+      getStepCountAsync: jest.fn().mockResolvedValue({ steps: 12500 }),
+    },
+  };
+}, { virtual: true });
+
 // Mock axios / apiService
 jest.mock('../../src/lib/api', () => {
   const mockApiService = {
@@ -93,6 +104,28 @@ describe('Mobile Health Repository & Sync Service Tests', () => {
     expect(bpVal).toBeDefined();
     expect(bpVal.blood_pressure.systolic).toBe(120);
     expect(bpVal.blood_pressure.diastolic).toBe(80);
+  });
+
+  it('AndroidHealthAdapter falls back to Expo Pedometer when Health Connect steps is 0', async () => {
+    Platform.OS = 'android';
+
+    const HealthConnect = require('react-native-health-connect');
+    HealthConnect.getGrantedPermissions.mockResolvedValue([
+      { recordType: 'Steps' }
+    ]);
+    
+    // Force HealthConnect readRecords to return empty list for steps
+    HealthConnect.readRecords.mockResolvedValue({ records: [] });
+
+    await initializeHealthPlatform();
+    const data = await HealthRepository.fetchAll();
+
+    expect(data.activity).toBeDefined();
+    expect(data.activity).not.toBeNull();
+    expect(data.activity.steps).toBe(12500);
+    expect(data.activity.distance_meters).toBe(Math.round(12500 * 0.762)); // Estimated distance
+    expect(data.activity.active_calories).toBe(Math.round(12500 * 0.04));  // Estimated calories
+    expect(data.activity.metadata.device_name).toBe('Device Pedometer Sensor');
   });
 
   it('IOSHealthAdapter returns empty or structured mock data when HealthKit not initialized', async () => {

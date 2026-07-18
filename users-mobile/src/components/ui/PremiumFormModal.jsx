@@ -15,6 +15,7 @@ import {
     ActivityIndicator,
     Dimensions,
     PanResponder,
+    DeviceEventEmitter,
 } from 'react-native';
 import { X, Save } from 'lucide-react-native';
 import { colors, radius, motion } from '../../theme';
@@ -42,7 +43,9 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
  *   saveDisabled  - boolean to disable save button
  *   children      - your custom form fields
  *   headerRight   - optional JSX to render in header right area (e.g. delete button)
- */
+  */
+let activeModalsCount = 0;
+
 const PremiumFormModal = ({
     visible,
     title = 'Edit',
@@ -61,6 +64,7 @@ const PremiumFormModal = ({
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const panY = useRef(new Animated.Value(0)).current;
+    const wasVisibleRef = useRef(false);
 
     useEffect(() => {
         if (visible) {
@@ -77,11 +81,31 @@ const PremiumFormModal = ({
                     useNativeDriver: true,
                 }),
             ]).start();
+
+            if (!wasVisibleRef.current) {
+                wasVisibleRef.current = true;
+                activeModalsCount++;
+                DeviceEventEmitter.emit('FORM_MODAL_VISIBLE', activeModalsCount > 0);
+            }
         } else {
             slideAnim.setValue(0);
             backdropAnim.setValue(0);
             panY.setValue(0);
+
+            if (wasVisibleRef.current) {
+                wasVisibleRef.current = false;
+                activeModalsCount = Math.max(0, activeModalsCount - 1);
+                DeviceEventEmitter.emit('FORM_MODAL_VISIBLE', activeModalsCount > 0);
+            }
         }
+
+        return () => {
+            if (wasVisibleRef.current) {
+                wasVisibleRef.current = false;
+                activeModalsCount = Math.max(0, activeModalsCount - 1);
+                DeviceEventEmitter.emit('FORM_MODAL_VISIBLE', activeModalsCount > 0);
+            }
+        };
     }, [visible]);
 
     // Track keyboard on Android for manual padding

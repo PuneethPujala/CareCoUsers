@@ -655,7 +655,8 @@
     "confirm_intake": "Confirm Intake",
     "have_you_taken": "Have you taken\n",
     "yes_i_took_it": "Yes, I took it!",
-    "prescription_slip": "Prescription Slip"
+    "prescription_slip": "Prescription",
+    "prescription_number": "Prescription #{{number}}"
   },
   "meds": {
     "care_plan": "CARE PLAN"
