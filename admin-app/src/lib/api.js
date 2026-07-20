@@ -220,6 +220,7 @@ export const apiService = {
   manager: {
     getDashboard: () => api.get('/manager/dashboard'),
     reconcile: () => api.post('/manager/reconcile'),
+    deleteCaretaker: (id) => api.delete(`/manager/caretakers/${id}`),
   },
 
   // Org Admin endpoints

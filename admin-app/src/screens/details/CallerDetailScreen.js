@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Theme } from '../../theme/theme';
 import GradientHeader from '../../components/common/GradientHeader';
@@ -35,6 +35,37 @@ export default function CallerDetailScreen({ navigation, route }) {
             setRefreshing(false);
         }
     }, [callerId]);
+
+    const handleDeleteCaller = () => {
+        Alert.alert(
+            'Remove Caller?',
+            'This will permanently deactivate this caller. All of their assigned patients will be instantly reallocated to other active callers in your team.\n\nThis action cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Remove Caller', 
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            const res = await apiService.manager.deleteCaretaker(callerId);
+                            
+                            Alert.alert(
+                                'Caller Removed',
+                                res.data?.shortageWarning 
+                                    ? `⚠️ Shortage Warning\n\nReallocated ${res.data?.patientsReallocated || 0} patients.\n\n${res.data?.patientsStranded || 0} patients could not be reallocated because all callers are at maximum capacity. Please add more callers.`
+                                    : `Successfully removed caller.\n\n${res.data?.patientsReallocated || 0} patients have been seamlessly reallocated to the rest of your team.`,
+                                [{ text: 'OK', onPress: () => navigation.goBack() }]
+                            );
+                        } catch (err) {
+                            Alert.alert('Error', err?.response?.data?.error || err.message || 'Failed to remove caller');
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -152,6 +183,16 @@ export default function CallerDetailScreen({ navigation, route }) {
                         })
                     )}
                 </View>
+
+                {/* Remove Caller Button */}
+                <TouchableOpacity 
+                    style={s.deleteBtn}
+                    activeOpacity={0.8}
+                    onPress={handleDeleteCaller}
+                >
+                    <Feather name="trash-2" size={20} color="#EF4444" style={{ marginRight: 8 }} />
+                    <Text style={[s.deleteBtnText, Theme.typography.common]}>Remove Caller</Text>
+                </TouchableOpacity>
             </ScrollView>
         </View>
     );
@@ -198,4 +239,21 @@ const s = StyleSheet.create({
 
     emptyBox: { paddingVertical: 40, alignItems: 'center' },
     emptyText: { fontSize: 14, fontWeight: '700', color: '#94A3B8' },
+
+    deleteBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        marginTop: 32,
+        backgroundColor: '#FEF2F2',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#FEE2E2',
+    },
+    deleteBtnText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#EF4444',
+    }
 });
