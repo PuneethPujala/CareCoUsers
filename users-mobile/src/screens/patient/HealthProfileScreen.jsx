@@ -90,6 +90,9 @@ import { apiService } from "../../lib/api";
 import usePatientStore from "../../store/usePatientStore";
 import GuidedTour from "../../components/ui/GuidedTour";
 import { TourService } from "../../lib/TourService";
+import SectionContainer from "../../components/ui/SectionContainer";
+import SectionErrorCard from "../../components/ui/SectionErrorCard";
+import { useSectionQuery } from "../../hooks/useSectionQuery";
 import {
   initializeHealthPlatform,
   requestHealthPermissions,
@@ -2430,7 +2433,7 @@ export default function HealthProfileScreen({ navigation }) {
           </Animated.View>
 
           {/* ── COMPACT HEALTH SCORE CARD (tappable) ── */}
-          <Animated.View style={[anim(0), { marginTop: 0 }]}>
+          <Animated.View ref={healthScoreCardRef} collapsable={false} style={[anim(0), { marginTop: 0 }]}>
             <Pressable
               style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]}
               onPress={() => {
@@ -2874,7 +2877,7 @@ export default function HealthProfileScreen({ navigation }) {
           >
             {/* Current Conditions */}
             <Animated.View style={anim(2)}>
-              <View style={s.gridCard}>
+              <View ref={medicalRecordsCardRef} collapsable={false} style={s.gridCard}>
                 <View style={s.gridHeader}>
                   <View
                     style={[s.gridIconWrap, { backgroundColor: "#FEE2E2" }]}
@@ -7150,6 +7153,15 @@ export default function HealthProfileScreen({ navigation }) {
             </View>
           </View>
         </Modal>
+
+        {/* ── GUIDED TOUR OVERLAY ── */}
+        <GuidedTour
+          visible={showProfileTour}
+          steps={getProfileTourSteps()}
+          scrollRef={scrollViewRef}
+          tourKey="health_profile"
+          onClose={() => setShowProfileTour(false)}
+        />
       </View>
     </TabScreenTransition>
   );

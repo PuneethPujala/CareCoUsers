@@ -82,6 +82,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { HapticPatterns } from "../../utils/haptics";
 import GuidedTour from "../../components/ui/GuidedTour";
 import { TourService } from "../../lib/TourService";
+import SectionContainer from "../../components/ui/SectionContainer";
+import SectionErrorCard from "../../components/ui/SectionErrorCard";
+import { useSectionQuery } from "../../hooks/useSectionQuery";
+import TurnByTurnBanner from "../../components/ui/TurnByTurnBanner";
+import ProgressiveMedCard from "../../components/ui/ProgressiveMedCard";
+import { NextActionEngine } from "../../lib/NextActionEngine";
 import BottomSheetWrapper from "../../components/ui/BottomSheetWrapper";
 import Svg, {
   Path,
@@ -474,8 +480,17 @@ export default function PatientHomeScreen({ navigation }) {
   const isCached = usePatientStore((s) => s.isCached);
   const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
   const storeFetchMedications = usePatientStore((s) => s.fetchMedications);
-  const storeLoading = usePatientStore((s) => s.loading);
   const setPatient = usePatientStore((s) => s.setPatient);
+
+  const nextAction = useMemo(() => {
+    return NextActionEngine.evaluatePriority({
+      patient,
+      meds,
+      vitals,
+      alerts: profile?.alerts || [],
+      completionPct: profile?.completion_pct || 100,
+    });
+  }, [patient, meds, vitals, profile]);
 
   useEffect(() => {
     // Only run if the patient dashboard loading is done
@@ -1432,7 +1447,8 @@ export default function PatientHomeScreen({ navigation }) {
       !prevMedsCompletedRef.current
     ) {
       HapticPatterns.allDone();
-      setShowCelebration(true);
+      setShowCelebration(false);
+      setTimeout(() => setShowCelebration(true), 10);
       if (reduceMotion) return;
       Animated.sequence([
         Animated.spring(medsCardScaleAnim, {
@@ -1994,6 +2010,17 @@ export default function PatientHomeScreen({ navigation }) {
               <View style={styles.headerActions}>
                 <Pressable
                   style={styles.headerIconBtn}
+                  onPress={() => {
+                    triggerHapticSelection();
+                    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                    setShowVitalsTour(true);
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <HelpCircle size={20} color="#7C3AED" strokeWidth={2.5} />
+                </Pressable>
+                <Pressable
+                  style={styles.headerIconBtn}
                   onPress={() => navigation.navigate("Notifications")}
                 >
                   <Bell size={20} color="#475569" strokeWidth={2.5} />
@@ -2013,6 +2040,14 @@ export default function PatientHomeScreen({ navigation }) {
               </View>
             </View>
           </View>
+
+          {/* ── Progressive Disclosure Guidance Banner ── */}
+          <TurnByTurnBanner
+            stepTitle={nextAction.bannerTitle}
+            stepDescription={nextAction.bannerDescription}
+            iconType={nextAction.iconType}
+            onPress={() => navigation.navigate(nextAction.targetScreen)}
+          />
 
           {/* ── SCROLLABLE CONTAINER ── */}
           <ScrollView

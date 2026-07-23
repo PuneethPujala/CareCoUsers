@@ -186,7 +186,7 @@ export default function MyCallerScreen({ navigation }) {
   const [showTour, setShowTour] = useState(false);
   const tourTriggeredRef = useRef(false);
   const scrollRef = useRef(null);
-  const companionCardRef = useRef(null);
+  const callerCardRef = useRef(null);
   const managerCardRef = useRef(null);
   const contactsCardRef = useRef(null);
   const callsCardRef = useRef(null);
@@ -327,7 +327,7 @@ export default function MyCallerScreen({ navigation }) {
       desc: "Ramesh is your matched caller. They will call you for scheduled check-ins, medication logs, and wellness chats. Tap 'Call Now' to call them directly.",
       icon: Phone,
       iconColor: "#6366F1",
-      ref: companionCardRef,
+      ref: callerCardRef,
       visible: !!caller,
     });
 
@@ -370,7 +370,7 @@ export default function MyCallerScreen({ navigation }) {
       tourTriggeredRef.current = true;
       const initTour = async () => {
         // Screen-specific domain logic check for existing user migration
-        const companionHeuristic = async () => {
+        const callerHeuristic = async () => {
           const hasCallHistory = calls.length > 0;
           const hasContacts = contacts.length > 0;
           const isExistingAccount =
@@ -380,9 +380,9 @@ export default function MyCallerScreen({ navigation }) {
         };
 
         // Strictly await migration first before querying seen state to avoid race conditions
-        await TourService.evaluateMigration("companion", companionHeuristic);
+        await TourService.evaluateMigration("care_team", callerHeuristic);
 
-        const seen = await TourService.isTourSeen("companion");
+        const seen = await TourService.isTourSeen("care_team");
         if (!seen) {
           setTimeout(() => {
             setShowTour(true);
@@ -837,7 +837,7 @@ export default function MyCallerScreen({ navigation }) {
       >
         {/* ── YOUR CALLER HERO CARD ──────────────────────────────────── */}
         <Animated.View style={anim(1)}>
-          <View ref={companionCardRef} collapsable={false}>
+          <View ref={callerCardRef} collapsable={false}>
           <Text style={s.sectionLabel}>
             {t("caller.your_caller", { defaultValue: "YOUR CALLER" })}
           </Text>
@@ -2128,7 +2128,7 @@ export default function MyCallerScreen({ navigation }) {
         visible={showTour}
         steps={getTourSteps()}
         scrollRef={scrollRef}
-        tourKey="companion"
+        tourKey="care_team"
         onClose={() => setShowTour(false)}
       />
     </View>

@@ -49,6 +49,7 @@ import {
   Zap,
   Trash2,
   User,
+  HelpCircle,
 } from "lucide-react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import Svg, {
@@ -989,22 +990,53 @@ export default function MedicationsScreen({ navigation, route }) {
   const scrollViewRef = useRef(null);
   const medsListCardRef = useRef(null);
   const headerRef = useRef(null);
+  const adherenceCardRef = useRef(null);
+  const slotsRef = useRef(null);
+  const tempMedsRef = useRef(null);
 
   const getMedsTourSteps = () => {
-    return [
-      {
-        title: t("home.guide_meds_title", { defaultValue: "💊 Medications" }),
-        desc: t("home.guide_meds_desc", {
-          defaultValue:
-            "Swipe or tap a medicine card to mark it as taken once you have consumed it. Your caller will check this list to make sure you are safe.",
-        }),
-        icon: Pill,
-        iconColor: "#10B981",
-        ref: headerRef,
-        scrollOffset: 0,
-        visible: true,
-      },
-    ];
+    const steps = [];
+
+    steps.push({
+      title: t("home.guide_meds_title", { defaultValue: "💊 Daily Schedule" }),
+      desc: t("home.guide_meds_desc", {
+        defaultValue:
+          "Swipe or tap a medicine card to mark it as taken once consumed. Your care caller reviews this daily to keep you safe.",
+      }),
+      icon: Pill,
+      iconColor: "#10B981",
+      ref: schedule && Object.values(schedule).flat().length > 0 ? slotsRef : medsListCardRef,
+      scrollOffset: 0,
+      visible: true,
+    });
+
+    steps.push({
+      title: t("medications.guide_adherence_title", { defaultValue: "📊 Adherence Trend" }),
+      desc: t("medications.guide_adherence_desc", {
+        defaultValue:
+          "Track your 7-day adherence percentage and habit consistency. Higher adherence unlocks milestone badges!",
+      }),
+      icon: TrendingUp,
+      iconColor: "#6366F1",
+      ref: adherenceCardRef,
+      scrollOffset: 0,
+      visible: true,
+    });
+
+    steps.push({
+      title: t("medications.guide_temp_title", { defaultValue: "⚡ Temporary Meds" }),
+      desc: t("medications.guide_temp_desc", {
+        defaultValue:
+          "Log short-term prescriptions like antibiotics or pain relievers, or request a prescription slip review directly from your care team.",
+      }),
+      icon: Zap,
+      iconColor: "#A855F7",
+      ref: tempMedsRef,
+      scrollOffset: 300,
+      visible: true,
+    });
+
+    return steps;
   };
 
   useEffect(() => {
@@ -1252,16 +1284,12 @@ export default function MedicationsScreen({ navigation, route }) {
     setIsConfirmVisible(false);
     setConfirmingMed(null);
 
-    const allMeds = usePatientStore.getState().dashboardMeds || [];
-    const totalCount = allMeds.length;
-    const remainingCount = allMeds.filter((m) => !m.taken && m._id !== med._id).length;
-    const isNowComplete = remainingCount === 0 && totalCount > 0;
+    // Instant celebratory feedback on dose confirmation (0ms delay, no network lag)
+    setShowCelebration(false);
+    setTimeout(() => setShowCelebration(true), 10);
 
     try {
       await storeOptimisticToggle(med, true);
-      if (isNowComplete) {
-        setShowCelebration(true);
-      }
     } catch (err) {
       console.warn("[Toggle] Failed:", err.message);
       showToast(
@@ -1793,6 +1821,17 @@ export default function MedicationsScreen({ navigation, route }) {
               <Pressable
                 style={styles.headerBtn}
                 onPress={() => {
+                  triggerHapticSelection();
+                  scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                  setShowMedsTour(true);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <HelpCircle size={20} color="#7C3AED" strokeWidth={2.5} />
+              </Pressable>
+              <Pressable
+                style={styles.headerBtn}
+                onPress={() => {
                   setShowPrefModal(true);
                   setTempPrefs(preferences);
                   setActivePicker(null);
@@ -2037,7 +2076,7 @@ export default function MedicationsScreen({ navigation, route }) {
             <>
               {/* ── WEEKLY CHART ── */}
               <Animated.View style={anim(1)}>
-                <View style={styles.chartCard}>
+                <View ref={adherenceCardRef} collapsable={false} style={styles.chartCard}>
                   <View
                     style={{
                       flexDirection: "row",
@@ -2150,7 +2189,7 @@ export default function MedicationsScreen({ navigation, route }) {
 
               {/* ── TIME SECTIONS ── */}
               <Animated.View style={anim(2)}>
-                <View ref={medsListCardRef} collapsable={false}>
+                <View ref={slotsRef} collapsable={false}>
                   {SLOT_ORDER.map((slot) => {
                     const meds = schedule[slot] || [];
                     if (meds.length === 0) return null;
@@ -2177,6 +2216,8 @@ export default function MedicationsScreen({ navigation, route }) {
               {/* ── TEMPORARY MEDICATIONS ── */}
               <Animated.View style={anim(3)}>
                 <View
+                  ref={tempMedsRef}
+                  collapsable={false}
                   style={{
                     backgroundColor: "#FFFFFF",
                     borderRadius: radius.lg,

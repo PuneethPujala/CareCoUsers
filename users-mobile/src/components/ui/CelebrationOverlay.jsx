@@ -65,17 +65,21 @@ const ConfettiParticle = ({ index }) => {
 
 export default function CelebrationOverlay({ active, onComplete }) {
   const [show, setShow] = useState(false);
+  const [burstKey, setBurstKey] = useState(0);
 
   useEffect(() => {
     if (active) {
+      setBurstKey((prev) => prev + 1);
       setShow(true);
       const timer = setTimeout(() => {
         setShow(false);
         if (onComplete) onComplete();
-      }, 2000);
+      }, 1600);
       return () => clearTimeout(timer);
+    } else {
+      setShow(false);
     }
-  }, [active, onComplete]);
+  }, [active]);
 
   if (!show) return null;
 
@@ -86,7 +90,7 @@ export default function CelebrationOverlay({ active, onComplete }) {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <View style={styles.burstContainer}>
         {particles.map((_, i) => (
-          <ConfettiParticle key={i} index={i} />
+          <ConfettiParticle key={`${burstKey}-${i}`} index={i} />
         ))}
       </View>
     </View>

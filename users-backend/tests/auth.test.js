@@ -667,6 +667,52 @@ describe('Auth Routes', () => {
     });
   });
 
+  // ── DELETE /api/auth/me & POST /api/auth/me/deactivate ─────────────────────
+
+  describe('DELETE /api/auth/me & POST /api/auth/me/deactivate', () => {
+    it('deletes patient account and associated records successfully', async () => {
+      const patient = mockPatient({
+        _id: 'patient-to-delete',
+        role: 'patient',
+        supabase_uid: 'sup-pat-del',
+        organization_id: 'org123',
+      });
+      mockAuthState.user = { id: 'sup-pat-del' };
+      mockAuthState.profile = patient;
+
+      const Caller = require('../src/models/Caller');
+      const RefreshToken = require('../src/models/RefreshToken');
+      Caller.updateMany = jest.fn().mockResolvedValue({ acknowledged: true });
+      RefreshToken.deleteMany = jest.fn().mockResolvedValue({ acknowledged: true });
+      Patient.findByIdAndDelete = jest.fn().mockResolvedValue(patient);
+      Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+
+      const res = await request(app).delete('/api/auth/me');
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('permanently deleted');
+      expect(Patient.findByIdAndDelete).toHaveBeenCalled();
+    });
+
+    it('deactivates account successfully', async () => {
+      const patient = mockPatient({
+        _id: 'patient-to-deactivate',
+        role: 'patient',
+        supabase_uid: 'sup-pat-deact',
+      });
+      mockAuthState.user = { id: 'sup-pat-deact' };
+      mockAuthState.profile = patient;
+
+      Patient.findByIdAndUpdate = jest.fn().mockResolvedValue(patient);
+
+      const res = await request(app).post('/api/auth/me/deactivate');
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('Account deactivated');
+      expect(Patient.findByIdAndUpdate).toHaveBeenCalled();
+    });
+  });
+
   // ── POST /api/auth/refresh ─────────────────────────────────────────────────
 
   describe('POST /api/auth/refresh', () => {

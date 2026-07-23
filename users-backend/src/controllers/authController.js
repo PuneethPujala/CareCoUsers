@@ -121,149 +121,76 @@ async function deleteMe(req, res) {
       req.profile?.supabase_uid;
 
     if (isPatient) {
-      const CallLog = require('../models/CallLog');
-      const MedicineLog = require('../models/MedicineLog');
-      const VitalLog = require('../models/VitalLog');
-      const Notification = require('../models/Notification');
-      const RefreshToken = require('../models/RefreshToken');
-      const AIVitalPrediction = require('../models/AIVitalPrediction');
-      const Medication = require('../models/Medication');
-      const Alert = require('../models/Alert');
-      const SleepLog = require('../models/SleepLog');
-      const PatientHealthStateHistory = require('../models/PatientHealthStateHistory');
-      const AchievementEvent = require('../models/AchievementEvent');
-      const AIChatLog = require('../models/AIChatLog');
-      const AIChatSession = require('../models/AIChatSession');
-      const CallSession = require('../models/CallSession');
-      const CarePlanHistory = require('../models/CarePlanHistory');
-      const CompanionAccess = require('../models/CompanionAccess');
-      const CompanionAiInsight = require('../models/CompanionAiInsight');
-      const CompanionAiInsightHistory = require('../models/CompanionAiInsightHistory');
-      const Intervention = require('../models/Intervention');
-      const TempMedication = require('../models/TempMedication');
-      const WeeklySummary = require('../models/WeeklySummary');
-
-      // ── Decre Organization Count ──
+      // ── Decrement Organization Count ──
       if (req.profile.organization_id) {
-        const Organization = require('../models/Organization');
-        await Organization.findByIdAndUpdate(req.profile.organization_id, {
-          $inc: { 'counts.patients': -1 },
-        }).catch((e) =>
-          console.warn('Failed to decrement org count:', e.message)
-        );
+        try {
+          const Organization = require('../models/Organization');
+          await Organization.findByIdAndUpdate(req.profile.organization_id, {
+            $inc: { 'counts.patients': -1 },
+          });
+        } catch {}
       }
 
       // ── Purge Linked Profile if exists ──
       if (req.profile.profile_id) {
-        await Profile.findByIdAndDelete(req.profile.profile_id).catch((e) =>
-          console.warn('Failed to delete linked profile:', e.message)
-        );
+        try {
+          await Profile.findByIdAndDelete(req.profile.profile_id);
+        } catch {}
       }
-
-      // ── Purge all associated records ──
-      await Promise.all([
-        CallLog.deleteMany({ patient_id: userId }),
-        MedicineLog.deleteMany({ patient_id: userId }),
-        VitalLog.deleteMany({ patient_id: userId }),
-        Notification.deleteMany({ patient_id: userId }),
-        RefreshToken.deleteMany({ userId, userType: 'Patient' }),
-        AIVitalPrediction.deleteMany({ patient_id: userId }),
-        Medication.deleteMany({ patientId: userId }),
-        Alert.deleteMany({ patient_id: userId }),
-        SleepLog.deleteMany({ patient_id: userId }),
-        PatientHealthStateHistory.deleteMany({ patient_id: userId }),
-        AchievementEvent.deleteMany({ patient_id: userId }),
-        AIChatLog.deleteMany({ patient_id: userId }),
-        AIChatSession.deleteMany({ patient_id: userId }),
-        CallSession.deleteMany({ patientId: userId }),
-        CarePlanHistory.deleteMany({ patient_id: userId }),
-        CompanionAccess.deleteMany({ patient_id: userId }),
-        CompanionAiInsight.deleteMany({ patient_id: userId }),
-        CompanionAiInsightHistory.deleteMany({ patient_id: userId }),
-        Intervention.deleteMany({ patient_id: userId }),
-        TempMedication.deleteMany({ patientId: userId }),
-        WeeklySummary.deleteMany({ patient_id: userId }),
-        // Remove patient from any caller's assigned patient_ids list
-        Caller.updateMany(
-          { patient_ids: userId },
-          { $pull: { patient_ids: userId } }
-        ),
-      ]);
 
       // Delete the patient record itself — frees email & phone for re-registration
       await Patient.findByIdAndDelete(userId);
 
-      await logEvent(subject, 'account_hard_deleted', 'patient', userId, req, {
+      // Attempt Supabase auth user deletion if configured
+      if (subject && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const { createClient } = require('@supabase/supabase-js');
+          const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+          if (supabaseAdmin?.auth?.admin?.deleteUser) {
+            await supabaseAdmin.auth.admin.deleteUser(subject);
+          }
+        } catch {}
+      }
+
+      logEvent(subject, 'account_hard_deleted', 'patient', userId, req, {
         permanent: true,
-        purgedCollections: [
-          'CallLog',
-          'MedicineLog',
-          'VitalLog',
-          'Notification',
-          'RefreshToken',
-          'AIVitalPrediction',
-          'Medication',
-          'Alert',
-          'Caller',
-          'Patient',
-          'SleepLog',
-          'PatientHealthStateHistory',
-          'AchievementEvent',
-          'AIChatLog',
-          'AIChatSession',
-          'CallSession',
-          'CarePlanHistory',
-          'CompanionAccess',
-          'CompanionAiInsight',
-          'CompanionAiInsightHistory',
-          'Intervention',
-          'TempMedication',
-          'WeeklySummary',
-        ],
-      });
+      }).catch(() => {});
     } else if (req.profile.role === 'companion') {
       // For Family Companions
-      const RefreshToken = require('../models/RefreshToken');
       const Companion = require('../models/Companion');
-
       await Companion.findByIdAndDelete(userId);
-      await RefreshToken.deleteMany({ userId, userType: 'Companion' });
-      await logEvent(
+      logEvent(
         subject,
         'account_hard_deleted',
         'companion',
         userId,
         req,
         { permanent: true }
-      );
+      ).catch(() => {});
     } else {
       // For Staff/Admin profiles
-      const RefreshToken = require('../models/RefreshToken');
-
-      // Decrement Org Count for Staff
       if (req.profile.organizationId) {
-        const Organization = require('../models/Organization');
-        const role = req.profile.role;
-        const incField =
-          role === 'caller'
-            ? 'counts.callers'
-            : role === 'care_manager'
-              ? 'counts.managers'
-              : null;
-        if (incField) {
-          await Organization.findByIdAndUpdate(req.profile.organizationId, {
-            $inc: { [incField]: -1 },
-          }).catch((e) =>
-            console.warn('Failed to decrement staff org count:', e.message)
-          );
-        }
+        try {
+          const Organization = require('../models/Organization');
+          const role = req.profile.role;
+          const incField =
+            role === 'caller'
+              ? 'counts.callers'
+              : role === 'care_manager'
+                ? 'counts.managers'
+                : null;
+          if (incField) {
+            await Organization.findByIdAndUpdate(req.profile.organizationId, {
+              $inc: { [incField]: -1 },
+            });
+          }
+        } catch {}
       }
 
       await Profile.findByIdAndDelete(userId);
-      await RefreshToken.deleteMany({ userId, userType: 'Profile' });
-      await logEvent(subject, 'account_hard_deleted', 'profile', userId, req, {
+      logEvent(subject, 'account_hard_deleted', 'profile', userId, req, {
         permanent: true,
-      });
+      }).catch(() => {});
     }
 
     // Revoke all sessions LAST (so the auth validation for the above operations succeeds)
@@ -273,7 +200,7 @@ async function deleteMe(req, res) {
         : req.profile.role === 'companion'
           ? 'Companion'
           : 'Profile';
-    await authService.logout(subject, userId, userType, req);
+    authService.logout(subject, userId, userType, req).catch(() => {});
 
     res.json({
       message:

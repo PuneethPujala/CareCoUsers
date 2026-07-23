@@ -16,10 +16,16 @@ import {
     Dimensions,
     PanResponder,
     DeviceEventEmitter,
+    LayoutAnimation,
+    UIManager,
 } from 'react-native';
 import { X, Save } from 'lucide-react-native';
 import { colors, radius, motion } from '../../theme';
 import ScalePressable from './ScalePressable';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const FONT = {
     regular: { fontFamily: 'Inter', fontWeight: '400' },
@@ -32,18 +38,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 /**
  * PremiumFormModal — A universal, keyboard-safe, bottom-sheet form wrapper.
- *
- * Props:
- *   visible       - boolean controlling modal visibility
- *   title         - string header title
- *   onClose       - function called when user closes
- *   onSave        - function called when user taps save (optional; if omitted, no sticky button)
- *   saveText      - string for save button label (default: "Save")
- *   saving        - boolean to show loading spinner on save button
- *   saveDisabled  - boolean to disable save button
- *   children      - your custom form fields
- *   headerRight   - optional JSX to render in header right area (e.g. delete button)
-  */
+ */
 let activeModalsCount = 0;
 
 const PremiumFormModal = ({
@@ -72,7 +67,8 @@ const PremiumFormModal = ({
             Animated.parallel([
                 Animated.spring(slideAnim, {
                     toValue: 1,
-                    ...motion.springSoft,
+                    friction: 7,
+                    tension: 45,
                     useNativeDriver: true,
                 }),
                 Animated.timing(backdropAnim, {
@@ -108,13 +104,17 @@ const PremiumFormModal = ({
         };
     }, [visible]);
 
-    // Track keyboard on Android for manual padding
+    // Track keyboard height with fluid LayoutAnimation height morphing
     useEffect(() => {
-        if (Platform.OS !== 'android') return;
-        const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+        const showSub = Keyboard.addListener(showEvent, (e) => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setKeyboardHeight(e.endCoordinates.height);
         });
-        const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+        const hideSub = Keyboard.addListener(hideEvent, () => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setKeyboardHeight(0);
         });
         return () => {
@@ -153,7 +153,6 @@ const PremiumFormModal = ({
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
             onMoveShouldSetPanResponder: (_, gestureState) => {
-                // Only trigger for vertical swipes down
                 return !centered && gestureState.dy > 5 && Math.abs(gestureState.dx) < 15;
             },
             onPanResponderMove: (_, gestureState) => {
@@ -191,8 +190,21 @@ const PremiumFormModal = ({
         })
     ).current;
 
-    // On Android, we manually handle keyboard offset via bottom padding
     const androidKeyboardPad = Platform.OS === 'android' ? keyboardHeight : 0;
+
+    // Organic scale morph interpolator for smooth spring entry/exit
+    const sheetScaleMorph = slideAnim.interpolate({
+        inputRange: [0, 0.6, 0.88, 1],
+        outputRange: [0.92, 0.97, 1.012, 1],
+    });
+
+    const sheetTranslateY = Animated.add(
+        slideAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [SCREEN_HEIGHT, 0],
+        }),
+        panY
+    );
 
     return (
         <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose} statusBarTranslucent>
@@ -201,35 +213,27 @@ const PremiumFormModal = ({
                 <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]} />
             </TouchableWithoutFeedback>
 
-            <KeyboardAvoidingView
+            <View
                 style={[styles.sheetWrapper, centered ? { paddingHorizontal: 20 } : { paddingHorizontal: 0 }, centered && styles.sheetWrapperCentered]}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
+                pointerEvents="box-none"
             >
               <Animated.View
                 style={[
-                    centered ? { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' } : { flex: 1, justifyContent: 'flex-end' },
+                    centered ? styles.animatedCentered : styles.animatedBottomSheet,
                     {
                         opacity: slideAnim,
                         transform: centered
                             ? [
                                   {
                                       scale: slideAnim.interpolate({
-                                          inputRange: [0, 1],
-                                          outputRange: [0.95, 1],
+                                          inputRange: [0, 0.8, 1],
+                                          outputRange: [0.92, 1.02, 1],
                                       }),
                                   },
                               ]
                             : [
-                                  {
-                                      translateY: Animated.add(
-                                          slideAnim.interpolate({
-                                              inputRange: [0, 1],
-                                              outputRange: [SCREEN_HEIGHT, 0],
-                                          }),
-                                          panY
-                                      ),
-                                  },
+                                  { translateY: sheetTranslateY },
+                                  { scale: sheetScaleMorph },
                               ],
                     },
                 ]}
@@ -238,93 +242,102 @@ const PremiumFormModal = ({
                 <View style={[
                     styles.sheetContainer,
                     centered && styles.sheetContainerCentered,
-                    androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 80 }
+                    androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 40 }
                 ]}>
-                    {/* Top drag handle indicator for bottom sheets */}
-                    {!centered && (
-                        <View {...panResponder.panHandlers} style={{ width: '100%', alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
-                            <View style={styles.sheetHandle} />
-                        </View>
-                    )}
-
-                    {/* Header */}
-                    <View style={[
-                        styles.header,
-                        centered && styles.headerCentered,
-                        !centered && { paddingTop: 16, borderBottomWidth: 0 } // borderless flow as per design spec with safe padding to prevent rounded corner clipping
-                    ]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
-                            {icon && (
-                                <View style={[styles.iconCircle, { backgroundColor: '#FAF5FF', width: 44, height: 44, borderRadius: 22 }]}>
-                                    {icon}
-                                </View>
-                            )}
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.title} numberOfLines={1}>
-                                    {title}
-                                </Text>
-                                {subtitle && (
-                                    <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2, fontWeight: '500' }}>
-                                        {subtitle}
-                                    </Text>
-                                )}
-                            </View>
-                        </View>
-                        <View style={styles.headerActions}>
-                            {headerRight}
-                            <Pressable
-                                onPress={handleClose}
-                                style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
-                                hitSlop={12}
-                            >
-                                <X size={20} color="#64748B" strokeWidth={2.5} />
-                            </Pressable>
-                        </View>
-                    </View>
-
-                    {/* Scrollable Form Body */}
-                    <ScrollView
+                    <KeyboardAvoidingView
                         style={{ flex: 1 }}
-                        contentContainerStyle={[
-                            styles.scrollContent,
-                            androidKeyboardPad > 0 && { paddingBottom: 24 },
-                        ]}
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        keyboardDismissMode="interactive"
-                        bounces={true}
-                        nestedScrollEnabled={true}
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
                     >
-                        {children}
-                    </ScrollView>
+                        {/* Top drag handle indicator for bottom sheets */}
+                        {!centered && (
+                            <View {...panResponder.panHandlers} style={{ width: '100%', alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
+                                <View style={styles.sheetHandle} />
+                            </View>
+                        )}
 
-                    {/* Sticky Save Button — always above keyboard */}
-                    {onSave && (
-                        <View style={[styles.stickyFooter, androidKeyboardPad > 0 && { paddingBottom: 12 }]}>
-                            <ScalePressable
-                                onPress={handleSave}
-                                disabled={saving || saveDisabled}
-                                pressScale={0.97}
-                                hapticType="selection"
-                                style={[
-                                    styles.saveBtn,
-                                    (saving || saveDisabled) && styles.saveBtnDisabled,
-                                ]}
-                            >
-                                {saving ? (
-                                    <ActivityIndicator color="#FFFFFF" size="small" />
-                                ) : (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                                        <Save size={18} color="#FFFFFF" strokeWidth={2.5} />
-                                        <Text style={styles.saveBtnText}>{saveText}</Text>
+                        {/* Header */}
+                        <View style={[
+                            styles.header,
+                            centered && styles.headerCentered,
+                            !centered && { paddingTop: 12, borderBottomWidth: 0 }
+                        ]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
+                                {icon && (
+                                    <View style={[styles.iconCircle, { backgroundColor: '#FAF5FF', width: 44, height: 44, borderRadius: 22 }]}>
+                                        {icon}
                                     </View>
                                 )}
-                            </ScalePressable>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.title} numberOfLines={1}>
+                                        {title}
+                                    </Text>
+                                    {subtitle && (
+                                        <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2, fontWeight: '500' }}>
+                                            {subtitle}
+                                        </Text>
+                                    )}
+                                </View>
+                            </View>
+                            <View style={styles.headerActions}>
+                                {headerRight}
+                                <Pressable
+                                    onPress={handleClose}
+                                    style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
+                                    hitSlop={12}
+                                >
+                                    <X size={20} color="#64748B" strokeWidth={2.5} />
+                                </Pressable>
+                            </View>
                         </View>
-                    )}
+
+                        {/* Scrollable Form Body */}
+                        <ScrollView
+                            style={{ flex: 1 }}
+                            contentContainerStyle={[
+                                styles.scrollContent,
+                                androidKeyboardPad > 0 && { paddingBottom: 24 },
+                            ]}
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="on-drag"
+                            bounces={true}
+                            nestedScrollEnabled={true}
+                        >
+                            {children}
+                        </ScrollView>
+
+                        {/* Sticky Save Button — anchored at sheet bottom */}
+                        {onSave && (
+                            <View style={[
+                                styles.stickyFooter,
+                                androidKeyboardPad > 0 && { paddingBottom: 16 }
+                            ]}>
+                                <ScalePressable
+                                    onPress={handleSave}
+                                    disabled={saving || saveDisabled}
+                                    pressScale={0.97}
+                                    hapticType="selection"
+                                    style={[
+                                        styles.saveBtn,
+                                        (saving || saveDisabled) && styles.saveBtnDisabled,
+                                    ]}
+                                >
+                                    {saving ? (
+                                        <ActivityIndicator color="#FFFFFF" size="small" />
+                                    ) : (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                            <Save size={18} color="#FFFFFF" strokeWidth={2.5} />
+                                            <Text style={styles.saveBtnText}>{saveText}</Text>
+                                        </View>
+                                    )}
+                                </ScalePressable>
+                            </View>
+                        )}
+                    </KeyboardAvoidingView>
                 </View>
               </Animated.View>
-            </KeyboardAvoidingView>
+            </View>
         </Modal>
     );
 };
@@ -345,6 +358,16 @@ const styles = StyleSheet.create({
     sheetWrapperCentered: {
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    animatedBottomSheet: {
+        width: '100%',
+        justifyContent: 'flex-end',
+    },
+    animatedCentered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
     },
     sheetContainerCentered: {
         minHeight: 0,

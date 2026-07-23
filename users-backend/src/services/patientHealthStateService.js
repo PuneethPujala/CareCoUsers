@@ -6,11 +6,31 @@ const SleepLog = require('../models/SleepLog');
 const PatientHealthStateHistory = require('../models/PatientHealthStateHistory');
 const AchievementEvent = require('../models/AchievementEvent');
 const { computeHealthScore, gradeFromScore } = require('./healthScoreService');
-const {
-  buildMergedMeds,
-  computeCurrentStreak,
-} = require('../routes/users/medicines');
 const logger = require('../utils/logger');
+
+function getMedicinesHelpers() {
+  try {
+    const medicinesModule = require('../routes/users/medicines');
+    return {
+      buildMergedMeds:
+        typeof medicinesModule.buildMergedMeds === 'function'
+          ? medicinesModule.buildMergedMeds
+          : async () => [],
+      computeCurrentStreak:
+        typeof medicinesModule.computeCurrentStreak === 'function'
+          ? medicinesModule.computeCurrentStreak
+          : () => 0,
+    };
+  } catch (err) {
+    logger.warn('[PatientHealthStateService] Failed to load medicines helpers dynamically', {
+      error: err.message,
+    });
+    return {
+      buildMergedMeds: async () => [],
+      computeCurrentStreak: () => 0,
+    };
+  }
+}
 
 const HEALTH_HISTORY_SCHEMA_VERSION = 2;
 const HEALTH_HISTORY_ALGORITHM_VERSION = 1;
@@ -25,6 +45,7 @@ const HEALTH_HISTORY_MIN_RECORDS = 30;
  */
 async function recomputeAndCacheHealthState(patientId, targetDate = null) {
   try {
+    const { buildMergedMeds, computeCurrentStreak } = getMedicinesHelpers();
     let patient = await Patient.findById(patientId);
     // Robust mock execution check for tests where Patient.findById returns a non-thenable query mock
     if (

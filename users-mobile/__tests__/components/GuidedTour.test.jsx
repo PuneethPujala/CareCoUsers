@@ -485,5 +485,60 @@ describe('GuidedTour', () => {
       expect(getByText('Custom Step')).toBeTruthy();
       expect(getByText('Custom description')).toBeTruthy();
     });
+
+    it('measures target using measureInWindow when ref is attached', async () => {
+      const mockMeasureInWindow = jest.fn((cb) => cb(20, 100, 150, 80));
+      const steps = [{
+        title: 'Measured Target',
+        desc: 'Target is attached and measured',
+        icon: MockIcon,
+        ref: {
+          current: {
+            measureInWindow: mockMeasureInWindow,
+          },
+        },
+        visible: true,
+      }];
+
+      const { getByText } = render(
+        <GuidedTour visible={true} steps={steps} tourKey="test" onClose={jest.fn()} />
+      );
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      });
+
+      expect(getByText('Measured Target')).toBeTruthy();
+      expect(mockMeasureInWindow).toHaveBeenCalled();
+    });
+
+    it('gracefully degrades to static fallback if measureInWindow returns 0 after retries', async () => {
+      const mockMeasureInWindow = jest.fn((cb) => cb(0, 0, 0, 0));
+      const steps = [{
+        title: 'Fallback Step',
+        desc: 'Fallback description',
+        icon: MockIcon,
+        spotlightTop: 150,
+        ref: {
+          current: {
+            measureInWindow: mockMeasureInWindow,
+          },
+        },
+        visible: true,
+      }];
+
+      const { getByText } = render(
+        <GuidedTour visible={true} steps={steps} tourKey="test" onClose={jest.fn()} />
+      );
+
+      // Wait for retry attempts to complete (5 x 60ms)
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      });
+
+      expect(getByText('Fallback Step')).toBeTruthy();
+      expect(mockMeasureInWindow).toHaveBeenCalled();
+    });
   });
 });
+
