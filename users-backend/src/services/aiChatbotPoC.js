@@ -306,10 +306,23 @@ async function buildRAGContext(
   console.log(`[PoC] Fetching context for patient ${patientId}...`);
 
   // 1. Fetch & Truncate Patient Context
-  const patientContext = await buildPatientContext(patientId);
+  let patientContext = null;
+  if (patientId) {
+    try {
+      patientContext = await buildPatientContext(patientId);
+    } catch (ctxErr) {
+      console.warn('[PoC] Failed to build patient context:', ctxErr.message);
+    }
+  }
 
   if (!patientContext) {
-    throw new Error('Patient context could not be built. Verify patient ID.');
+    patientContext = {
+      name: 'Patient',
+      timezone: 'Asia/Kolkata',
+      activeMedications: [],
+      adherenceSummary: { status: 'No active telemetry records' },
+      vitalsSummary: {},
+    };
   }
 
   console.log(`[PoC] Searching ChromaDB for guidelines...`);
@@ -757,85 +770,113 @@ async function streamPoCResponse(
       throw new Error('GROQ_API_KEY is not configured');
     }
 
-    console.log(`[PoC] Querying Groq API (${modelUsed})...`);
-    const groqResponse = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
-      {
-        model: modelUsed,
-        messages: messages,
-        stream: true,
-        stream_options: { include_usage: true },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        responseType: 'stream',
-        timeout: 15000,
-        signal: abortController.signal,
-      }
+    const candidateModels = Array.from(
+      new Set([
+        modelUsed,
+        'openai/gpt-oss-120b',
+        'openai/gpt-oss-20b',
+        'qwen/qwen3.8-27b',
+        'qwen/qwen3.6-27b',
+      ])
     );
 
-    await new Promise((resolve, reject) => {
-      let buffer = '';
-      const onAbort = () => {
-        reject(new Error('Request aborted'));
-      };
-      if (abortController.signal.aborted) {
-        return onAbort();
-      }
-      abortController.signal.addEventListener('abort', onAbort);
+    let groqStreamSuccess = false;
+    let lastGroqErr = null;
 
-      groqResponse.data.on('data', (chunk) => {
-        buffer += chunk.toString();
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine) continue;
-          if (trimmedLine === 'data: [DONE]') continue;
-          if (trimmedLine.startsWith('data: ')) {
-            const jsonStr = trimmedLine.substring(6).trim();
-            if (!jsonStr) continue;
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const token = parsed.choices?.[0]?.delta?.content || '';
-              if (token) {
-                if (!firstTokenLatency) {
-                  firstTokenLatency = Math.round(
-                    performance.now() - requestStart
-                  );
-                }
-                fullText += token;
-                const suggestionStart = fullText.indexOf('\n>>');
-                if (suggestionStart === -1) {
-                  sendEvent('chunk', { text: token });
-                }
-              }
-              if (parsed.usage) {
-                promptTokens = parsed.usage.prompt_tokens;
-                completionTokens = parsed.usage.completion_tokens;
-                totalTokens = parsed.usage.total_tokens;
-              }
-            } catch (e) {
-              // ignore parse errors for split chunk parts
-            }
+    for (const candidate of candidateModels) {
+      if (groqStreamSuccess || abortController.signal.aborted) break;
+      try {
+        console.log(`[PoC] Querying Groq API (${candidate})...`);
+        const groqResponse = await axios.post(
+          'https://api.groq.com/openai/v1/chat/completions',
+          {
+            model: candidate,
+            messages: messages,
+            stream: true,
+            stream_options: { include_usage: true },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${groqKey}`,
+              'Content-Type': 'application/json',
+            },
+            responseType: 'stream',
+            timeout: 20000,
+            signal: abortController.signal,
           }
-        }
-      });
+        );
 
-      groqResponse.data.on('end', () => {
-        abortController.signal.removeEventListener('abort', onAbort);
-        resolve();
-      });
+        await new Promise((resolve, reject) => {
+          let buffer = '';
+          const onAbort = () => {
+            reject(new Error('Request aborted'));
+          };
+          if (abortController.signal.aborted) {
+            return onAbort();
+          }
+          abortController.signal.addEventListener('abort', onAbort);
 
-      groqResponse.data.on('error', (err) => {
-        abortController.signal.removeEventListener('abort', onAbort);
-        reject(err);
-      });
-    });
+          groqResponse.data.on('data', (chunk) => {
+            buffer += chunk.toString();
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+              if (!trimmedLine) continue;
+              if (trimmedLine === 'data: [DONE]') continue;
+              if (trimmedLine.startsWith('data: ')) {
+                const jsonStr = trimmedLine.substring(6).trim();
+                if (!jsonStr) continue;
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  const token = parsed.choices?.[0]?.delta?.content || '';
+                  if (token) {
+                    if (!firstTokenLatency) {
+                      firstTokenLatency = Math.round(
+                        performance.now() - requestStart
+                      );
+                    }
+                    fullText += token;
+                    const suggestionStart = fullText.indexOf('\n>>');
+                    if (suggestionStart === -1) {
+                      sendEvent('chunk', { text: token });
+                    }
+                  }
+                  if (parsed.usage) {
+                    promptTokens = parsed.usage.prompt_tokens;
+                    completionTokens = parsed.usage.completion_tokens;
+                    totalTokens = parsed.usage.total_tokens;
+                  }
+                } catch (e) {
+                  // ignore parse errors for split chunk parts
+                }
+              }
+            }
+          });
+
+          groqResponse.data.on('end', () => {
+            abortController.signal.removeEventListener('abort', onAbort);
+            resolve();
+          });
+
+          groqResponse.data.on('error', (err) => {
+            abortController.signal.removeEventListener('abort', onAbort);
+            reject(err);
+          });
+        });
+
+        groqStreamSuccess = true;
+        modelUsed = candidate;
+      } catch (cErr) {
+        lastGroqErr = cErr;
+        console.warn(`[PoC] Groq candidate ${candidate} failed:`, cErr.message);
+      }
+    }
+
+    if (!groqStreamSuccess) {
+      throw lastGroqErr || new Error('All Groq candidate models failed');
+    }
 
     llmLatency = Math.round(performance.now() - llmStart);
   } catch (err) {

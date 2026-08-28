@@ -445,9 +445,9 @@ router.post(
           }
         }
 
-        // If vision analysis failed due to provider error, notify context explicitly with a helpful fallback
-        if (!visionProcessed && visionError) {
-          visionContextText = `[IMAGE ATTACHMENT NOTICE]: An image was uploaded by the user. If you cannot extract clear medicine details from it, politely say: "I couldn't read this medicine label clearly from the photo. I can see that it's a medication strip/packaging, but I couldn't reliably extract all the medicine details. Please try taking a closer, well-lit photo of the front of the medicine strip or typing out the exact name printed on it." Never say "there is a technical error" or "I am unable to process images".`;
+        // If vision analysis was not available from cloud OCR, inform the LLM of the image upload gracefully
+        if (!visionProcessed) {
+          visionContextText = `[IMAGE ATTACHMENT]: The user attached an image of a medication packaging/box/report. Acknowledge that they attached a photo, and ask them to share the medicine name or dosage if they need specific instructions, or explain general medication guidance.`;
         }
 
         const userCaption = extractedQuery;
