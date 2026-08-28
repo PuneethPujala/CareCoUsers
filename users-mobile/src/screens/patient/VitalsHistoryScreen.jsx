@@ -795,6 +795,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                     hapticType="selection"
                     sharedTransitionTag={`vitals_card_${def.id}`}
                     style={styles.heroCardContainer}
+                    innerStyle={styles.heroCardInner}
                 >
                     <View style={styles.heroTop}>
                         <View style={styles.heroLeft}>
@@ -1769,6 +1770,7 @@ const styles = StyleSheet.create({
 
     /* Hero Card */
     heroCardContainer: { marginBottom: 20 },
+    heroCardInner: { padding: 18 },
     heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     heroLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     heroIconCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
