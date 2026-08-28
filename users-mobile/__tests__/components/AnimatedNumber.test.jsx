@@ -9,27 +9,27 @@ jest.mock('../../src/theme/MotionProvider', () => ({
 
 describe('AnimatedNumber robustness tests', () => {
     it('handles standard positive number correctly', () => {
-        const { getByDisplayValue } = render(<AnimatedNumber value={85} suffix="%" />);
-        expect(getByDisplayValue('85%')).toBeTruthy();
+        const { getByText } = render(<AnimatedNumber value={85} suffix="%" />);
+        expect(getByText('85%')).toBeTruthy();
     });
 
     it('safely handles null value without throwing toFixed error', () => {
-        const { getByDisplayValue } = render(<AnimatedNumber value={null} suffix="%" />);
-        expect(getByDisplayValue('0%')).toBeTruthy();
+        const { getByText } = render(<AnimatedNumber value={null} suffix="%" />);
+        expect(getByText('0%')).toBeTruthy();
     });
 
     it('safely handles undefined value', () => {
-        const { getByDisplayValue } = render(<AnimatedNumber value={undefined} suffix="%" />);
-        expect(getByDisplayValue('0%')).toBeTruthy();
+        const { getByText } = render(<AnimatedNumber value={undefined} suffix="%" />);
+        expect(getByText('0%')).toBeTruthy();
     });
 
     it('safely handles NaN value', () => {
-        const { getByDisplayValue } = render(<AnimatedNumber value={NaN} suffix="%" />);
-        expect(getByDisplayValue('0%')).toBeTruthy();
+        const { getByText } = render(<AnimatedNumber value={NaN} suffix="%" />);
+        expect(getByText('0%')).toBeTruthy();
     });
 
     it('safely handles Infinity value', () => {
-        const { getByDisplayValue } = render(<AnimatedNumber value={Infinity} suffix="%" />);
-        expect(getByDisplayValue('0%')).toBeTruthy();
+        const { getByText } = render(<AnimatedNumber value={Infinity} suffix="%" />);
+        expect(getByText('0%')).toBeTruthy();
     });
 });

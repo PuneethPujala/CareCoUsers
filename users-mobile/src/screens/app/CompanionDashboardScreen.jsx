@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image, Animated, Modal, TouchableOpacity } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, ChevronRight, MessageSquare, ShieldCheck, CircleAlert, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp, TriangleAlert, Package2, BotMessageSquare, ClipboardCheck, Clock3, BrainCircuit, ChartColumnIncreasing, X } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, ChevronRight, MessageSquare, ShieldCheck, CircleAlert, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp, TriangleAlert, Package2, BotMessageSquare, ClipboardCheck, Clock3, BrainCircuit, ChartColumnIncreasing, X, Pill } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import { useMotion } from '../../theme/MotionProvider';
@@ -981,11 +981,11 @@ export default function CompanionDashboardScreen() {
                             <View style={styles.timelineContainer}>
                                 {(() => {
                                     const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
-                                    const sortedSchedule = [...data.medication_schedule].sort((a, b) => {
-                                        const aOrder = SLOT_ORDER[a.scheduled_time] || 99;
-                                        const bOrder = SLOT_ORDER[b.scheduled_time] || 99;
+                                    const sortedSchedule = (Array.isArray(data?.medication_schedule) ? [...data.medication_schedule] : []).sort((a, b) => {
+                                        const aOrder = SLOT_ORDER[a?.scheduled_time] || 99;
+                                        const bOrder = SLOT_ORDER[b?.scheduled_time] || 99;
                                         if (aOrder !== bOrder) return aOrder - bOrder;
-                                        return a.name.localeCompare(b.name);
+                                        return (a?.name || '').localeCompare(b?.name || '');
                                     });
                                     
                                     const TIME_MAPPING = {
@@ -1005,10 +1005,10 @@ export default function CompanionDashboardScreen() {
                                                         {/* Left part: Time & Period */}
                                                         <View style={styles.timelineTimeCol}>
                                                             <Text style={styles.timelineTimeHour}>
-                                                                {TIME_MAPPING[item.scheduled_time]?.time || '08:00'}
+                                                                {TIME_MAPPING[item?.scheduled_time]?.time || '08:00'}
                                                             </Text>
                                                             <Text style={styles.timelineTimePeriod}>
-                                                                {TIME_MAPPING[item.scheduled_time]?.label || 'MORNING'}
+                                                                {TIME_MAPPING[item?.scheduled_time]?.label || 'MORNING'}
                                                             </Text>
                                                         </View>
 
@@ -1016,10 +1016,10 @@ export default function CompanionDashboardScreen() {
                                                         <View style={styles.timelineLineCol}>
                                                             <View style={styles.timelineLineContainer}>
                                                                 {!isLast && <View style={[styles.timelineLine, { 
-                                                                    borderColor: item.taken ? '#10B981' : '#CBD5E1' 
+                                                                    borderColor: item?.taken ? '#10B981' : '#CBD5E1' 
                                                                 }]} />}
                                                                 
-                                                                {item.taken ? (
+                                                                {item?.taken ? (
                                                                     <View style={styles.timelineCheckNode}>
                                                                         <Text style={styles.timelineCheckText}>✓</Text>
                                                                     </View>
@@ -1031,20 +1031,17 @@ export default function CompanionDashboardScreen() {
 
                                                         {/* Right part: clean card with ScalePressable for premium feedback */}
                                                         <ScalePressable 
-                                                            style={[styles.timelineCard, item.taken ? styles.timelineCardTaken : null]}
+                                                            style={[styles.timelineCard, item?.taken ? styles.timelineCardTaken : null]}
                                                             onPress={() => setShowMedicationListModal(true)}
                                                         >
                                                             {/* Pill/Capsule Icon in rounded square */}
-                                                            <View style={[styles.timelineIconBox, { backgroundColor: item.taken ? '#ECFDF5' : '#F1F5F9' }]}>
-                                                                <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={item.taken ? '#10B981' : '#64748B'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                    <Path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
-                                                                    <Path d="m8.5 8.5 7 7" />
-                                                                </Svg>
+                                                            <View style={[styles.timelineIconBox, { backgroundColor: item?.taken ? '#ECFDF5' : '#F1F5F9' }]}>
+                                                                <Pill size={18} color={item?.taken ? '#10B981' : '#64748B'} strokeWidth={2} />
                                                             </View>
 
                                                             <View style={{ flex: 1, paddingRight: 8 }}>
-                                                                <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
-                                                                <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
+                                                                <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item?.name || 'Medication'}</Text>
+                                                                <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item?.dosage || ''}{item?.route ? ` • ${item.route}` : ''}</Text>
                                                             </View>
 
                                                             <View style={[
@@ -1178,16 +1175,13 @@ export default function CompanionDashboardScreen() {
                                 <View style={styles.medListContainer}>
                                     {data.medication_schedule.map((med, idx) => (
                                         <View key={idx} style={styles.medListItem}>
-                                            <View style={[styles.medListIconContainer, { backgroundColor: med.taken ? '#ECFDF5' : '#F8FAFC' }]}>
-                                                <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={med.taken ? '#10B981' : '#64748B'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <Path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
-                                                    <Path d="m8.5 8.5 7 7" />
-                                                </Svg>
+                                            <View style={[styles.medListIconContainer, { backgroundColor: med?.taken ? '#ECFDF5' : '#F8FAFC' }]}>
+                                                <Pill size={20} color={med?.taken ? '#10B981' : '#64748B'} strokeWidth={2} />
                                             </View>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={styles.medListName}>{med.name}</Text>
-                                                <Text style={styles.medListDetails}>{med.dosage} • {med.route}</Text>
-                                                <Text style={styles.medListTime}>Scheduled: {med.scheduled_time?.toUpperCase()}</Text>
+                                                <Text style={styles.medListName}>{med?.name || 'Medication'}</Text>
+                                                <Text style={styles.medListDetails}>{med?.dosage || ''}{med?.route ? ` • ${med.route}` : ''}</Text>
+                                                <Text style={styles.medListTime}>Scheduled: {(med?.scheduled_time || '').toUpperCase()}</Text>
                                             </View>
                                             <View style={[
                                                 styles.medListStatusBadge,

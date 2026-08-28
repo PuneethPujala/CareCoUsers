@@ -580,19 +580,86 @@ export default function VitalsHistoryScreen({ navigation, route }) {
     const getRangeData = useCallback((id) => {
         const def = CHART_DEFS.find(c => c.id === id);
         if (!def || !vitals.length) return [];
+
+        const numDays = timeRange === '30d' ? 30 : timeRange === '7d' ? 7 : 0;
+        
+        if (numDays > 0) {
+            const now = new Date();
+            const daysList = [];
+            for (let i = numDays - 1; i >= 0; i--) {
+                const d = new Date(now);
+                d.setDate(now.getDate() - i);
+                const month = d.toLocaleString('en-US', { month: 'short' });
+                const day = d.getDate();
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const label = `${day} ${month}`;
+                daysList.push({ key, label, date: d });
+            }
+
+            // Group vitals by YYYY-MM-DD
+            const grouped = {};
+            vitals.forEach(v => {
+                const d = new Date(v.date);
+                const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                if (!grouped[k]) grouped[k] = [];
+                const val = def.extract(v);
+                if (val > 0) grouped[k].push(val);
+            });
+
+            // Find latest reading as baseline carry-forward
+            const validReadings = vitals.map(def.extract).filter(v => v > 0);
+            let baseline = validReadings.length > 0 ? validReadings[0] : (def.normalRange ? (def.normalRange[0] + def.normalRange[1]) / 2 : 75);
+
+            return daysList.map(slot => {
+                const dayVals = grouped[slot.key];
+                if (dayVals && dayVals.length > 0) {
+                    const avg = dayVals.reduce((a, b) => a + b, 0) / dayVals.length;
+                    baseline = avg;
+                    return {
+                        x: slot.label,
+                        y: Math.round(avg),
+                        min: Math.min(...dayVals),
+                        max: Math.max(...dayVals),
+                        hasActualLog: true,
+                    };
+                }
+                return {
+                    x: slot.label,
+                    y: Math.round(baseline),
+                    min: Math.round(baseline),
+                    max: Math.round(baseline),
+                    hasActualLog: false,
+                };
+            });
+        }
+
+        // For 'today' or 'custom'
         const grouped = vitals.reduce((acc, v) => {
             const d = new Date(v.date);
-            const key = `${d.getMonth() + 1}/${d.getDate()}`;
+            const key = timeRange === 'today'
+                ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase()
+                : `${d.getDate()} ${d.toLocaleString('en-US', { month: 'short' })}`;
             if (!acc[key]) acc[key] = [];
-            acc[key].push(def.extract(v));
+            const val = def.extract(v);
+            if (val > 0) acc[key].push(val);
             return acc;
         }, {});
-        return Object.keys(grouped).map(key => {
-            const vals = grouped[key].filter(v => v > 0);
-            if (!vals.length) return { x: key, y: 0, min: 0, max: 0 };
-            return { x: key, y: vals.reduce((a, b) => a + b, 0) / vals.length, min: Math.min(...vals), max: Math.max(...vals) };
+
+        const keys = Object.keys(grouped);
+        if (keys.length === 1) {
+            const singleVal = grouped[keys[0]].reduce((a, b) => a + b, 0) / grouped[keys[0]].length;
+            return [
+                { x: keys[0], y: singleVal, min: singleVal, max: singleVal, hasActualLog: true },
+                { x: keys[0], y: singleVal, min: singleVal, max: singleVal, hasActualLog: true }
+            ];
+        }
+
+        return keys.map(key => {
+            const vals = grouped[key];
+            const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+            return { x: key, y: Math.round(avg), min: Math.min(...vals), max: Math.max(...vals), hasActualLog: true };
         }).reverse();
-    }, [vitals]);
+    }, [vitals, timeRange]);
 
     const getStats = (id) => {
         const def = CHART_DEFS.find(c => c.id === id);
@@ -1003,7 +1070,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
             }
         }
 
-        const chartWidth = Math.max(SCREEN_W - 64, 300);
+        const chartWidth = Math.max(SCREEN_W - 76, 280);
 
         return (
             <Animated.View style={{ opacity: staggerAnims[2], marginBottom: 20 }}>
@@ -1032,7 +1099,7 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                                 <View style={{ alignItems: 'center' }}>
                                     <LineChart
                                         data={{
-                                            labels: rangeData.map((d, i) => i % Math.ceil(rangeData.length / 5) === 0 ? d.x : ''),
+                                            labels: rangeData.map((d, i) => (i === 0 || i === Math.floor(rangeData.length / 2) || i === rangeData.length - 1) ? d.x : ''),
                                             datasets: [
                                                 { data: finalMaxData, color: () => 'transparent', strokeWidth: 0, withDots: false },
                                                 { data: finalMinData, color: () => 'transparent', strokeWidth: 0, withDots: false },
@@ -1054,7 +1121,10 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                                             </View>
                                         )}
                                         renderDotContent={({ x, y, index }) => {
-                                            if (index === rangeData.length - 1) {
+                                            // Place pulsing dot on the latest actual logged day or the last item
+                                            const lastActualIdx = rangeData.reduce((acc, d, i) => d.hasActualLog ? i : acc, -1);
+                                            const targetIdx = lastActualIdx !== -1 ? lastActualIdx : rangeData.length - 1;
+                                            if (index === targetIdx) {
                                                 latestX.value = x;
                                                 latestY.value = y;
                                                 hasLatestPoint.value = true;
@@ -1071,11 +1141,11 @@ export default function VitalsHistoryScreen({ navigation, route }) {
                             <View style={{ alignItems: 'center' }}>
                                 <LineChart
                                     data={{
-                                        labels: labels.map((l, i) => i % Math.ceil(labels.length / 5) === 0 ? l : ''),
+                                        labels: labels.map((l, i) => (i === 0 || i === Math.floor(labels.length / 2) || i === labels.length - 1) ? l : ''),
                                         datasets: [
                                             { data: finalMaxData, color: () => 'transparent', strokeWidth: 0, withDots: false },
                                             { data: finalMinData, color: () => 'transparent', strokeWidth: 0, withDots: false },
-                                            { data: mainData, color: () => def.accent, strokeWidth: 3 },
+                                            { data: mainData.length === 1 ? [mainData[0], mainData[0]] : mainData, color: () => def.accent, strokeWidth: 3 },
                                             ...(def.extractAlt ? [{ data: vitals.map(v => Number(def.extractAlt(v)) || 0).reverse(), color: () => '#94A3B840', strokeWidth: 2, withDots: false }] : [])
                                         ]
                                     }}
@@ -1749,7 +1819,15 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden', position: 'relative',
         shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2
     },
-    cardTopAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3.5, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+    cardTopAccent: { 
+        position: 'absolute', 
+        top: 1, 
+        left: 1, 
+        right: 1, 
+        height: 3, 
+        borderTopLeftRadius: 23, 
+        borderTopRightRadius: 23 
+    },
     chartTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingTop: 4 },
     chartTitle: { fontSize: 15, fontWeight: '900', color: '#0F172A' },
     chartSubtitle: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginTop: 1 },

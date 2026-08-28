@@ -349,7 +349,7 @@ const usePatientStore = create((set, get) => ({
                 freshMeds.sort((a, b) => {
                     const orderDiff = (SLOT_ORDER[a.type] || 99) - (SLOT_ORDER[b.type] || 99);
                     if (orderDiff !== 0) return orderDiff;
-                    return a.name.localeCompare(b.name);
+                    return (a?.name || '').localeCompare(b?.name || '');
                 });
 
 
@@ -465,7 +465,7 @@ const usePatientStore = create((set, get) => ({
             freshMeds.sort((a, b) => {
                 const orderDiff = (SLOT_ORDER[a.type] || 99) - (SLOT_ORDER[b.type] || 99);
                 if (orderDiff !== 0) return orderDiff;
-                return a.name.localeCompare(b.name);
+                return (a?.name || '').localeCompare(b?.name || '');
             });
 
 

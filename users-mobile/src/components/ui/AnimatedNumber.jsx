@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, TextInput, Animated } from 'react-native';
+import { StyleSheet, Text, Animated } from 'react-native';
 import { useMotion } from '../../theme/MotionProvider';
 
 export default function AnimatedNumber({
@@ -52,23 +52,16 @@ export default function AnimatedNumber({
     const textValue = `${prefix}${formatted}${suffix}`;
 
     return (
-        <TextInput
-            editable={false}
-            pointerEvents="none"
-            style={[styles.textInput, style]}
-            value={textValue}
-            defaultValue={textValue}
-            {...props}
-        />
+        <Text style={[styles.text, style]} {...props}>
+            {textValue}
+        </Text>
     );
 }
 
 const styles = StyleSheet.create({
-    textInput: {
+    text: {
         fontSize: 32,
         fontWeight: 'bold',
         color: '#0F172A',
-        padding: 0,
-        margin: 0,
     },
 });
