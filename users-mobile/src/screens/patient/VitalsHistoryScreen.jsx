@@ -1793,9 +1793,9 @@ const styles = StyleSheet.create({
     rangeTxtActive: { color: '#FFFFFF' },
 
     /* Custom Date Pickers */
-    datePickerContainer: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' },
+    datePickerContainer: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden' },
     datePickerRow: { flexDirection: 'row', alignItems: 'center' },
-    dateArrow: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    dateArrow: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
     dateBox: { flex: 1, marginHorizontal: 8, backgroundColor: '#F9FAFB', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
     dateLabel: { fontSize: 9, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.5 },
     dateValue: { fontSize: 13, fontWeight: '900', color: '#0F172A' },
@@ -1804,11 +1804,11 @@ const styles = StyleSheet.create({
     statsCardContainer: { marginBottom: 20 },
     statsUnifiedCard: {
         backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 16, paddingHorizontal: 12,
-        flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 2
+        flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden',
+        shadowColor: '#0F172A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2
     },
     statColumn: { flex: 1, alignItems: 'center' },
-    statDivider: { width: 1, height: 32, backgroundColor: '#F1F5F9' },
+    statDivider: { width: 1, height: 32, backgroundColor: '#E2E8F0' },
     statHeader: { flexDirection: 'row', gap: 4, alignItems: 'center', marginBottom: 6 },
     statLabel: { fontSize: 10, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
     statValueRow: { flexDirection: 'column', alignItems: 'center', marginTop: 2 },
@@ -1818,8 +1818,8 @@ const styles = StyleSheet.create({
     /* Chart Card */
     chartCard: {
         backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, marginBottom: 20,
-        borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden', position: 'relative',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2
+        borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden', position: 'relative',
+        shadowColor: '#0F172A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2
     },
     cardTopAccent: { 
         position: 'absolute', 
@@ -1834,19 +1834,19 @@ const styles = StyleSheet.create({
     chartTitle: { fontSize: 15, fontWeight: '900', color: '#0F172A' },
     chartSubtitle: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginTop: 1 },
     chart: { borderRadius: 16, marginVertical: 4 },
-    expandBtn: { padding: 6, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' },
-    trendSummaryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 12, marginTop: 8 },
+    expandBtn: { padding: 6, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+    trendSummaryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12, marginTop: 8 },
     trendSummaryText: { fontSize: 12, fontWeight: '800' },
 
-    emptyChartBox: { height: 130, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', borderStyle: 'dashed' },
+    emptyChartBox: { height: 130, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' },
     emptyChartText: { color: '#94A3B8', fontStyle: 'italic', fontSize: 13, fontWeight: '500' },
     victoryContainer: { marginTop: 4 },
 
     /* AI Coach Card */
     coachCard: {
         backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 20,
-        borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden', shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2
+        borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden', shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2
     },
     coachHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
     coachTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -1881,11 +1881,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#000',
+        borderColor: '#E2E8F0',
+        shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.02,
-        shadowRadius: 6,
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
         elevation: 1,
     },
     readingCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -1909,10 +1909,10 @@ const styles = StyleSheet.create({
         padding: 28,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#000',
+        borderColor: '#E2E8F0',
+        shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
+        shadowOpacity: 0.04,
         shadowRadius: 10,
         elevation: 2,
     },
@@ -1926,8 +1926,8 @@ const styles = StyleSheet.create({
     /* Form Card */
     formCardContainer: {
         backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18,
-        borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden', position: 'relative',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2
+        borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden', position: 'relative',
+        shadowColor: '#0F172A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2
     },
     logToggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
     logTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 12 },

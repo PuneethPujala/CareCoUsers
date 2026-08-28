@@ -75,10 +75,10 @@ const styles = StyleSheet.create({
         borderRadius: radius.xl, // Standard 20px
         backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#F1F5F9',
+        borderColor: '#E2E8F0',
         shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.05,
         shadowRadius: 10,
         elevation: 2,
     },
