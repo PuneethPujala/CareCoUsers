@@ -322,9 +322,9 @@ const s = StyleSheet.create({
         borderRadius: radius.sm,
     },
     actionBtnTaken: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#10B981',
         borderWidth: 1,
-        borderColor: '#A7F3D0',
+        borderColor: '#10B981',
     },
     actionBtnTxt: {
         fontSize: 13,
@@ -332,6 +332,6 @@ const s = StyleSheet.create({
         color: '#FFFFFF',
     },
     actionBtnTxtTaken: {
-        color: '#059669',
+        color: '#FFFFFF',
     },
 });
